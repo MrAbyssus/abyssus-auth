@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 require('dotenv').config();
+const qs = require('querystring'); // Para formatear el cuerpo correctamente
 
 // Ruta institucional raíz
 app.get('/', (req, res) => {
@@ -28,14 +29,13 @@ app.get('/callback', async (req, res) => {
   }
 
   try {
-    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', null, {
-      params: {
-        client_id: process.env.CLIENT_ID,
-        client_secret: process.env.CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: process.env.REDIRECT_URI,
-      },
+    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', qs.stringify({
+      client_id: process.env.CLIENT_ID,
+      client_secret: process.env.CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: process.env.REDIRECT_URI,
+    }), {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
@@ -75,6 +75,7 @@ app.get('/callback', async (req, res) => {
 app.listen(3000, () => {
   console.log('🔐 Abyssus Run activo en Render');
 });
+
 
 
 
