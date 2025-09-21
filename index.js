@@ -20,7 +20,7 @@ app.get('/', async (req, res) => {
       const user = userResponse.data;
 
       perfilHTML = `
-        <section style="background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
+        <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
           <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" style="border-radius:50%; width:120px; height:120px; margin-bottom:20px;" />
           <h2 style="color:#00ffff;">👤 Perfil Discord</h2>
           <p><strong>${user.username}#${user.discriminator}</strong></p>
@@ -32,7 +32,7 @@ app.get('/', async (req, res) => {
     }
   } catch (error) {
     perfilHTML = `
-      <section style="background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+      <section style="background:#1c1c1c; color:#ff4444; padding:30px; text-align:center; border-radius:12px;">
         <h2>❌ Error al cargar el perfil</h2>
         <p>${error.message}</p>
         <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
@@ -41,7 +41,7 @@ app.get('/', async (req, res) => {
   }
 
   recompensasHTML = `
-    <section style="background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
       <h2 style="color:#00ffff;">🎁 Recompensas activas</h2>
       <p>🔓 Módulo premium: <strong>Blindaje semántico</strong></p>
       <p>🧠 Pack activo: <strong>Heurística institucional</strong></p>
@@ -56,7 +56,7 @@ app.get('/', async (req, res) => {
   const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
   statusHTML = `
-    <section style="background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
       <h2 style="color:#00ffff;">📡 Estado del sistema Abyssus</h2>
       <p>🕒 Hora local: <strong>${hora}</strong></p>
       <p>🌐 IP detectada: <strong>${ip}</strong></p>
@@ -67,7 +67,7 @@ app.get('/', async (req, res) => {
   `;
 
   modulosHTML = `
-    <section style="background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
       <h2 style="color:#00ffff;">📦 Sistema Abyssus sincronizado</h2>
       <p>Todos los módulos están activos.</p>
       <p style="margin-top:10px; color:#888;">Blindaje técnico · sincronización OAuth2 · render completo</p>
@@ -76,16 +76,23 @@ app.get('/', async (req, res) => {
   `;
 
   res.send(`
-    <main style="font-family:sans-serif; background:#111; color:#ccc;">
-      <section style="padding:40px; text-align:center;">
-        <h1 style="color:#00ffff;">🔐 Abyssus Dashboard</h1>
-        <p>Servidor activo. Todos los módulos están integrados.</p>
-        <p style="margin-top:10px; color:#888;">Sistema Abyssus · backend blindado</p>
+    <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
+      <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
+        <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
+        <p style="font-size:16px; color:#aaa;">Servidor activo · Todos los módulos están integrados</p>
+        <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
+      </header>
+
+      <section style="max-width:900px; margin:40px auto; display:flex; flex-direction:column; gap:40px;">
+        ${perfilHTML}
+        ${recompensasHTML}
+        ${statusHTML}
+        ${modulosHTML}
       </section>
-      ${perfilHTML}
-      ${recompensasHTML}
-      ${statusHTML}
-      ${modulosHTML}
+
+      <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
+        Sistema Abyssus · render institucional proyectado
+      </footer>
     </main>
   `);
 });
@@ -135,6 +142,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
