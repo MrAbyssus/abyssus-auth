@@ -66,17 +66,14 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  modulosHTML = `
-    <section style="background:#0e0e0e; color:#ccc; padding:40px;">
-      <h2 style="color:#00ffff; text-align:center;">📦 Módulos activos del sistema Abyssus</h2>
-      <ul style="list-style:none; padding:0; margin-top:30px;">
-        <li>✅ <strong>/</strong> — Página institucional completa</li>
-        <li>✅ <strong>/callback</strong> — Procesamiento OAuth2</li>
-      </ul>
-      <p style="margin-top:30px; color:#888; text-align:center;">Todos los módulos están firmados y sincronizados como parte del blindaje técnico Abyssus.</p>
-      <p style="margin-top:10px; color:#555; text-align:center;">Sistema Abyssus · verificador institucional proyectado</p>
-    </section>
-  `;
+modulosHTML = `
+  <section style="background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
+    <h2 style="color:#00ffff;">📦 Sistema Abyssus sincronizado</h2>
+    <p>Todos los módulos están activos, firmados y proyectando sesión institucional.</p>
+    <p style="margin-top:10px; color:#888;">Blindaje técnico · sincronización OAuth2 · render completo</p>
+    <p style="margin-top:20px; color:#555;">Sistema Abyssus · estado firmado</p>
+  </section>
+`;
 
   res.send(`
     <main style="font-family:sans-serif; background:#111; color:#ccc;">
