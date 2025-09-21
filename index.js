@@ -81,7 +81,7 @@ app.get('/', async (req, res) => {
       <h2 style="color:#00ffff;">🧩 Estado del cliente</h2>
       <p>🔌 Conexión: <strong>${token ? 'Activa' : 'Desconectada'}</strong></p>
       <p>📡 Token procesado: <strong>${token ? 'Sí' : 'No'}</strong></p>
-      <p>🧠 Sesión institucional: <strong>${token ? 'Proyectada' : 'No iniciada'}</strong></p>
+      <p>🧠 Sesión: <strong>${token ? 'Proyectada' : 'No iniciada'}</strong></p>
       <p style="margin-top:10px; color:#888;">Sistema Abyssus · cliente sincronizado</p>
       <p style="margin-top:20px; color:#555;">Módulo /cliente · render firmado</p>
     </section>
