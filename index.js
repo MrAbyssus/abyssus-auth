@@ -17,14 +17,10 @@ app.get('/', (req, res) => {
 // Ruta de redirección OAuth2
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
-  if (!code) {
-    return res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; border-radius:10px; text-align:center;">
-        <h2>❌ Código OAuth2 no recibido</h2>
-        <p>Discord no envió el parámetro <code>code</code>. Verificá el <strong>redirect_uri</strong> y la configuración del botón.</p>
-        <p style="margin-top:10px; color:#888;">Sistema Abyssus · verificación fallida</p>
-      </section>
-    `);
+
+  // 🔐 Blindaje contra recarga o código inválido
+  if (!code || code.length < 10) {
+    return res.redirect('/');
   }
 
   try {
@@ -44,22 +40,8 @@ app.get('/callback', async (req, res) => {
 
     const accessToken = tokenResponse.data.access_token;
 
-    const userResponse = await axios.get('https://discord.com/api/users/@me', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    const user = userResponse.data;
-
-    res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ccc; padding:30px; border-radius:10px; text-align:center;">
-        <h2 style="color:#00ffff;">✅ Sesión iniciada</h2>
-        <p>Bienvenido, <strong>${user.username}#${user.discriminator}</strong></p>
-        <p>ID: ${user.id}</p>
-        <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión verificada</p>
-      </section>
-    `);
+    // 🔁 Redirigir al perfil institucional con el token
+    res.redirect(`/perfil?token=${accessToken}`);
   } catch (err) {
     console.error('Error OAuth2:', err.response?.data || err.message);
     res.send(`
@@ -72,10 +54,48 @@ app.get('/callback', async (req, res) => {
   }
 });
 
+// Ruta institucional de perfil
+app.get('/perfil', async (req, res) => {
+  const token = req.query.token;
+  if (!token || token.length < 10) {
+    return res.redirect('/');
+  }
+
+  try {
+    const userResponse = await axios.get('https://discord.com/api/users/@me', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const user = userResponse.data;
+
+    res.send(`
+      <section style="font-family:sans-serif; background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
+        <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" style="border-radius:50%; width:120px; height:120px; margin-bottom:20px;" />
+        <h2 style="color:#00ffff;">👤 Perfil institucional</h2>
+        <p><strong>${user.username}#${user.discriminator}</strong></p>
+        <p>ID: ${user.id}</p>
+        <p style="margin-top:10px; color:#888;">Estado: <span style="color:#00ff88;">Verificado</span> · Premium activo</p>
+        <p style="margin-top:20px; color:#555;">Sistema Abyssus · sesión proyectada</p>
+      </section>
+    `);
+  } catch (err) {
+    res.send(`
+      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; border-radius:10px; text-align:center;">
+        <h2>❌ Error al cargar el perfil</h2>
+        <p>${err.response?.data?.error || 'Token inválido o expirado'}</p>
+        <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
+      </section>
+    `);
+  }
+});
+
 // Puerto institucional
 app.listen(3000, () => {
   console.log('🔐 Abyssus Run activo en Render');
 });
+
 
 
 
