@@ -69,7 +69,7 @@ app.get('/', async (req, res) => {
   modulosHTML = `
     <section style="background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
       <h2 style="color:#00ffff;">📦 Sistema Abyssus sincronizado</h2>
-      <p>Todos los módulos están activos, firmados y proyectando sesión institucional.</p>
+      <p>Todos los módulos están activos.</p>
       <p style="margin-top:10px; color:#888;">Blindaje técnico · sincronización OAuth2 · render completo</p>
       <p style="margin-top:20px; color:#555;">Sistema Abyssus · estado firmado</p>
     </section>
