@@ -41,18 +41,13 @@ app.get('/callback', async (req, res) => {
       },
     });
 
- const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', null, {
-  params: {
-    client_id: process.env.CLIENT_ID,
-    client_secret: process.env.CLIENT_SECRET,
-    grant_type: 'authorization_code',
-    code: code,
-    redirect_uri: process.env.REDIRECT_URI,
-  },
-  headers: {
-    'Content-Type': 'application/x-www-form-urlencoded',
-  },
-});
+    const accessToken = tokenResponse.data.access_token;
+
+    const userResponse = await axios.get('https://discord.com/api/users/@me', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
 
     const user = userResponse.data;
 
@@ -65,10 +60,11 @@ app.get('/callback', async (req, res) => {
       </section>
     `);
   } catch (err) {
+    console.error('Error OAuth2:', err.response?.data || err.message);
     res.send(`
       <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; border-radius:10px; text-align:center;">
         <h2>❌ Error al procesar el código OAuth2</h2>
-        <p>Verificá que el <strong>CLIENT_SECRET</strong> y el <strong>redirect_uri</strong> coincidan exactamente con los registrados en Discord.</p>
+        <p>${err.response?.data?.error || 'Error desconocido'}</p>
         <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
       </section>
     `);
@@ -79,5 +75,6 @@ app.get('/callback', async (req, res) => {
 app.listen(3000, () => {
   console.log('🔐 Abyssus Run activo en Render');
 });
+
 
 
