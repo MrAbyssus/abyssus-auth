@@ -78,9 +78,9 @@ app.get('/', async (req, res) => {
   res.send(`
     <main style="font-family:sans-serif; background:#111; color:#ccc;">
       <section style="padding:40px; text-align:center;">
-        <h1 style="color:#00ffff;">🔐 Abyssus Auth</h1>
+        <h1 style="color:#00ffff;">🔐 Abyssus Dashboard</h1>
         <p>Servidor activo. Todos los módulos están integrados.</p>
-        <p style="margin-top:10px; color:#888;">Sistema institucional · backend blindado</p>
+        <p style="margin-top:10px; color:#888;">Sistema Abyssus · backend blindado</p>
       </section>
       ${perfilHTML}
       ${recompensasHTML}
