@@ -51,7 +51,7 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'Desconocida';
   const region = req.headers['x-vercel-ip-country'] || 'Desconocida';
   const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
@@ -66,14 +66,14 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-modulosHTML = `
-  <section style="background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
-    <h2 style="color:#00ffff;">📦 Sistema Abyssus sincronizado</h2>
-    <p>Todos los módulos están activos, firmados y proyectando sesión institucional.</p>
-    <p style="margin-top:10px; color:#888;">Blindaje técnico · sincronización OAuth2 · render completo</p>
-    <p style="margin-top:20px; color:#555;">Sistema Abyssus · estado firmado</p>
-  </section>
-`;
+  modulosHTML = `
+    <section style="background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
+      <h2 style="color:#00ffff;">📦 Sistema Abyssus sincronizado</h2>
+      <p>Todos los módulos están activos, firmados y proyectando sesión institucional.</p>
+      <p style="margin-top:10px; color:#888;">Blindaje técnico · sincronización OAuth2 · render completo</p>
+      <p style="margin-top:20px; color:#555;">Sistema Abyssus · estado firmado</p>
+    </section>
+  `;
 
   res.send(`
     <main style="font-family:sans-serif; background:#111; color:#ccc;">
@@ -130,10 +130,12 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-// 🚀 Puerto institucional
-app.listen(3000, () => {
-  console.log('🔐 Abyssus Run activo en Render');
+// 🚀 Puerto institucional dinámico
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
