@@ -10,6 +10,7 @@ app.get('/', async (req, res) => {
   let recompensasHTML = '';
   let statusHTML = '';
   let modulosHTML = '';
+  let clienteHTML = '';
 
   try {
     if (token && token.length > 10) {
@@ -75,6 +76,17 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
+  clienteHTML = `
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
+      <h2 style="color:#00ffff;">🧩 Estado del cliente</h2>
+      <p>🔌 Conexión: <strong>${token ? 'Activa' : 'Desconectada'}</strong></p>
+      <p>📡 Token procesado: <strong>${token ? 'Sí' : 'No'}</strong></p>
+      <p>🧠 Sesión institucional: <strong>${token ? 'Proyectada' : 'No iniciada'}</strong></p>
+      <p style="margin-top:10px; color:#888;">Sistema Abyssus · cliente sincronizado</p>
+      <p style="margin-top:20px; color:#555;">Módulo /cliente · render firmado</p>
+    </section>
+  `;
+
   res.send(`
     <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
       <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
@@ -88,6 +100,7 @@ app.get('/', async (req, res) => {
         ${recompensasHTML}
         ${statusHTML}
         ${modulosHTML}
+        ${clienteHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
@@ -126,11 +139,11 @@ app.get('/callback', async (req, res) => {
 
     const accessToken = tokenResponse.data.access_token;
     res.redirect(`/?token=${accessToken}`);
-  } catch (err) {
+   } catch (err) {
     res.send(`
       <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
         <h2>❌ Error al procesar el código OAuth2</h2>
-        <p>${err.response?.data?.error || 'Error desconocido'}</p>
+        <p>${err.response?.data?.error || err.message || 'Error desconocido'}</p>
         <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
       </section>
     `);
