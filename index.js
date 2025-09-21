@@ -91,6 +91,20 @@ app.get('/perfil', async (req, res) => {
   }
 });
 
+app.get('/recompensas', (req, res) => {
+  res.send(`
+    <section style="font-family:sans-serif; background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
+      <h2 style="color:#00ffff;">🎁 Recompensas activas</h2>
+      <p>🔓 Módulo premium: <strong>Blindaje semántico</strong></p>
+      <p>🧠 Pack activo: <strong>Heurística institucional</strong></p>
+      <p>📦 Upgrade técnico: <strong>OAuth2 sincronizado</strong></p>
+      <p style="margin-top:10px; color:#888;">Estado emocional: <span style="color:#00ff88;">Estable</span> · Proyección institucional activa</p>
+      <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo de recompensas firmado</p>
+    </section>
+  `);
+});
+
+
 app.get('/status', (req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const region = req.headers['x-vercel-ip-country'] || 'Desconocida';
