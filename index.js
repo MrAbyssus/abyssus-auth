@@ -73,7 +73,7 @@ app.get('/perfil', async (req, res) => {
     res.send(`
       <section style="font-family:sans-serif; background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
         <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" style="border-radius:50%; width:120px; height:120px; margin-bottom:20px;" />
-        <h2 style="color:#00ffff;">👤 Perfil institucional</h2>
+        <h2 style="color:#00ffff;">👤 Perfil Discord</h2>
         <p><strong>${user.username}#${user.discriminator}</strong></p>
         <p>ID: ${user.id}</p>
         <p style="margin-top:10px; color:#888;">Estado: <span style="color:#00ff88;">Verificado</span> · Premium activo</p>
@@ -90,6 +90,24 @@ app.get('/perfil', async (req, res) => {
     `);
   }
 });
+
+app.get('/status', (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const region = req.headers['x-vercel-ip-country'] || 'Desconocida';
+  const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
+
+  res.send(`
+    <section style="font-family:sans-serif; background:#0e0e0e; color:#ccc; padding:40px; text-align:center;">
+      <h2 style="color:#00ffff;">📡 Estado del sistema Abyssus</h2>
+      <p>🕒 Hora local: <strong>${hora}</strong></p>
+      <p>🌐 IP detectada: <strong>${ip}</strong></p>
+      <p>📍 Región estimada: <strong>${region}</strong></p>
+      <p style="margin-top:10px; color:#888;">Backend activo · sincronización OAuth2 verificada</p>
+      <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo de diagnóstico firmado</p>
+    </section>
+  `);
+});
+
 
 // Puerto institucional
 app.listen(3000, () => {
