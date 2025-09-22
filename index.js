@@ -14,6 +14,7 @@ app.get('/', async (req, res) => {
   let clienteHTML = '';
   let economiaHTML = '';
   let moderacionHTML = '';
+  let packsHTML = '';
 
   try {
     if (token && token.length > 10) {
@@ -128,7 +129,7 @@ app.get('/', async (req, res) => {
       <p>🔌 Conexión: <strong>${token ? 'Activa' : 'Desconectada'}</strong></p>
       <p>📡 Token procesado: <strong>${token ? 'Sí' : 'No'}</strong></p>
       <p>🧠 Sesión: <strong>${token ? 'Proyectada' : 'No iniciada'}</strong></p>
-          <p style="margin-top:10px; color:#888;">Sistema Abyssus · cliente sincronizado</p>
+            <p style="margin-top:10px; color:#888;">Sistema Abyssus · cliente sincronizado</p>
       <p style="margin-top:20px; color:#555;">Módulo /cliente · render firmado</p>
     </section>
   `;
@@ -148,6 +149,7 @@ app.get('/', async (req, res) => {
         ${clienteHTML}
         ${economiaHTML}
         ${moderacionHTML}
+        ${packsHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
@@ -160,6 +162,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
