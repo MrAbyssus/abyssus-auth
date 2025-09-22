@@ -12,6 +12,10 @@ app.get('/', async (req, res) => {
   let modulosHTML = '';
   let clienteHTML = '';
   let packsHTML = '';
+  let utilidadHTML = '';
+
+  const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
+  const agente = req.headers['user-agent'];
 
   try {
     if (token && token.length > 10) {
@@ -52,8 +56,6 @@ app.get('/', async (req, res) => {
       <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo de recompensas firmado</p>
     </section>
   `;
-
-  const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
   statusHTML = `
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
@@ -98,11 +100,28 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
+  utilidadHTML = `
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
+      <h2 style="color:#00ffff;">🧠 Información útil</h2>
+      <p>📅 Última sesión iniciada: <strong>${hora}</strong></p>
+      <p>🧭 Navegador detectado: <strong>${agente}</strong></p>
+      <div style="margin-top:30px;">
+        <p style="color:#ccc;">🔗 Enlaces útiles:</p>
+        <p>
+          📡 <a href="http://abyssusbot.mired.ovh:3000/status" target="_blank" style="color:#00ffff; text-decoration:underline;">Estado en vivo del sistema</a><br>
+          📄 <a href="https://abyssusbot.info/privacidad" target="_blank" style="color:#00ffff; text-decoration:underline;">Aviso de privacidad</a><br>
+          📘 <a href="changelog.html" target="_blank" style="color:#00ffff; text-decoration:underline;">Changelog firmado</a>
+        </p>
+      </div>
+      <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo de utilidad proyectado</p>
+    </section>
+  `;
+
   res.send(`
     <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
       <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
         <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
-        <p style="font-size:16px; color:#aaa;">Servidor activo · Todos los módulos están integrados</p>
+                <p style="font-size:16px; color:#aaa;">Servidor activo · Todos los módulos están integrados</p>
         <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
       </header>
 
@@ -113,6 +132,7 @@ app.get('/', async (req, res) => {
         ${modulosHTML}
         ${clienteHTML}
         ${packsHTML}
+        ${utilidadHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
@@ -139,6 +159,10 @@ app.get('/callback', async (req, res) => {
   try {
     const data = new URLSearchParams({
       client_id: process.env.CLIENT_ID,
+      client_secret: process.env.CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: process.env.REDIRECT_URI,
     });
 
     const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', data.toString(), {
@@ -156,7 +180,7 @@ app.get('/callback', async (req, res) => {
       </section>
     `);
   }
-}); // ← cierre de /callback
+});
 
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
