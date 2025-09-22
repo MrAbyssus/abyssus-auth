@@ -46,9 +46,9 @@ app.get('/', async (req, res) => {
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
       <h2 style="color:#00ffff;">🎁 Recompensas activas</h2>
       <p>🔓 Módulo premium: <strong>Blindaje semántico</strong></p>
-      <p>🧠 Pack activo: <strong>Heurística institucional</strong></p>
+      <p>🧠 Pack activo: <strong>Heurística avanzada</strong></p>
       <p>📦 Upgrade técnico: <strong>OAuth2 sincronizado</strong></p>
-      <p style="margin-top:10px; color:#888;">Estado emocional: <span style="color:#00ff88;">Estable</span> · Proyección institucional activa</p>
+      <p style="margin-top:10px; color:#888;">Estado emocional: <span style="color:#00ff88;">Estable</span> · Proyección activa</p>
       <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo de recompensas firmado</p>
     </section>
   `;
@@ -89,7 +89,7 @@ app.get('/', async (req, res) => {
   packsHTML = `
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffcc33;">
       <h2 style="color:#00ffcc;">💠 Packs premium activos</h2>
-      <p>🧠 Heurística institucional: <strong>Activa</strong></p>
+      <p>🧠 Heurística avanzada: <strong>Activa</strong></p>
       <p>🔓 Blindaje semántico: <strong>Aplicado</strong></p>
       <p>📦 OAuth2 sincronizado: <strong>Verificado</strong></p>
       <p>🎨 Render emocional: <strong>Firmado</strong></p>
@@ -116,7 +116,7 @@ app.get('/', async (req, res) => {
       </section>
 
       <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
-        Sistema Abyssus · render institucional proyectado
+        Sistema Abyssus · render proyectado
       </footer>
     </main>
   `);
@@ -136,39 +136,30 @@ app.get('/callback', async (req, res) => {
     `);
   }
 
-  try {
-    const data = new URLSearchParams({
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: process.env.REDIRECT_URI,
-    });
+ try {
+  const data = new URLSearchParams({
+    client_id: process.env.CLIENT_ID,
+    client_secret: process.env.CLIENT_SECRET,
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: process.env.REDIRECT_URI,
+  });
 
-    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', data.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
+  const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', data.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
 
-    const accessToken = tokenResponse.data.access_token;
-    res.redirect(`/?token=${accessToken}`);
-  } catch (err) {
-    res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
-        <h2>❌ Error al procesar el código OAuth2</h2>
-        <p>${err.response?.data?.error || err.message || 'Error desconocido'}</p>
-        <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
-      </section>
-    `);
-  }
-});
-const PORT = process.env.PORT;
-
-if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
-
-app.listen(PORT, () => {
-  console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
-});
-
+  const accessToken = tokenResponse.data.access_token;
+  res.redirect(`/?token=${accessToken}`);
+} catch (err) {
+  res.send(`
+    <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+      <h2>❌ Error al procesar el código OAuth2</h2>
+      <p>${err.response?.data?.error || err.message || 'Error desconocido'}</p>
+      <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
+    </section>
+  `);
+}
 
 
 
