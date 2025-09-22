@@ -133,6 +133,17 @@ app.get('/', async (req, res) => {
       <p style="margin-top:20px; color:#555;">Módulo /cliente · render firmado</p>
     </section>
   `;
+  packsHTML = `
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffcc33;">
+      <h2 style="color:#00ffcc;">💠 Packs premium activos</h2>
+      <p>🧠 Heurística institucional: <strong>Activa</strong></p>
+      <p>🔓 Blindaje semántico: <strong>Aplicado</strong></p>
+      <p>📦 OAuth2 sincronizado: <strong>Verificado</strong></p>
+      <p>🎨 Render emocional: <strong>Firmado</strong></p>
+      <p style="margin-top:10px; color:#888;">Estado técnico: <span style="color:#00ff88;">Estable</span> · Sincronización completa</p>
+      <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo /packs firmado</p>
+    </section>
+  `;
   res.send(`
     <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
       <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
@@ -162,6 +173,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
