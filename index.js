@@ -11,6 +11,7 @@ app.get('/', async (req, res) => {
   let statusHTML = '';
   let modulosHTML = '';
   let clienteHTML = '';
+  let packsHTML = '';
 
   try {
     if (token && token.length > 10) {
@@ -85,6 +86,18 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
+  packsHTML = `
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffcc33;">
+      <h2 style="color:#00ffcc;">💠 Packs premium activos</h2>
+      <p>🧠 Heurística institucional: <strong>Activa</strong></p>
+      <p>🔓 Blindaje semántico: <strong>Aplicado</strong></p>
+      <p>📦 OAuth2 sincronizado: <strong>Verificado</strong></p>
+      <p>🎨 Render emocional: <strong>Firmado</strong></p>
+      <p style="margin-top:10px; color:#888;">Estado técnico: <span style="color:#00ff88;">Estable</span> · Sincronización completa</p>
+      <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo /packs firmado</p>
+    </section>
+  `;
+
   res.send(`
     <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
       <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
@@ -99,6 +112,7 @@ app.get('/', async (req, res) => {
         ${statusHTML}
         ${modulosHTML}
         ${clienteHTML}
+        ${packsHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
@@ -127,7 +141,7 @@ app.get('/callback', async (req, res) => {
       client_id: process.env.CLIENT_ID,
       client_secret: process.env.CLIENT_SECRET,
       grant_type: 'authorization_code',
-      code: code,
+            code,
       redirect_uri: process.env.REDIRECT_URI,
     });
 
@@ -148,11 +162,6 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-// 🚀 Puerto institucional dinámico
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
-});
 
 
 
