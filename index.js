@@ -136,30 +136,38 @@ app.get('/callback', async (req, res) => {
     `);
   }
 
- try {
-  const data = new URLSearchParams({
-    client_id: process.env.CLIENT_ID,
-    client_secret: process.env.CLIENT_SECRET,
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: process.env.REDIRECT_URI,
-  });
+  try {
+    const data = new URLSearchParams({
+      client_id: process.env.CLIENT_ID,
+      client_secret: process.env.CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: process.env.REDIRECT_URI,
+    });
 
-  const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', data.toString(), {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  });
+    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', data.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
 
-  const accessToken = tokenResponse.data.access_token;
-  res.redirect(`/?token=${accessToken}`);
-} catch (err) {
-  res.send(`
-    <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
-      <h2>❌ Error al procesar el código OAuth2</h2>
-      <p>${err.response?.data?.error || err.message || 'Error desconocido'}</p>
-      <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
-    </section>
-  `);
-}
+    const accessToken = tokenResponse.data.access_token;
+    res.redirect(`/?token=${accessToken}`);
+  } catch (err) {
+    res.send(`
+      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+        <h2>❌ Error al procesar el código OAuth2</h2>
+        <p>${err.response?.data?.error || err.message || 'Error desconocido'}</p>
+        <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
+      </section>
+    `);
+  }
+}); // ← cierre de app.get
+
+const PORT = process.env.PORT;
+if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
+
+app.listen(PORT, () => {
+  console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
+});
 
 
 
