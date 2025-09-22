@@ -1,10 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
 const app = express();
 
+// 🔐 Ruta institucional raíz
 app.get('/', async (req, res) => {
   const token = req.query.token;
   let perfilHTML = '';
@@ -12,9 +11,6 @@ app.get('/', async (req, res) => {
   let statusHTML = '';
   let modulosHTML = '';
   let clienteHTML = '';
-  let economiaHTML = '';
-  let moderacionHTML = '';
-  let packsHTML = '';
 
   try {
     if (token && token.length > 10) {
@@ -24,7 +20,6 @@ app.get('/', async (req, res) => {
 
       const user = userResponse.data;
 
-      // 🔗 Perfil
       perfilHTML = `
         <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
           <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" style="border-radius:50%; width:120px; height:120px; margin-bottom:20px;" />
@@ -35,47 +30,6 @@ app.get('/', async (req, res) => {
           <p style="margin-top:20px; color:#555;">Sistema Abyssus · sesión proyectada</p>
         </section>
       `;
-
-      // 🔗 Economía
-      try {
-        const economiaPath = path.join(__dirname, 'economia.json');
-        if (!fs.existsSync(economiaPath)) fs.writeFileSync(economiaPath, '{}');
-        const economiaData = JSON.parse(fs.readFileSync(economiaPath, 'utf8'));
-        const usuarioEconomia = economiaData[user.id];
-        economiaHTML = usuarioEconomia ? `
-          <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ff8833;">
-            <h2 style="color:#00ff88;">💰 Economía institucional</h2>
-            <p>Monedas: <strong>${usuarioEconomia.monedas}</strong></p>
-            <p>Nivel: <strong>${usuarioEconomia.nivel}</strong></p>
-            <p>Última transacción: <strong>${usuarioEconomia.ultima}</strong></p>
-            <p style="margin-top:10px; color:#888;">Sistema Abyssus · economía proyectada</p>
-            <p style="margin-top:20px; color:#555;">Módulo /economia · render firmado</p>
-          </section>
-        ` : `
-          <section style="background:#1c1c1c; color:#999; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ff8833;">
-            <h2 style="color:#00ff88;">💰 Economía institucional</h2>
-            <p>Este usuario no tiene datos registrados en <code>economia.json</code>.</p>
-            <p style="margin-top:10px; color:#888;">Sistema Abyssus · economía no proyectada</p>
-            <p style="margin-top:20px; color:#555;">Módulo /economia · sin huella registrada</p>
-          </section>
-        `;
-      } catch {}
-
-      // 🔗 Moderación
-      try {
-        const modlogsPath = path.join(__dirname, 'modlogs.json');
-        if (!fs.existsSync(modlogsPath)) fs.writeFileSync(modlogsPath, '[]');
-        const modlogsData = JSON.parse(fs.readFileSync(modlogsPath, 'utf8'));
-        const logsUsuario = modlogsData.filter(log => log.usuario === user.id);
-        moderacionHTML = logsUsuario.length > 0 ? `
-          <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #ff444433;">
-            <h2 style="color:#ff4444;">🛡️ Moderación registrada</h2>
-            ${logsUsuario.map(log => `<p>${log.tipo} · ${log.fecha}</p>`).join('')}
-            <p style="margin-top:10px; color:#888;">Sistema Abyssus · moderación proyectada</p>
-            <p style="margin-top:20px; color:#555;">Módulo /modlogs · render firmado</p>
-          </section>
-        ` : '';
-      } catch {}
     }
   } catch (error) {
     perfilHTML = `
@@ -87,7 +41,6 @@ app.get('/', async (req, res) => {
     `;
   }
 
-  // 🔗 Recompensas
   recompensasHTML = `
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
       <h2 style="color:#00ffff;">🎁 Recompensas activas</h2>
@@ -99,8 +52,8 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  // 🔗 Estado
   const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
+
   statusHTML = `
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
       <h2 style="color:#00ffff;">📡 Estado del sistema Abyssus</h2>
@@ -112,7 +65,6 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  // 🔗 Módulos
   modulosHTML = `
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
       <h2 style="color:#00ffff;">📦 Sistema Abyssus sincronizado</h2>
@@ -122,28 +74,17 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  // 🔗 Cliente
   clienteHTML = `
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
       <h2 style="color:#00ffff;">🧩 Estado del cliente</h2>
       <p>🔌 Conexión: <strong>${token ? 'Activa' : 'Desconectada'}</strong></p>
       <p>📡 Token procesado: <strong>${token ? 'Sí' : 'No'}</strong></p>
       <p>🧠 Sesión: <strong>${token ? 'Proyectada' : 'No iniciada'}</strong></p>
-            <p style="margin-top:10px; color:#888;">Sistema Abyssus · cliente sincronizado</p>
+      <p style="margin-top:10px; color:#888;">Sistema Abyssus · cliente sincronizado</p>
       <p style="margin-top:20px; color:#555;">Módulo /cliente · render firmado</p>
     </section>
   `;
-  packsHTML = `
-    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffcc33;">
-      <h2 style="color:#00ffcc;">💠 Packs premium activos</h2>
-      <p>🧠 Heurística institucional: <strong>Activa</strong></p>
-      <p>🔓 Blindaje semántico: <strong>Aplicado</strong></p>
-      <p>📦 OAuth2 sincronizado: <strong>Verificado</strong></p>
-      <p>🎨 Render emocional: <strong>Firmado</strong></p>
-      <p style="margin-top:10px; color:#888;">Estado técnico: <span style="color:#00ff88;">Estable</span> · Sincronización completa</p>
-      <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo /packs firmado</p>
-    </section>
-  `;
+
   res.send(`
     <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
       <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
@@ -158,9 +99,6 @@ app.get('/', async (req, res) => {
         ${statusHTML}
         ${modulosHTML}
         ${clienteHTML}
-        ${economiaHTML}
-        ${moderacionHTML}
-        ${packsHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
@@ -169,6 +107,48 @@ app.get('/', async (req, res) => {
     </main>
   `);
 });
+
+// 🔁 Ruta de procesamiento OAuth2
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+
+  if (!code || code.length < 10) {
+    return res.send(`
+      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+        <h2>❌ Código OAuth2 no recibido</h2>
+        <p>Discord no envió el parámetro <code>code</code>. Esta ruta requiere redirección desde el login.</p>
+        <p style="margin-top:10px; color:#888;">Sistema Abyssus · verificación fallida</p>
+      </section>
+    `);
+  }
+
+  try {
+    const data = new URLSearchParams({
+      client_id: process.env.CLIENT_ID,
+      client_secret: process.env.CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: process.env.REDIRECT_URI,
+    });
+
+    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', data.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+
+    const accessToken = tokenResponse.data.access_token;
+    res.redirect(`/?token=${accessToken}`);
+  } catch (err) {
+    res.send(`
+      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+        <h2>❌ Error al procesar el código OAuth2</h2>
+        <p>${err.response?.data?.error || err.message || 'Error desconocido'}</p>
+        <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
+      </section>
+    `);
+  }
+});
+
+// 🚀 Puerto institucional dinámico
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
