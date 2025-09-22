@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 const app = express();
 
 // 🔐 Ruta institucional raíz
@@ -11,6 +13,8 @@ app.get('/', async (req, res) => {
   let statusHTML = '';
   let modulosHTML = '';
   let clienteHTML = '';
+  let economiaHTML = '';
+  let moderacionHTML = '';
 
   try {
     if (token && token.length > 10) {
@@ -30,6 +34,44 @@ app.get('/', async (req, res) => {
           <p style="margin-top:20px; color:#555;">Sistema Abyssus · sesión proyectada</p>
         </section>
       `;
+
+      // 🔗 Conexión con economía
+      try {
+        const economiaPath = path.join(__dirname, 'economia.json');
+        const economiaData = JSON.parse(fs.readFileSync(economiaPath, 'utf8'));
+        const usuarioEconomia = economiaData[user.id];
+
+        if (usuarioEconomia) {
+          economiaHTML = `
+            <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ff8833;">
+              <h2 style="color:#00ff88;">💰 Economía institucional</h2>
+              <p>Monedas: <strong>${usuarioEconomia.monedas}</strong></p>
+              <p>Nivel: <strong>${usuarioEconomia.nivel}</strong></p>
+              <p>Última transacción: <strong>${usuarioEconomia.ultima}</strong></p>
+              <p style="margin-top:10px; color:#888;">Sistema Abyssus · economía proyectada</p>
+              <p style="margin-top:20px; color:#555;">Módulo /economia · render firmado</p>
+            </section>
+          `;
+        }
+      } catch {}
+
+      // 🔗 Conexión con moderación
+      try {
+        const modlogsPath = path.join(__dirname, 'modlogs.json');
+        const modlogsData = JSON.parse(fs.readFileSync(modlogsPath, 'utf8'));
+        const logsUsuario = modlogsData.filter(log => log.usuario === user.id);
+
+        if (logsUsuario.length > 0) {
+          moderacionHTML = `
+            <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #ff444433;">
+              <h2 style="color:#ff4444;">🛡️ Moderación registrada</h2>
+              ${logsUsuario.map(log => `<p>${log.tipo} · ${log.fecha}</p>`).join('')}
+              <p style="margin-top:10px; color:#888;">Sistema Abyssus · moderación proyectada</p>
+              <p style="margin-top:20px; color:#555;">Módulo /modlogs · render firmado</p>
+            </section>
+          `;
+        }
+      } catch {}
     }
   } catch (error) {
     perfilHTML = `
@@ -90,15 +132,18 @@ app.get('/', async (req, res) => {
       <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
         <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
         <p style="font-size:16px; color:#aaa;">Servidor activo · Todos los módulos están integrados</p>
+        <p style="margin-top:10px; color:#666;">Sistema Abyssus
         <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
       </header>
 
-      <section style="max-width:900px; margin:40px auto; display:flex; flex-direction:column; gap:40px;">
+           <section style="max-width:900px; margin:40px auto; display:flex; flex-direction:column; gap:40px;">
         ${perfilHTML}
         ${recompensasHTML}
         ${statusHTML}
         ${modulosHTML}
         ${clienteHTML}
+        ${economiaHTML}
+        ${moderacionHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
@@ -108,51 +153,7 @@ app.get('/', async (req, res) => {
   `);
 });
 
-// 🔁 Ruta de procesamiento OAuth2
-app.get('/callback', async (req, res) => {
-  const code = req.query.code;
 
-  if (!code || code.length < 10) {
-    return res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
-        <h2>❌ Código OAuth2 no recibido</h2>
-        <p>Discord no envió el parámetro <code>code</code>. Esta ruta requiere redirección desde el login.</p>
-        <p style="margin-top:10px; color:#888;">Sistema Abyssus · verificación fallida</p>
-      </section>
-    `);
-  }
-
-  try {
-    const data = new URLSearchParams({
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: process.env.REDIRECT_URI,
-    });
-
-    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', data.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
-
-    const accessToken = tokenResponse.data.access_token;
-    res.redirect(`/?token=${accessToken}`);
-  } catch (err) {
-    res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
-        <h2>❌ Error al procesar el código OAuth2</h2>
-        <p>${err.response?.data?.error || err.message || 'Error desconocido'}</p>
-        <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
-      </section>
-    `);
-  }
-});
-
-// 🚀 Puerto institucional dinámico
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
-});
 
 
 
