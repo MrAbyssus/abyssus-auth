@@ -3,7 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 
-// 🔐 Ruta institucional raíz
+// 🔐 Ruta raíz
 app.get('/', async (req, res) => {
   const token = req.query.token;
   let perfilHTML = '';
@@ -139,10 +139,6 @@ app.get('/callback', async (req, res) => {
   try {
     const data = new URLSearchParams({
       client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: process.env.REDIRECT_URI,
     });
 
     const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', data.toString(), {
@@ -160,7 +156,7 @@ app.get('/callback', async (req, res) => {
       </section>
     `);
   }
-}); // ← cierre de app.get
+}); // ← cierre de /callback
 
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
