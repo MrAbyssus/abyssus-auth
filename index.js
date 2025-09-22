@@ -52,18 +52,16 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'Desconocida';
-  const region = req.headers['x-vercel-ip-country'] || 'Desconocida';
   const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
   statusHTML = `
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ffff33;">
       <h2 style="color:#00ffff;">📡 Estado del sistema Abyssus</h2>
       <p>🕒 Hora local: <strong>${hora}</strong></p>
-      <p>🌐 IP detectada: <strong>${ip}</strong></p>
-      <p>📍 Región estimada: <strong>${region}</strong></p>
-      <p style="margin-top:10px; color:#888;">Backend activo · sincronización OAuth2 verificada</p>
-      <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo de diagnóstico firmado</p>
+      <p>🔐 Backend: <strong>Activo y sincronizado</strong></p>
+      <p>🔁 OAuth2: <strong>Verificado</strong></p>
+      <p style="margin-top:10px; color:#888;">Diagnóstico técnico · sin errores</p>
+      <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo de estado firmado</p>
     </section>
   `;
 
@@ -139,7 +137,7 @@ app.get('/callback', async (req, res) => {
 
     const accessToken = tokenResponse.data.access_token;
     res.redirect(`/?token=${accessToken}`);
-   } catch (err) {
+  } catch (err) {
     res.send(`
       <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
         <h2>❌ Error al procesar el código OAuth2</h2>
@@ -155,6 +153,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
