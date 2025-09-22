@@ -1,0 +1,289 @@
+{
+  "1405288107024060548": {
+    "311059435076190208": [
+      {
+        "id": "purge-1757462965666",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 1 mensajes en #cmd-tester",
+        "timestamp": "2025-09-10T00:09:25.666Z"
+      },
+      {
+        "id": "rol-1757470214484",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "EliminarRol",
+        "reason": "Rol eliminado: nuevo rol",
+        "timestamp": "2025-09-10T02:10:14.484Z"
+      },
+      {
+        "id": "purge-1757517293668",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 13 mensajes en #cmd-tester",
+        "timestamp": "2025-09-10T15:14:53.668Z"
+      },
+      {
+        "id": "purge-1757527763552",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 36 mensajes en #cmd-tester",
+        "timestamp": "2025-09-10T18:09:23.552Z"
+      },
+      {
+        "id": "purge-1757528038957",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 12 mensajes en #cmd-tester",
+        "timestamp": "2025-09-10T18:13:58.957Z"
+      },
+      {
+        "id": "purge-1757532232266",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 8 mensajes en #cmd-tester",
+        "timestamp": "2025-09-10T19:23:52.266Z"
+      },
+      {
+        "id": "purge-1757550543833",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 5 mensajes en #cmd-tester",
+        "timestamp": "2025-09-11T00:29:03.833Z"
+      },
+      {
+        "id": "purge-1757566892265",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 5 mensajes en #cmd-tester",
+        "timestamp": "2025-09-11T05:01:32.265Z"
+      },
+      {
+        "id": "purge-1757567362637",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 3 mensajes en #cmd-tester",
+        "timestamp": "2025-09-11T05:09:22.637Z"
+      },
+      {
+        "id": "purge-1757567942876",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 4 mensajes en #cmd-tester",
+        "timestamp": "2025-09-11T05:19:02.876Z"
+      },
+      {
+        "id": "purge-1757568825603",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 7 mensajes en #cmd-tester",
+        "timestamp": "2025-09-11T05:33:45.603Z"
+      },
+      {
+        "id": "purge-1757574915487",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 4 mensajes en #cmd-tester",
+        "timestamp": "2025-09-11T07:15:15.487Z"
+      },
+      {
+        "id": "purge-1757577380466",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 3 mensajes en #✏️┃comandos",
+        "timestamp": "2025-09-11T07:56:20.466Z"
+      },
+      {
+        "id": "purge-1757642218086",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 10 mensajes en #cmd-tester",
+        "timestamp": "2025-09-12T01:56:58.086Z"
+      },
+      {
+        "id": "purge-1757642234171",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 12 mensajes en #cmd-tester",
+        "timestamp": "2025-09-12T01:57:14.171Z"
+      },
+      {
+        "id": "purge-1757905386896",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 19 mensajes en #cmd-tester",
+        "timestamp": "2025-09-15T03:03:06.896Z"
+      },
+      {
+        "id": "purge-1757912854145",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 6 mensajes en #cmd-tester",
+        "timestamp": "2025-09-15T05:07:34.145Z"
+      },
+      {
+        "id": "purge-1758087522232",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 3 mensajes en #cmd-tester",
+        "timestamp": "2025-09-17T05:38:42.233Z"
+      },
+      {
+        "id": "purge-1758140145577",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 30 mensajes en #cmd-tester",
+        "timestamp": "2025-09-17T20:15:45.577Z"
+      },
+      {
+        "id": "purge-1758241502665",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 12 mensajes en #cmd-tester",
+        "timestamp": "2025-09-19T00:25:02.665Z"
+      },
+      {
+        "id": "purge-1758340020416",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 3 mensajes en #cmd-tester",
+        "timestamp": "2025-09-20T03:47:00.416Z"
+      },
+      {
+        "id": "purge-1758340381390",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 4 mensajes en #cmd-tester",
+        "timestamp": "2025-09-20T03:53:01.390Z"
+      },
+      {
+        "id": "purge-1758340709957",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 0 mensajes en #cmd-tester",
+        "timestamp": "2025-09-20T03:58:29.957Z"
+      },
+      {
+        "id": "purge-1758340913570",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 1 mensajes en #cmd-tester",
+        "timestamp": "2025-09-20T04:01:53.570Z"
+      },
+      {
+        "id": "purge-1758352941789",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 8 mensajes en #✏️┃comandos",
+        "timestamp": "2025-09-20T07:22:21.789Z"
+      },
+      {
+        "id": "purge-1758353072150",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 5 mensajes en #cmd-tester",
+        "timestamp": "2025-09-20T07:24:32.150Z"
+      }
+    ],
+    "config": {
+      "logChannel": "1414162107041054720"
+    },
+    "1407596813837664337": [
+      {
+        "id": "mod-1758351462026",
+        "guildId": "1405288107024060548",
+        "userId": "1407596813837664337",
+        "userTag": "devil.boys_20467",
+        "moderatorId": "311059435076190208",
+        "moderatorTag": "mr.abyssus",
+        "reason": "dfgre",
+        "action": "Mute",
+        "timestamp": "2025-09-20T06:57:42.026Z"
+      },
+      {
+        "id": "mod-1758351565023",
+        "guildId": "1405288107024060548",
+        "userId": "1407596813837664337",
+        "userTag": "devil.boys_20467",
+        "moderatorId": "311059435076190208",
+        "moderatorTag": "mr.abyssus",
+        "reason": "df",
+        "action": "Unmute",
+        "timestamp": "2025-09-20T06:59:25.023Z"
+      }
+    ]
+  },
+  "937513456138059826": {
+    "311059435076190208": [
+      {
+        "id": "rol-1757470090282",
+        "guildId": "937513456138059826",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "EliminarRol",
+        "reason": "Rol eliminado: rol 1",
+        "timestamp": "2025-09-10T02:08:10.282Z"
+      },
+      {
+        "id": "rol-1757470101937",
+        "guildId": "937513456138059826",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "EliminarRol",
+        "reason": "Rol eliminado: rol 2",
+        "timestamp": "2025-09-10T02:08:21.937Z"
+      }
+    ]
+  }
+}
