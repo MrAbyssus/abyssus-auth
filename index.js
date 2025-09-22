@@ -77,7 +77,7 @@ app.get('/', async (req, res) => {
         <p>Comandos usados esta semana: <strong>${comandosUsados}</strong></p>
         <p>Reputación simulada: <strong>${reputacion}</strong></p>
         <p>Última actividad: <strong>${ultimaActividad ? ultimaActividad.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }) : '—'}</strong></p>
-        <p style="margin-top:10px; color:#888;">Fuente: modlogs.json</p>
+        <p style="margin-top:10px; color:#888;">Fuente: <strong>modlogs.json</strong> · ciclo de actualización: <strong>cada 2 días</strong> · trazabilidad activa</p>
         <p style="margin-top:20px; color:#555;">Sistema Abyssus · módulo /actividad proyectado</p>
       </section>
     `;
