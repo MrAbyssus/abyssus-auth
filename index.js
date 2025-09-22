@@ -38,37 +38,42 @@ app.get('/', async (req, res) => {
       // 🔗 Economía
       try {
         const economiaPath = path.join(__dirname, 'economia.json');
+        if (!fs.existsSync(economiaPath)) fs.writeFileSync(economiaPath, '{}');
         const economiaData = JSON.parse(fs.readFileSync(economiaPath, 'utf8'));
         const usuarioEconomia = economiaData[user.id];
-        if (usuarioEconomia) {
-          economiaHTML = `
-            <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ff8833;">
-              <h2 style="color:#00ff88;">💰 Economía institucional</h2>
-              <p>Monedas: <strong>${usuarioEconomia.monedas}</strong></p>
-              <p>Nivel: <strong>${usuarioEconomia.nivel}</strong></p>
-              <p>Última transacción: <strong>${usuarioEconomia.ultima}</strong></p>
-              <p style="margin-top:10px; color:#888;">Sistema Abyssus · economía proyectada</p>
-              <p style="margin-top:20px; color:#555;">Módulo /economia · render firmado</p>
-            </section>
-          `;
-        }
+        economiaHTML = usuarioEconomia ? `
+          <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ff8833;">
+            <h2 style="color:#00ff88;">💰 Economía institucional</h2>
+            <p>Monedas: <strong>${usuarioEconomia.monedas}</strong></p>
+            <p>Nivel: <strong>${usuarioEconomia.nivel}</strong></p>
+            <p>Última transacción: <strong>${usuarioEconomia.ultima}</strong></p>
+            <p style="margin-top:10px; color:#888;">Sistema Abyssus · economía proyectada</p>
+            <p style="margin-top:20px; color:#555;">Módulo /economia · render firmado</p>
+          </section>
+        ` : `
+          <section style="background:#1c1c1c; color:#999; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #00ff8833;">
+            <h2 style="color:#00ff88;">💰 Economía institucional</h2>
+            <p>Este usuario no tiene datos registrados en <code>economia.json</code>.</p>
+            <p style="margin-top:10px; color:#888;">Sistema Abyssus · economía no proyectada</p>
+            <p style="margin-top:20px; color:#555;">Módulo /economia · sin huella registrada</p>
+          </section>
+        `;
       } catch {}
 
       // 🔗 Moderación
       try {
         const modlogsPath = path.join(__dirname, 'modlogs.json');
+        if (!fs.existsSync(modlogsPath)) fs.writeFileSync(modlogsPath, '[]');
         const modlogsData = JSON.parse(fs.readFileSync(modlogsPath, 'utf8'));
         const logsUsuario = modlogsData.filter(log => log.usuario === user.id);
-        if (logsUsuario.length > 0) {
-          moderacionHTML = `
-            <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #ff444433;">
-              <h2 style="color:#ff4444;">🛡️ Moderación registrada</h2>
-              ${logsUsuario.map(log => `<p>${log.tipo} · ${log.fecha}</p>`).join('')}
-              <p style="margin-top:10px; color:#888;">Sistema Abyssus · moderación proyectada</p>
-              <p style="margin-top:20px; color:#555;">Módulo /modlogs · render firmado</p>
-            </section>
-          `;
-        }
+        moderacionHTML = logsUsuario.length > 0 ? `
+          <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px; box-shadow:0 0 12px #ff444433;">
+            <h2 style="color:#ff4444;">🛡️ Moderación registrada</h2>
+            ${logsUsuario.map(log => `<p>${log.tipo} · ${log.fecha}</p>`).join('')}
+            <p style="margin-top:10px; color:#888;">Sistema Abyssus · moderación proyectada</p>
+            <p style="margin-top:20px; color:#555;">Módulo /modlogs · render firmado</p>
+          </section>
+        ` : '';
       } catch {}
     }
   } catch (error) {
@@ -123,35 +128,24 @@ app.get('/', async (req, res) => {
       <p>🔌 Conexión: <strong>${token ? 'Activa' : 'Desconectada'}</strong></p>
       <p>📡 Token procesado: <strong>${token ? 'Sí' : 'No'}</strong></p>
       <p>🧠 Sesión: <strong>${token ? 'Proyectada' : 'No iniciada'}</strong></p>
-      <p style="margin-top:10px; color:#888;">Sistema Abyssus · cliente sincronizado</p>
-      <p style="margin-top:20px; color:#555;">Módulo /cliente · render firmado</p>
+      <p style="margin-top:10px; color:#888;">Sistema Abyssus</p>
+            <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
+    </header>
+
+    <section style="max-width:900px; margin:40px auto; display:flex; flex-direction:column; gap:40px;">
+      ${perfilHTML}
+      ${recompensasHTML}
+      ${statusHTML}
+      ${modulosHTML}
+      ${clienteHTML}
+      ${economiaHTML}
+      ${moderacionHTML}
     </section>
-  `;
 
-  // 🔗 Render final
-  res.send(`
-    <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
-      <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
-        <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
-        <p style="font-size:16px; color:#aaa;">Servidor activo · Todos los módulos están integrados</p>
-        <p style="margin-top:10px; color:#        
-        <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
-      </header>
-
-      <section style="max-width:900px; margin:40px auto; display:flex; flex-direction:column; gap:40px;">
-        ${perfilHTML}
-        ${recompensasHTML}
-        ${statusHTML}
-        ${modulosHTML}
-        ${clienteHTML}
-        ${economiaHTML}
-        ${moderacionHTML}
-      </section>
-
-      <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
-        Sistema Abyssus · render institucional proyectado
-      </footer>
-    </main>
+    <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
+      Sistema Abyssus · render institucional proyectado
+    </footer>
+  </main>
   `); // ← cierre correcto de res.send
 }); // ← cierre correcto de app.get
 
@@ -159,6 +153,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
