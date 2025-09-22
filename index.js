@@ -7,12 +7,13 @@ const app = express();
 app.get('/', async (req, res) => {
   const token = req.query.token;
   let perfilHTML = '';
+  let actividadHTML = '';
   let recompensasHTML = '';
   let statusHTML = '';
   let modulosHTML = '';
   let clienteHTML = '';
   let packsHTML = '';
-  let actividadHTML = '';
+  
 
   let userId = '';
 
