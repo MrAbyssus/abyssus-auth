@@ -3,7 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 
-// 🔐 Ruta raíz
+// 🔐 Ruta institucional raíz
 app.get('/', async (req, res) => {
   const token = req.query.token;
   let perfilHTML = '';
@@ -12,13 +12,9 @@ app.get('/', async (req, res) => {
   let modulosHTML = '';
   let clienteHTML = '';
   let packsHTML = '';
-  let utilidadHTML = '';
   let actividadHTML = '';
 
-  const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
-  const agente = req.headers['user-agent'];
   let userId = '';
-
   try {
     if (token && token.length > 10) {
       const userResponse = await axios.get('https://discord.com/api/users/@me', {
@@ -49,7 +45,6 @@ app.get('/', async (req, res) => {
     `;
   }
 
-  // 🔍 Actividad y reputación simulada
   try {
     const modlogURL = 'https://raw.githubusercontent.com/MrAbyssus/abyssus-auth/refs/heads/main/modlogs.json';
     const modlogRes = await axios.get(modlogURL);
@@ -95,12 +90,11 @@ app.get('/', async (req, res) => {
     `;
   }
 
-  recompensasHTML = `...`; // (ya definido arriba)
+  recompensasHTML = `...`; // Tu bloque original intacto
   statusHTML = `...`;
   modulosHTML = `...`;
   clienteHTML = `...`;
   packsHTML = `...`;
-  utilidadHTML = `...`;
 
   res.send(`
     <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
@@ -118,11 +112,10 @@ app.get('/', async (req, res) => {
         ${clienteHTML}
         ${packsHTML}
         ${actividadHTML}
-        ${utilidadHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
-        Sistema Abyssus · render proyectado
+        Sistema Abyssus · render institucional proyectado
       </footer>
     </main>
   `);
@@ -174,6 +167,7 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
