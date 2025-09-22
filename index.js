@@ -162,6 +162,13 @@ app.get('/callback', async (req, res) => {
   }
 });
 
+try {
+  app.listen(PORT, () => {
+    console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
+  });
+} catch (err) {
+  console.error('❌ Error al iniciar la aplicación:', err.message);
+}
 
 
 
