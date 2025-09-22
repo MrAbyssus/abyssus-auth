@@ -156,15 +156,15 @@ app.get('/', async (req, res) => {
         <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
       </header>
 
-      <section style="max-width:900px; margin:40px auto; display:flex; flex-direction:column; gap:40px;">
-        ${perfilHTML}
-        ${recompensasHTML}
-        ${statusHTML}
-        ${modulosHTML}
-        ${clienteHTML}
-        ${packsHTML}
-        ${actividadHTML}
-      </section>
+     <section style="max-width:900px; margin:40px auto; display:flex; flex-direction:column; gap:40px;">
+  ${perfilHTML}
+  ${actividadHTML}
+  ${recompensasHTML}
+  ${statusHTML}
+  ${modulosHTML}
+  ${clienteHTML}
+  ${packsHTML}
+</section>
 
       <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
         Sistema Abyssus · render institucional proyectado
