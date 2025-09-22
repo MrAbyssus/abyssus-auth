@@ -151,6 +151,12 @@ app.get('/', async (req, res) => {
   </main>
 `);
 
+  // 🚀 Puerto institucional dinámico
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
+});
+
 
 
 
