@@ -1,111 +1,74 @@
-[
-  {
-    "id": "311059435076190208",
+{
+  "311059435076190208": {
     "balance": 353,
-    "inventario": [
-      "Poción débil"
-    ],
-    "lastDaily": 1757478859776,
-    "banco": 647,
-    "cofrePendiente": "comun",
-    "ultimaSemanaCofre": 2907,
-    "ultimoPedido": 1757574834958,
-    "usosIA": 3,
-    "ultimoUsoIA": 1758505364686,
-    "reputacion": 70,
-    "boostActivo": true,
-    "boostExpira": 1757916301269,
-    "reputationCooldown": 1757913436523
+    "ingresos": 1200,
+    "gastos": 800,
+    "eventos": ["Bonificación", "Impuesto"]
   },
-  {
-    "id": "680897280433324081",
+  "680897280433324081": {
     "balance": 191,
-    "inventario": [],
-    "usosIA": 0,
-    "ultimoUsoIA": 0
+    "ingresos": 0,
+    "gastos": 0,
+    "eventos": []
   },
-  {
-    "id": "1373059722420162580",
+  "1373059722420162580": {
     "balance": 100,
-    "inventario": [],
-    "lastDaily": 1756742039936,
-    "usosIA": 0,
-    "ultimoUsoIA": 0
+    "ingresos": 0,
+    "gastos": 0,
+    "eventos": []
   },
-  {
-    "id": "1162276591271952394",
+  "1162276591271952394": {
     "balance": 200,
-    "inventario": [],
-    "usosIA": 0,
-    "ultimoUsoIA": 0
+    "ingresos": 0,
+    "gastos": 0,
+    "eventos": []
   },
-  {
-    "id": "423772547624992791",
+  "423772547624992791": {
     "balance": 11,
-    "inventario": [],
-    "usosIA": 3,
-    "ultimoUsoIA": 1758504088050
+    "ingresos": 0,
+    "gastos": 0,
+    "eventos": []
   },
-  {
-    "id": "1407596813837664337",
+  "1407596813837664337": {
     "balance": 390,
-    "inventario": [],
-    "usosIA": 1,
-    "ultimoUsoIA": 1758505381369,
-    "ultimoPedido": 1757577332098,
-    "cofrePendiente": "epico",
-    "ultimaSemanaCofre": 2906,
-    "lastDaily": 1757901853527,
-    "reputacion": 20
+    "ingresos": 150,
+    "gastos": 60,
+    "eventos": ["Cofre épico"]
   },
-  {
-    "id": "823825564594208778",
+  "823825564594208778": {
     "balance": 0,
-    "inventario": [],
-    "usosIA": 2,
-    "ultimoUsoIA": 1757750998650
+    "ingresos": 0,
+    "gastos": 0,
+    "eventos": []
   },
-  {
-    "id": "1352029380121067640",
+  "1352029380121067640": {
     "balance": 210,
-    "inventario": [
-      "Mapa rasgado"
-    ],
-    "usosIA": 3,
-    "ultimoUsoIA": 1757754096952,
-    "cofrePendiente": "epico",
-    "ultimaSemanaCofre": 2906,
-    "lastDaily": 1757771270575
+    "ingresos": 90,
+    "gastos": 30,
+    "eventos": ["Mapa rasgado"]
   },
-  {
-    "id": "1184958852404363400",
+  "1184958852404363400": {
     "balance": 0,
-    "inventario": [],
-    "usosIA": 1,
-    "ultimoUsoIA": 1757913368350
+    "ingresos": 0,
+    "gastos": 0,
+    "eventos": []
   },
-  {
-    "id": "1350432465126293564",
+  "1350432465126293564": {
     "balance": 0,
-    "inventario": [],
-    "usosIA": 1,
-    "ultimoUsoIA": 1758381273938
+    "ingresos": 0,
+    "gastos": 0,
+    "eventos": []
   },
-  {
-    "id": "1418037938633310310",
+  "1418037938633310310": {
     "balance": 0,
-    "inventario": [],
-    "usosIA": 1,
-    "ultimoUsoIA": 1758497176897
+    "ingresos": 0,
+    "gastos": 0,
+    "eventos": []
   },
-  {
-    "id": "1386422258758586519",
+  "1386422258758586519": {
     "balance": 104,
-    "inventario": [],
-    "cofrePendiente": "comun",
-    "ultimaSemanaCofre": 2907,
-    "lastDaily": 1758509201761,
-    "ultimoPedido": 0,
-    "banco": null
+    "ingresos": 20,
+    "gastos": 5,
+    "eventos": ["Cofre común"]
   }
-]
+}
