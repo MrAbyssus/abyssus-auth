@@ -129,9 +129,9 @@ res.send(`
     <section style="max-width:900px; margin:40px auto; display:flex; flex-direction:column; gap:40px;">
       ${perfilHTML}
       ${economiaHTML}
+      ${clienteHTML}
       ${recompensasHTML}
       ${statusHTML}
-      ${clienteHTML}
     </section>
 
     <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
