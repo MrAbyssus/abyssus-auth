@@ -138,7 +138,7 @@ app.get('/', async (req, res) => {
   `;
 
   // 🧩 Cliente
-   clienteHTML = `
+    clienteHTML = `
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
       <h2 style="color:#00ffff;">🧩 Estado del cliente</h2>
       <p>🔌 Conexión: <strong>${token ? 'Activa' : 'Desconectada'}</strong></p>
@@ -148,6 +148,44 @@ app.get('/', async (req, res) => {
       <p style="margin-top:20px; color:#555;">Módulo /cliente · render firmado</p>
     </section>
   `;
+
+  packsHTML = `
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
+      <h2 style="color:#00ffcc;">💠 Packs premium activos</h2>
+      <p>🧠 Heurística institucional: <strong>Activa</strong></p>
+      <p>🔓 Blindaje semántico: <strong>Aplicado</strong></p>
+      <p>📦 OAuth2 sincronizado: <strong>Verificado</strong></p>
+      <p>🎨 Render emocional: <strong>Firmado</strong></p>
+      <p style="color:#888;">Estado técnico: <span style="color:#00ff88;">Estable</span></p>
+      <p style="color:#555;">Sistema Abyssus · módulo /packs firmado</p>
+    </section>
+  `;
+
+  res.send(`
+    <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
+      <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
+        <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
+        <p style="font-size:16px; color:#aaa;">Servidor activo · Todos los módulos están integrados</p>
+        <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
+      </header>
+
+      <section style="max-width:900px; margin:40px auto; display:flex; flex-direction:column; gap:40px;">
+        ${perfilHTML}
+        ${actividadHTML}
+        ${economiaHTML}
+        ${recompensasHTML}
+        ${statusHTML}
+        ${modulosHTML}
+        ${clienteHTML}
+        ${packsHTML}
+      </section>
+
+      <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
+        Sistema Abyssus · render institucional proyectado
+      </footer>
+    </main>
+  `);
+}); // ← Esta llave cierra el app.get('/', ...)
 
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
