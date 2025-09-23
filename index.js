@@ -56,13 +56,13 @@ app.get('/', async (req, res) => {
     } else if (typeof datosUsuario === 'number') {
       economiaHTML = `
         <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
-          <h2 style="color:#00ffcc;">💰 Economía institucional</h2>
+          <h2 style="color:#00ffcc;">💰 Economía Bot</h2>
           <p>Balance actual: <strong>$${datosUsuario.toLocaleString()}</strong></p>
           <p>Ingresos últimos 2 días: <strong>$0</strong></p>
           <p>Gastos últimos 2 días: <strong>$0</strong></p>
           <p>Eventos activos: <strong>Ninguno</strong></p>
           <p style="color:#888;">Fuente: economía.js · modo simplificado</p>
-          <p style="color:#555;">Sistema Abyssus · módulo /economía proyectado</p>
+          <p style="color:#555;">Sistema Abyssus · módulo /economía se actualiza cada 2 dias</p>
         </section>
       `;
     } else {
