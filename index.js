@@ -138,7 +138,7 @@ app.get('/', async (req, res) => {
   `;
 
   // 🧩 Cliente
-    clienteHTML = `
+   clienteHTML = `
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
       <h2 style="color:#00ffff;">🧩 Estado del cliente</h2>
       <p>🔌 Conexión: <strong>${token ? 'Activa' : 'Desconectada'}</strong></p>
@@ -148,19 +148,6 @@ app.get('/', async (req, res) => {
       <p style="margin-top:20px; color:#555;">Módulo /cliente · render firmado</p>
     </section>
   `;
-
-  packsHTML = `
-    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
-      <h2 style="color:#00ffcc;">💠 Packs premium activos</h2>
-      <p>🧠 Heurística institucional: <strong>Activa</strong></p>
-      <p>🔓 Blindaje semántico: <strong>Aplicado</strong></p>
-      <p>📦 OAuth2 sincronizado: <strong>Verificado</strong></p>
-      <p>🎨 Render emocional: <strong>Firmado</strong></p>
-      <p style="color:#888;">Estado técnico: <span style="color:#00ff88;">Estable</span></p>
-      <p style="color:#555;">Sistema Abyssus · módulo /packs firmado</p>
-    </section>
-  `;
-
   res.send(`
     <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
       <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
@@ -185,15 +172,50 @@ app.get('/', async (req, res) => {
       </footer>
     </main>
   `);
-}); // ← Esta llave cierra el app.get('/', ...)
+});
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
 
+  if (!code || typeof code !== 'string' || code.length < 10) {
+    return res.send(`
+      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+        <h2>❌ Código OAuth2 no recibido</h2>
+        <p>Discord no envió el parámetro <code>code</code> o está incompleto.</p>
+        <p style="margin-top:10px; color:#888;">Sistema Abyssus · verificación fallida</p>
+      </section>
+    `);
+  }
+
+  try {
+    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', new URLSearchParams({
+      client_id: process.env.CLIENT_ID,
+      client_secret: process.env.CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: process.env.REDIRECT_URI?.trim(),
+    }).toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+
+    const accessToken = tokenResponse.data.access_token;
+    res.redirect(`/?token=${accessToken}`);
+  } catch (error) {
+    const errorMsg = error.response?.data?.error || error.message || 'Error desconocido';
+    res.send(`
+      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+        <h2>❌ Error al procesar el código OAuth2</h2>
+        <p>${errorMsg}</p>
+        <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
+      </section>
+    `);
+  }
+});
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
-
 
 
 
