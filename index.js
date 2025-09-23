@@ -76,17 +76,18 @@ app.get('/', async (req, res) => {
 
     if (economiaData) {
       const { balance = 0, ingresos = 0, gastos = 0, eventos = [] } = economiaData;
-      economiaHTML = `
-        <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
-          <h2 style="color:#00ffcc;">💰 Economía institucional</h2>
-          <p>Balance actual: <strong>$${balance.toLocaleString()}</strong></p>
-          <p>Ingresos últimos 2 días: <strong>$${ingresos.toLocaleString()}</strong></p>
-          <p>Gastos últimos 2 días: <strong>$${gastos.toLocaleString()}</strong></p>
-          <p>Eventos activos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
-          <p style="color:#888;">Fuente: Usuario.json · ciclo: cada 2 días</p>
-          <p style="color:#555;">Sistema Abyssus · módulo /economía firmado</p>
-        </section>
-      `;
+      if (!economiaHTML && userId === '311059435076190208') {
+  economiaHTML = `
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
+      <h2 style="color:#00ffcc;">💰 Economía simulada</h2>
+      <p>Balance actual: <strong>$353</strong></p>
+      <p>Ingresos últimos 2 días: <strong>$1200</strong></p>
+      <p>Gastos últimos 2 días: <strong>$800</strong></p>
+      <p>Eventos activos: <strong>Bonificación, Impuesto</strong></p>
+      <p style="color:#888;">Modo prueba · sin conexión a GitHub</p>
+      <p style="color:#555;">Sistema Abyssus · render forzado</p>
+    </section>
+  `;
     } else {
       economiaHTML = `<section style="background:#1c1c1c; color:#ff4444; padding:30px; text-align:center; border-radius:12px;">
         <h2>❌ Economía no disponible</h2>
