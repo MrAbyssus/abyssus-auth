@@ -88,6 +88,7 @@ app.get('/', async (req, res) => {
       <p style="color:#555;">Sistema Abyssus · render forzado</p>
     </section>
   `;
+  }
     } else {
       economiaHTML = `<section style="background:#1c1c1c; color:#ff4444; padding:30px; text-align:center; border-radius:12px;">
         <h2>❌ Economía no disponible</h2>
