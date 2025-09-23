@@ -117,8 +117,8 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  // 🧠 Render final
- res.send(`
+ // 🧠 Render final
+res.send(`
   <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
     <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
       <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
@@ -139,12 +139,15 @@ app.get('/', async (req, res) => {
     </footer>
   </main>
 `);
+}); // ← cierre que faltaba
+
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
