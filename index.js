@@ -2,10 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const app = express();
+
 app.get('/', async (req, res) => {
   const token = req.query.token;
   let perfilHTML = '', actividadHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', modulosHTML = '', clienteHTML = '', packsHTML = '';
   let userId = '';
+
+  // 🔐 Perfil Discord
   try {
     if (token && token.length > 10) {
       const userResponse = await axios.get('https://discord.com/api/users/@me', {
@@ -32,6 +35,8 @@ app.get('/', async (req, res) => {
       <p style="color:#888;">Sistema Abyssus · sesión fallida</p>
     </section>`;
   }
+
+  // 📊 Actividad del usuario
   try {
     const modlogRes = await axios.get('https://raw.githubusercontent.com/MrAbyssus/abyssus-auth/refs/heads/main/modlogs.json');
     const modlogData = modlogRes.data;
@@ -63,81 +68,87 @@ app.get('/', async (req, res) => {
       <p style="color:#888;">Sistema Abyssus · módulo /actividad fallido</p>
     </section>`;
   }
-  packsHTML = `
+
+  // 💰 Economía institucional
+  try {
+    const economiaRes = await axios.get('https://raw.githubusercontent.com/MrAbyssus/abyssus-dashboard/main/Usuario.json');
+    const economiaData = economiaRes.data[userId];
+
+    if (economiaData) {
+      const { balance = 0, ingresos = 0, gastos = 0, eventos = [] } = economiaData;
+      economiaHTML = `
+        <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
+          <h2 style="color:#00ffcc;">💰 Economía institucional</h2>
+          <p>Balance actual: <strong>$${balance.toLocaleString()}</strong></p>
+          <p>Ingresos últimos 2 días: <strong>$${ingresos.toLocaleString()}</strong></p>
+          <p>Gastos últimos 2 días: <strong>$${gastos.toLocaleString()}</strong></p>
+          <p>Eventos activos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
+          <p style="color:#888;">Fuente: Usuario.json · ciclo: cada 2 días</p>
+          <p style="color:#555;">Sistema Abyssus · módulo /economía firmado</p>
+        </section>
+      `;
+    } else {
+      economiaHTML = `<section style="background:#1c1c1c; color:#ff4444; padding:30px; text-align:center; border-radius:12px;">
+        <h2>❌ Economía no disponible</h2>
+        <p>No se encontró información económica para el usuario</p>
+        <p style="color:#888;">Sistema Abyssus · módulo /economía fallido</p>
+      </section>`;
+    }
+  } catch (err) {
+    economiaHTML = `<section style="background:#1c1c1c; color:#ff4444; padding:30px; text-align:center; border-radius:12px;">
+      <h2>❌ Error al cargar economía</h2>
+      <p>${err.message}</p>
+      <p style="color:#888;">Sistema Abyssus · módulo /economía fallido</p>
+    </section>`;
+  }
+
+  // 🎁 Recompensas
+  recompensasHTML = `
     <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
-      <h2 style="color:#00ffcc;">💠 Packs premium activos</h2>
-      <p>🧠 Heurística institucional: <strong>Activa</strong></p>
-      <p>🔓 Blindaje semántico: <strong>Aplicado</strong></p>
-      <p>📦 OAuth2 sincronizado: <strong>Verificado</strong></p>
-      <p>🎨 Render emocional: <strong>Firmado</strong></p>
-      <p style="color:#888;">Estado técnico: <span style="color:#00ff88;">Estable</span></p>
-      <p style="color:#555;">Sistema Abyssus · módulo /packs firmado</p>
+      <h2 style="color:#00ffff;">🎁 Recompensas activas</h2>
+      <p>🔓 Módulo premium: <strong>Blindaje semántico</strong></p>
+      <p>🧠 Pack activo: <strong>Heurística institucional</strong></p>
+      <p>📦 Upgrade técnico: <strong>OAuth2 sincronizado</strong></p>
+      <p style="color:#888;">Estado emocional: <span style="color:#00ff88;">Estable</span></p>
+      <p style="color:#555;">Sistema Abyssus · módulo de recompensas firmado</p>
     </section>
   `;
 
-  res.send(`
-    <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
-      <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
-        <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
-        <p style="font-size:16px; color:#aaa;">Servidor activo · Todos los módulos están integrados</p>
-        <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
-      </header>
+  // 📡 Estado del sistema
+  const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
+  statusHTML = `
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
+      <h2 style="color:#00ffff;">📡 Estado del sistema Abyssus</h2>
+      <p>🕒 Hora local: <strong>${hora}</strong></p>
+      <p>🔐 Backend: <strong>Activo</strong></p>
+      <p>🔁 OAuth2: <strong>Verificado</strong></p>
+      <p style="color:#888;">Diagnóstico técnico · sin errores</p>
+      <p style="color:#555;">Sistema Abyssus · módulo de estado firmado</p>
+    </section>
+  `;
 
-      <section style="max-width:900px; margin:40px auto; display:flex; flex-direction:column; gap:40px;">
-        ${perfilHTML}
-        ${actividadHTML}
-        ${economiaHTML}
-        ${recompensasHTML}
-        ${statusHTML}
-        ${modulosHTML}
-        ${clienteHTML}
-        ${packsHTML}
-      </section>
+  // 📦 Módulos activos
+  modulosHTML = `
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
+      <h2 style="color:#00ffff;">📦 Sistema Abyssus sincronizado</h2>
+      <p>Todos los módulos están activos.</p>
+      <p style="color:#888;">Blindaje técnico · sincronización OAuth2</p>
+      <p style="color:#555;">Sistema Abyssus · estado firmado</p>
+    </section>
+  `;
 
-      <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
-        Sistema Abyssus · render institucional proyectado
-      </footer>
-    </main>
-  `);
-});
-app.get('/callback', async (req, res) => {
-  const code = req.query.code;
+  // 🧩 Cliente
+   clienteHTML = `
+    <section style="background:#1a1a1a; color:#ccc; padding:40px; text-align:center; border-radius:12px;">
+      <h2 style="color:#00ffff;">🧩 Estado del cliente</h2>
+      <p>🔌 Conexión: <strong>${token ? 'Activa' : 'Desconectada'}</strong></p>
+      <p>📡 Token procesado: <strong>${token ? 'Sí' : 'No'}</strong></p>
+      <p>🧠 Sesión: <strong>${token ? 'Proyectada' : 'No iniciada'}</strong></p>
+      <p style="margin-top:10px; color:#888;">Sistema Abyssus · cliente sincronizado</p>
+      <p style="margin-top:20px; color:#555;">Módulo /cliente · render firmado</p>
+    </section>
+  `;
 
-  if (!code || code.length < 10) {
-    return res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
-        <h2>❌ Código OAuth2 no recibido</h2>
-        <p>Discord no envió el parámetro <code>code</code>. Esta ruta requiere redirección desde el login.</p>
-        <p style="margin-top:10px; color:#888;">Sistema Abyssus · verificación fallida</p>
-      </section>
-    `);
-  }
-
-  try {
-    const data = new URLSearchParams({
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: process.env.REDIRECT_URI,
-    });
-
-    const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', data.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
-
-    const accessToken = tokenResponse.data.access_token;
-    res.redirect(`/?token=${accessToken}`);
-  } catch (err) {
-    res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
-        <h2>❌ Error al procesar el código OAuth2</h2>
-        <p>${err.response?.data?.error || err.message || 'Error desconocido'}</p>
-        <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
-      </section>
-    `);
-  }
-});
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 
