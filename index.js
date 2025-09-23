@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
-const economiaData = require('./economia.js'); // ← economía integrada
+const economiaData = require('./economia.json'); // ← economía integrada
 const app = express();
 
 app.get('/', async (req, res) => {
