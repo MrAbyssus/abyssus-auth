@@ -134,14 +134,15 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  clienteHTML = `
-    <section>
-      <h2>🧩 Cliente</h2>
-      <p>Conexión: <strong>${token ? 'Activa' : 'Desconectada'}</strong></p>
-      <p>Token: <strong>${token ? 'Sí' : 'No'}</strong></p>
-      <p>Sesión: <strong>${token ? 'Proyectada' : 'No iniciada'}</strong></p>
-    </section>
-  `;
+ const estadoHTML = `
+  <section>
+    <h2>🛡️ Estado de cuenta</h2>
+    <p>2FA: <strong>${user.mfa_enabled ? 'Activado' : 'No activado'}</strong></p>
+    <p>Verificación: <strong>${user.verified ? '✅ Verificada' : '❌ No verificada'}</strong></p>
+    <p>Idioma: <strong>${user.locale}</strong></p>
+    <p>Nitro: <strong>${user.premium_type === 2 ? 'Nitro' : user.premium_type === 1 ? 'Classic' : 'Sin Nitro'}</strong></p>
+  </section>
+`;
 
   let eventos = [];
   for (const gId in modlogData) {
