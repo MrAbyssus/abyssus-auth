@@ -69,7 +69,7 @@ app.get('/', async (req, res) => {
           <h2>👤 Perfil Discord</h2>
           <p><strong>${user.username}#${user.discriminator}</strong></p>
           <p>ID: ${user.id}</p>
-          <p>Estado: <span style="color:#00ff88;">Verificado</span> · Premium activo</p>
+          <p>Estado: <span style="color:#00ff88;">Verificado</span></p>
         </section>
       `;
     }
@@ -154,18 +154,19 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  // 📜 Modlog global
+  // 📜 Modlog global (últimos 10 eventos)
   let eventos = [];
   for (const gId in modlogData) {
     const logs = modlogData[gId]?.[userId];
     if (Array.isArray(logs)) eventos.push(...logs);
   }
+  const eventosRecientes = eventos.slice(-10).reverse();
 
   modlogHTML = `
     <section>
       <h2>📜 Registro de eventos</h2>
-      ${eventos.length
-        ? `<ul style="list-style:none; padding:0;">${eventos.map(e => `
+      ${eventosRecientes.length
+        ? `<ul style="list-style:none; padding:0;">${eventosRecientes.map(e => `
             <li>
               <strong>${e.action}</strong> · ${e.reason}<br>
               <span style="color:#888;">${new Date(e.timestamp).toLocaleString()}</span>
@@ -194,9 +195,9 @@ app.get('/', async (req, res) => {
       </section>
 
       <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
-        Sistema Abyssus · render institucional proyectado
-      </footer>
-   </main>
+        Sistema Abyssus · render      
+        </footer>
+     </main>
 `);
 }); // ← cierre correcto de app.get('/')
 const PORT = process.env.PORT;
@@ -205,9 +206,6 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
-
-
-
 
 
 
