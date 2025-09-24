@@ -3,6 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const economiaData = require('./economia.json');
 const modlogData = require('./modlogs.json');
+const gestionarPet = require('./gestionarPet.js'); // ← integración directa
 const app = express();
 
 // 🔁 Activación previa para Render
@@ -14,13 +15,11 @@ app.get('/activar', async (req, res) => {
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code || typeof code !== 'string' || code.length < 10) {
-    return res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
-        <h2>❌ Código OAuth2 no recibido</h2>
-        <p>Discord no envió el parámetro <code>code</code> o está incompleto.</p>
-        <p style="margin-top:10px; color:#888;">Sistema Abyssus · verificación fallida</p>
-      </section>
-    `);
+    return res.send(`<section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+      <h2>❌ Código OAuth2 no recibido</h2>
+      <p>Discord no envió el parámetro <code>code</code> o está incompleto.</p>
+      <p style="margin-top:10px; color:#888;">Sistema Abyssus · verificación fallida</p>
+    </section>`);
   }
 
   try {
@@ -38,20 +37,18 @@ app.get('/callback', async (req, res) => {
     res.redirect(`/?token=${accessToken}`);
   } catch (error) {
     const errorMsg = error.response?.data?.error || error.message || 'Error desconocido';
-    res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
-        <h2>❌ Error al procesar el código OAuth2</h2>
-        <p>${errorMsg}</p>
-        <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
-      </section>
-    `);
+    res.send(`<section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+      <h2>❌ Error al procesar el código OAuth2</h2>
+      <p>${errorMsg}</p>
+      <p style="margin-top:10px; color:#888;">Sistema Abyssus · sesión fallida</p>
+    </section>`);
   }
 });
 
 // 🧠 Dashboard principal
 app.get('/', async (req, res) => {
   const token = req.query.token;
-  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '';
+  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '';
   let userId = '';
 
   // 👤 Perfil Discord
@@ -74,12 +71,7 @@ app.get('/', async (req, res) => {
       `;
     }
   } catch (error) {
-    perfilHTML = `
-      <section>
-        <h2>❌ Error al cargar el perfil</h2>
-        <p>${error.message}</p>
-      </section>
-    `;
+    perfilHTML = `<section><h2>❌ Error al cargar el perfil</h2><p>${error.message}</p></section>`;
   }
 
   // 💰 Economía
@@ -107,20 +99,27 @@ app.get('/', async (req, res) => {
         </section>
       `;
     } else {
-      economiaHTML = `
+      economiaHTML = `<section><h2>❌ Economía no disponible</h2><p>No se encontró información económica</p></section>`;
+    }
+  } catch (err) {
+    economiaHTML = `<section><h2>❌ Error al cargar economía</h2><p>${err.message}</p></section>`;
+  }
+
+  // 🐾 Mascota vinculada
+  try {
+    const petData = gestionarPet.obtener(userId); // ← función esperada en gestionarPet.js
+    if (petData && typeof petData === 'object') {
+      petHTML = `
         <section>
-          <h2>❌ Economía no disponible</h2>
-          <p>No se encontró información económica</p>
+          <h2>🐾 Mascota vinculada</h2>
+          <p>Nombre: <strong>${petData.nombre}</strong></p>
+          <p>Estado: <strong>${petData.estado}</strong></p>
+          <p>Última acción: <strong>${petData.ultimaAccion}</strong></p>
         </section>
       `;
     }
   } catch (err) {
-    economiaHTML = `
-      <section>
-        <h2>❌ Error al cargar economía</h2>
-        <p>${err.message}</p>
-      </section>
-    `;
+    petHTML = `<section><h2>🐾 Mascota no disponible</h2><p>No se pudo cargar el módulo gestionarPet</p></section>`;
   }
 
   // 🎁 Recompensas
@@ -177,27 +176,29 @@ app.get('/', async (req, res) => {
   `;
 
   // 🧠 Render final
-  res.send(`
-    <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
-      <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
-        <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
-        <p style="font-size:16px; color:#aaa;">Servidor activo · módulos integrados</p>
-        <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
-      </header>
+ // 🧠 Render final
+res.send(`
+  <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
+    <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
+      <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
+      <p style="font-size:16px; color:#aaa;">Servidor activo · módulos integrados</p>
+      <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
+    </header>
 
-      <section style="max-width:1000px; margin:40px auto; display:grid; grid-template-columns:1fr 1fr; gap:30px;">
-        ${perfilHTML}
-        ${economiaHTML}
-        ${clienteHTML}
-        ${recompensasHTML}
-        ${statusHTML}
-        ${modlogHTML}
-      </section>
+    <section style="max-width:1000px; margin:40px auto; display:grid; grid-template-columns:1fr 1fr; gap:30px;">
+      ${perfilHTML}
+      ${economiaHTML}
+      ${clienteHTML}
+      ${recompensasHTML}
+      ${statusHTML}
+      ${petHTML}
+      ${modlogHTML}
+    </section>
 
-      <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
-        Sistema Abyssus · render      
-        </footer>
-     </main>
+    <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
+      Sistema Abyssus · render institucional proyectado
+    </footer>
+  </main>
 `);
 }); // ← cierre correcto de app.get('/')
 const PORT = process.env.PORT;
@@ -206,9 +207,6 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
-
-
-
 
 
 
