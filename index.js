@@ -3,7 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const economiaData = require('./economia.json');
 const modlogData = require('./modlogs.json');
-const gestionarPet = require('./gestionarPets.js'); // ← módulo con persistencia real
+const gestionarPet = require('./gestionarPet.js');
 const app = express();
 
 app.get('/activar', (req, res) => {
