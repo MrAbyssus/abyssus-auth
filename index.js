@@ -44,15 +44,16 @@ app.get('/callback', async (req, res) => {
 
 app.get('/', async (req, res) => {
   const token = req.query.token;
-  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '';
+  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '', estadoHTML = '';
   let userId = '', guildId = 'abyssus';
+  let user = null;
 
   try {
     if (token && token.length > 10) {
       const userResponse = await axios.get('https://discord.com/api/users/@me', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const user = userResponse.data;
+      user = userResponse.data;
       userId = user.id;
 
       perfilHTML = `
@@ -109,7 +110,6 @@ app.get('/', async (req, res) => {
     petHTML = `<section><h2>🐾 Mascota no disponible</h2><p>Error: ${err.message}</p></section>`;
   }
 
-  // Recompensas dinámicas según balance
   const recompensas = [];
   if (balance >= 1000) recompensas.push('Blindaje semántico');
   if (balance >= 5000) recompensas.push('Heurística institucional');
@@ -134,15 +134,15 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
- const estadoHTML = `
-  <section>
-    <h2>🛡️ Estado de cuenta</h2>
-    <p>2FA: <strong>${user.mfa_enabled ? 'Activado' : 'No activado'}</strong></p>
-    <p>Verificación: <strong>${user.verified ? '✅ Verificada' : '❌ No verificada'}</strong></p>
-    <p>Idioma: <strong>${user.locale}</strong></p>
-    <p>Nitro: <strong>${user.premium_type === 2 ? 'Nitro' : user.premium_type === 1 ? 'Classic' : 'Sin Nitro'}</strong></p>
-  </section>
-`;
+  estadoHTML = user ? `
+    <section>
+      <h2>🛡️ Estado de cuenta</h2>
+      <p>2FA: <strong>${user.mfa_enabled ? 'Activado' : 'No activado'}</strong></p>
+      <p>Verificación: <strong>${user.verified ? '✅ Verificada' : '❌ No verificada'}</strong></p>
+      <p>Idioma: <strong>${user.locale}</strong></p>
+      <p>Nitro: <strong>${user.premium_type === 2 ? 'Nitro' : user.premium_type === 1 ? 'Classic' : 'Sin Nitro'}</strong></p>
+    </section>
+  ` : '';
 
   let eventos = [];
   for (const gId in modlogData) {
@@ -173,17 +173,16 @@ res.send(`
       <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
     </header>
 
-   <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
-  ${perfilHTML}
-  ${economiaHTML}
-  ${clienteHTML}
-  ${estadoHTML}
-  ${recompensasHTML}
-  ${statusHTML}
-  ${petHTML}
-  ${modlogHTML}
-</section>
-
+    <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
+      ${perfilHTML}
+      ${economiaHTML}
+      ${clienteHTML}
+      ${estadoHTML}
+      ${recompensasHTML}
+      ${statusHTML}
+      ${petHTML}
+      ${modlogHTML}
+    </section>
 
     <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
       Sistema Abyssus · render institucional proyectado
@@ -198,6 +197,7 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
