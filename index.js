@@ -160,23 +160,33 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  // 📜 Modlog
-  const eventos = modlogData[userId] ?? [];
+  // 📜 Modlog global por userId
+  let eventos = [];
+  for (const gId in modlogData) {
+    const logs = modlogData[gId]?.[userId];
+    if (Array.isArray(logs)) eventos.push(...logs);
+  }
+
   modlogHTML = `
     <section>
       <h2>📜 Registro de eventos</h2>
       ${eventos.length
-        ? `<ul style="list-style:none; padding:0;">${eventos.map(e => `<li>${e.evento} · ${new Date(e.timestamp).toLocaleString()}</li>`).join('')}</ul>`
+        ? `<ul style="list-style:none; padding:0;">${eventos.map(e => `
+            <li>
+              <strong>${e.action}</strong> · ${e.reason}<br>
+              <span style="color:#888;">${new Date(e.timestamp).toLocaleString()}</span>
+            </li>
+          `).join('')}</ul>`
         : `<p>No hay eventos registrados</p>`}
     </section>
   `;
 
   // 🧠 Render final
- res.send(`
-  <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
-    <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
-      <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
-      <p style="font-size:16px; color:#aaa;">Servidor activo · Todos los módulos están integrados</p>
+  res.send(`
+    <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
+      <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
+        <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
+        <p style="font-size:16px; color:#aaa;">Servidor activo · Todos los módulos están integrados</p>
       <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
     </header>
 
@@ -186,22 +196,22 @@ app.get('/', async (req, res) => {
       ${clienteHTML}
       ${recompensasHTML}
       ${statusHTML}
-      ${modlogsHTML}
+      ${modlogHTML}
     </section>
 
     <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
       Sistema Abyssus · render institucional proyectado
     </footer>
-    </main>
+  </main>
 `);
-}); // ← cierre que faltaba
-
+}); // ← cierre correcto de app.get('/')
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
