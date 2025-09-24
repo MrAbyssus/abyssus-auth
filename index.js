@@ -44,7 +44,7 @@ app.get('/callback', async (req, res) => {
 app.get('/', async (req, res) => {
   const token = req.query.token;
   let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '';
-  let userId = '', guildId = 'abyssus'; // ← puedes ajustar el guildId si es dinámico
+  let userId = '', guildId = 'abyssus';
 
   try {
     if (token && token.length > 10) {
@@ -194,6 +194,7 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
