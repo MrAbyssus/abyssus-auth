@@ -192,14 +192,17 @@ app.get('/', async (req, res) => {
     <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
       Sistema Abyssus · render institucional proyectado
     </footer>
-  </main>
+    </main>
 `);
+}); // ← cierre que faltaba
+
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
