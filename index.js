@@ -1,9 +1,10 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
+const fs = require('fs');
 const economiaData = require('./economia.json');
 const modlogData = require('./modlogs.json');
-const gestionarPet = require('./gestionarPet.js');
+const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
 const app = express();
 
 app.get('/activar', (req, res) => {
@@ -101,10 +102,10 @@ app.get('/', async (req, res) => {
   try {
     if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
 
-    let petData = gestionarPet.verMascota(guildId, userId);
-    if (!petData) petData = gestionarPet.invocarMascota(guildId, userId);
+    const id = `${guildId}-${userId}`;
+    const petData = mascotasData[id];
 
-    petHTML = `
+    petHTML = petData ? `
       <section>
         <h2>🐾 Mascota vinculada</h2>
         <p>Nombre: <strong>${petData.nombre}</strong></p>
@@ -112,7 +113,7 @@ app.get('/', async (req, res) => {
         <p>Rareza: <strong>${petData.rareza}</strong></p>
         <p>Estado: <strong>${petData.estado}</strong></p>
       </section>
-    `;
+    ` : `<section><h2>🐾 Mascota no disponible</h2><p>No se encontró mascota vinculada</p></section>`;
   } catch (err) {
     petHTML = `<section><h2>🐾 Mascota no disponible</h2><p>Error: ${err.message}</p></section>`;
   }
@@ -165,7 +166,8 @@ app.get('/', async (req, res) => {
         : `<p>No hay eventos registrados</p>`}
     </section>
   `;
-res.send(`
+
+ res.send(`
   <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
     <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
       <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
@@ -195,9 +197,6 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
-
-
-
 
 
 
