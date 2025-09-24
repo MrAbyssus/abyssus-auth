@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const economiaData = require('./economia.json');
-const modlogsData = require('./modlogs.json');
+const modlogData = require('./modlogs.json');
 const app = express();
 
 // 🔁 Activación previa para Render
@@ -186,7 +186,7 @@ app.get('/', async (req, res) => {
       ${clienteHTML}
       ${recompensasHTML}
       ${statusHTML}
-      ${modlogHTML}
+      ${modlogsHTML}
     </section>
 
     <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
