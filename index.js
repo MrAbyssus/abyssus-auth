@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const economiaData = require('./economia.json');
-const modlogData = require('./modlog.json');
+const modlogData = require('./modlogs.json');
 const app = express();
 
 // 🔁 Activación previa para Render
