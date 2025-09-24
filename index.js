@@ -3,7 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const economiaData = require('./economia.json');
 const modlogData = require('./modlogs.json');
-const gestionarPet = require('./gestionarPet.js');
+const gestionarPet = require('./gestionarPets.js'); // ← módulo con persistencia real
 const app = express();
 
 app.get('/activar', (req, res) => {
@@ -175,7 +175,6 @@ app.get('/', async (req, res) => {
       <section style="max-width:1000px; margin:40px auto; display:grid; grid-template-columns:1fr 1fr; gap:30px;">
         ${perfilHTML}
         ${economiaHTML}
-        ${clienteHTML}
         ${recompensasHTML}
         ${statusHTML}
         ${petHTML}
@@ -194,6 +193,7 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
