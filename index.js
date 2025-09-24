@@ -69,10 +69,12 @@ app.get('/', async (req, res) => {
     perfilHTML = `<section><h2>❌ Error al cargar el perfil</h2><p>${error.message}</p></section>`;
   }
 
+  let balance = 0;
   try {
     const datosUsuario = economiaData[userId];
     if (typeof datosUsuario === 'object') {
-      const { balance = 0, ingresos = 0, gastos = 0, eventos = [] } = datosUsuario;
+      balance = datosUsuario.balance || 0;
+      const { ingresos = 0, gastos = 0, eventos = [] } = datosUsuario;
       economiaHTML = `
         <section>
           <h2>💰 Economía Bot</h2>
@@ -80,16 +82,6 @@ app.get('/', async (req, res) => {
           <p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
           <p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
           <p>Eventos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
-        </section>
-      `;
-    } else if (typeof datosUsuario === 'number') {
-      economiaHTML = `
-        <section>
-          <h2>💰 Economía Bot</h2>
-          <p>Balance: <strong>$${datosUsuario.toLocaleString()}</strong></p>
-          <p>Ingresos: <strong>$0</strong></p>
-          <p>Gastos: <strong>$0</strong></p>
-          <p>Eventos: <strong>Ninguno</strong></p>
         </section>
       `;
     } else {
@@ -101,7 +93,6 @@ app.get('/', async (req, res) => {
 
   try {
     if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
-
     const id = `${guildId}-${userId}`;
     const petData = mascotasData[id];
 
@@ -118,12 +109,18 @@ app.get('/', async (req, res) => {
     petHTML = `<section><h2>🐾 Mascota no disponible</h2><p>Error: ${err.message}</p></section>`;
   }
 
+  // Recompensas dinámicas según balance
+  const recompensas = [];
+  if (balance >= 1000) recompensas.push('Blindaje semántico');
+  if (balance >= 5000) recompensas.push('Heurística institucional');
+  if (balance >= 10000) recompensas.push('OAuth2 sincronizado');
+
   recompensasHTML = `
     <section>
       <h2>🎁 Recompensas</h2>
-      <p>Premium: <strong>Blindaje semántico</strong></p>
-      <p>Pack: <strong>Heurística institucional</strong></p>
-      <p>Upgrade: <strong>OAuth2 sincronizado</strong></p>
+      ${recompensas.length
+        ? `<ul style="padding-left:20px;">${recompensas.map(r => `<li><strong>${r}</strong></li>`).join('')}</ul>`
+        : `<p>No hay recompensas desbloqueadas</p>`}
     </section>
   `;
 
@@ -167,7 +164,7 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
- res.send(`
+res.send(`
   <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
     <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
       <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
@@ -191,12 +188,14 @@ app.get('/', async (req, res) => {
   </main>
 `);
 }); // ← cierre correcto de app.get('/')
+
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
