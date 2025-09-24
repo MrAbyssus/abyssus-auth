@@ -165,14 +165,14 @@ app.get('/', async (req, res) => {
   `;
 
 res.send(`
-  <main style="font-family:Segoe UI, sans-serif; background:#0a0a0a; color:#ccc; padding:0; margin:0;">
-    <header style="padding:50px 30px; text-align:center; background:#111; box-shadow:0 0 20px #00ffff33;">
-      <h1 style="color:#00ffff; font-size:36px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
-      <p style="font-size:16px; color:#aaa;">Servidor activo · módulos integrados</p>
+  <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
+    <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
+      <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
+      <p style="font-size:17px; color:#bbb;">Servidor activo · módulos integrados</p>
       <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
     </header>
 
-    <section style="max-width:1000px; margin:40px auto; display:grid; grid-template-columns:1fr 1fr; gap:30px;">
+    <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
       ${perfilHTML}
       ${economiaHTML}
       ${clienteHTML}
@@ -182,7 +182,7 @@ res.send(`
       ${modlogHTML}
     </section>
 
-    <footer style="text-align:center; padding:30px; color:#555; font-size:14px;">
+    <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
       Sistema Abyssus · render institucional proyectado
     </footer>
   </main>
