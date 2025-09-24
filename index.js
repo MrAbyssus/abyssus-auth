@@ -113,7 +113,7 @@ app.get('/', async (req, res) => {
     } else {
       economiaHTML = `
         <section>
-          <h2>❌ Economía no disponible</h2>
+          <h2>🔴 No tienes Economía registrada </h2>
           <p>No se encontró información económica para el usuario</p>
         </section>
       `;
