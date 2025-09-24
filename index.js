@@ -173,15 +173,17 @@ res.send(`
       <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
     </header>
 
-    <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
-      ${perfilHTML}
-      ${economiaHTML}
-      ${clienteHTML}
-      ${recompensasHTML}
-      ${statusHTML}
-      ${petHTML}
-      ${modlogHTML}
-    </section>
+   <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
+  ${perfilHTML}
+  ${economiaHTML}
+  ${clienteHTML}
+  ${estadoHTML}
+  ${recompensasHTML}
+  ${statusHTML}
+  ${petHTML}
+  ${modlogHTML}
+</section>
+
 
     <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
       Sistema Abyssus · render institucional proyectado
