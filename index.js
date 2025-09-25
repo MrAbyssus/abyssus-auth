@@ -229,7 +229,7 @@ actualizacionHTML = `
   </body>
 </html>
 `);
-
+}); 
 
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
