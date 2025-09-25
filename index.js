@@ -5,7 +5,7 @@ const fs = require('fs');
 const economiaData = require('./Usuario.json');
 const modlogData = require('./modlogs.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
-const rolesData = JSON.parse(fs.readFileSync('./Roles.json', 'utf8')); // ← integración de roles
+const rolesData = JSON.parse(fs.readFileSync('./Roles.json', 'utf8'));
 const app = express();
 
 app.get('/activar', (req, res) => {
@@ -88,7 +88,6 @@ app.get('/', async (req, res) => {
 
   let balance = 0;
   try {
-    if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
     const datosUsuario = economiaData.find(u => u.id === userId);
     if (datosUsuario) {
       balance = datosUsuario.balance || 0;
@@ -113,7 +112,6 @@ app.get('/', async (req, res) => {
   }
 
   try {
-    if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
     const id = `${guildId}-${userId}`;
     const petData = mascotasData[id];
 
@@ -171,12 +169,7 @@ app.get('/', async (req, res) => {
   }
   const eventosRecientes = eventos.slice(-10).reverse();
 
-  modlogHTML = `
-    <section>
-      <h2>📜 Registro de eventos</h2>
-      ${eventosRecientes.length
-
-  modlogHTML = `
+   modlogHTML = `
     <section>
       <h2>📜 Registro de eventos</h2>
       ${eventosRecientes.length
@@ -189,30 +182,6 @@ app.get('/', async (req, res) => {
         : `<p>No hay eventos registrados</p>`}
     </section>
   `;
-
-  const stats = fs.statSync('./Usuario.json');
-  const ultimaActualizacion = new Date(stats.mtime);
-  const ahora = new Date();
-  const diferenciaMs = ahora - ultimaActualizacion;
-  const diferenciaDias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
-
-  const actualizado = diferenciaDias <= 2;
-  const icono = actualizado ? '🟢' : '🔴';
-  const fondo = actualizado ? '#112611' : '#260f0f';
-  const colorTexto = actualizado ? '#00ff88' : '#ff4444';
-
-  const estadoTexto = actualizado
-  ? `Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}`
-  : `Desactualizado (${diferenciaDias} días)`;
-
-actualizacionHTML = `
-  <section style="background:${fondo}; padding:20px; border-radius:8px;">
-    <h2>${icono} Última actualización de datos</h2>
-    <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
-    <p>Estado: <strong style="color:${colorTexto};">${estadoTexto}</strong></p>
-  </section>
-`;
-
   res.send(`
     <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
       <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
@@ -239,14 +208,15 @@ actualizacionHTML = `
       </footer>
     </main>
   `);
-}); // ← cierre correcto de app.get('/')
-
+});
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
+
 
 
 
