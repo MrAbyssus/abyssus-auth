@@ -206,7 +206,7 @@ app.get('/', async (req, res) => {
   <body>
     <main>
       <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
-        <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
+        <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus · Dashboard</h1>
         <p style="font-size:17px; color:#bbb;">Servidor activo · módulos integrados</p>
         <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
       </header>
