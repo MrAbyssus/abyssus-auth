@@ -205,11 +205,11 @@ app.get('/', async (req, res) => {
   </head>
   <body>
     <main>
-     <header style="padding:30px 25px; text-align:center; background:#1a1a1a; border-bottom:1px solid #222;">
-  <h1 style="color:#00b0f4; font-size:32px; margin-bottom:8px;">🔐 Abyssus · Dashboard</h1>
-  <p style="font-size:15px; color:#aaa;">🟢 Servidor activo · módulos conectados</p>
-  <p style="font-size:13px; color:#666;">💾 Backend blindado · acceso verificado</p>
-</header>
+     <header style="padding:25px 20px; text-align:center; background:#23272a; border-bottom:1px solid #2c2f33;">
+  <h1 style="color:#ffffff; font-size:28px; margin-bottom:6px;">🔐 Abyssus · Dashboard</h1>
+  <p style="font-size:14px; color:#b9bbbe;">🟢 Servidor activo · módulos conectados</p>
+  <p style="font-size:12px; color:#72767d;">💾 Backend blindado · acceso verificado</p>
+   </header>
 
       <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
         ${perfilHTML}
