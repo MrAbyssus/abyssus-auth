@@ -201,15 +201,17 @@ app.get('/', async (req, res) => {
   const fondo = actualizado ? '#112611' : '#260f0f';
   const colorTexto = actualizado ? '#00ff88' : '#ff4444';
 
-  actualizacionHTML = `
-    <section style="background:${fondo}; padding:20px; border-radius:8px;">
-      <h2>${icono} Última actualización de datos</h2>
-      <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
-      <p>Estado: <strong style="color:${colorTexto};">
-        ${actualizado ? `Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}` : `Desactualizado (${diferenciaDias} días)`}
-      </strong></p>
-    </section>
-  `;
+  const estadoTexto = actualizado
+  ? `Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}`
+  : `Desactualizado (${diferenciaDias} días)`;
+
+actualizacionHTML = `
+  <section style="background:${fondo}; padding:20px; border-radius:8px;">
+    <h2>${icono} Última actualización de datos</h2>
+    <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
+    <p>Estado: <strong style="color:${colorTexto};">${estadoTexto}</strong></p>
+  </section>
+`;
 
   res.send(`
     <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
