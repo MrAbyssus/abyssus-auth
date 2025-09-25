@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const fs = require('fs');
-const economiaData = require('./economia.json');
+const economiaData = require('./Usuario.json');
 const modlogData = require('./modlogs.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
 const app = express();
