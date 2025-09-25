@@ -171,16 +171,23 @@ app.get('/', async (req, res) => {
   `;
 
   const stats = fs.statSync('./Usuario.json');
-  const ultimaActualizacion = new Date(stats.mtime).toLocaleString('es-MX', {
-    timeZone: 'America/Mexico_City'
-  });
+const ultimaActualizacion = new Date(stats.mtime);
+const ahora = new Date();
+const diferenciaMs = ahora - ultimaActualizacion;
+const diferenciaDias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
 
-  actualizacionHTML = `
-    <section>
-      <h2>🕒 Última actualización de datos</h2>
-      <p>Archivo actualizado el: <strong>${ultimaActualizacion}</strong></p>
-    </section>
-  `;
+const estadoArchivo = diferenciaDias > 2
+  ? `<span style="color:#ff4444;">Desactualizado (${diferenciaDias} días)</span>`
+  : `<span style="color:#00ff88;">Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}</span>`;
+
+actualizacionHTML = `
+  <section>
+    <h2>🕒 Última actualización de datos</h2>
+    <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
+    <p>Estado: ${estadoArchivo}</p>
+  </section>
+`;
+
 
    res.send(`
     <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
