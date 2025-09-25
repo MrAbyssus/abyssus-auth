@@ -76,7 +76,7 @@ app.get('/', async (req, res) => {
 
     if (!economiaData[userId]) {
       economiaData[userId] = { balance: 0, ingresos: 0, gastos: 0, eventos: [] };
-      fs.writeFileSync('./economia.json', JSON.stringify(economiaData, null, 2));
+      fs.writeFileSync('./Usuario.json', JSON.stringify(economiaData, null, 2));
     }
 
     const datosUsuario = economiaData[userId];
