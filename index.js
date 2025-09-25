@@ -44,7 +44,7 @@ app.get('/callback', async (req, res) => {
 
 app.get('/', async (req, res) => {
   const token = req.query.token;
-  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '', estadoHTML = '';
+  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '', estadoHTML = '', actualizacionHTML = '';
   let userId = '', guildId = 'abyssus';
   let user = null;
 
@@ -170,7 +170,19 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-    res.send(`
+  const stats = fs.statSync('./Usuario.json');
+  const ultimaActualizacion = new Date(stats.mtime).toLocaleString('es-MX', {
+    timeZone: 'America/Mexico_City'
+  });
+
+  actualizacionHTML = `
+    <section>
+      <h2>🕒 Última actualización de datos</h2>
+      <p>Archivo actualizado el: <strong>${ultimaActualizacion}</strong></p>
+    </section>
+  `;
+
+   res.send(`
     <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
       <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
         <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
@@ -187,6 +199,7 @@ app.get('/', async (req, res) => {
         ${statusHTML}
         ${petHTML}
         ${modlogHTML}
+        ${actualizacionHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
