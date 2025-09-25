@@ -72,22 +72,26 @@ app.get('/', async (req, res) => {
 
   let balance = 0;
   try {
-    const datosUsuario = economiaData[userId];
-    if (typeof datosUsuario === 'object') {
-      balance = datosUsuario.balance || 0;
-      const { ingresos = 0, gastos = 0, eventos = [] } = datosUsuario;
-      economiaHTML = `
-        <section>
-          <h2>💰 Economía Bot</h2>
-          <p>Balance: <strong>$${balance.toLocaleString()}</strong></p>
-          <p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
-          <p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
-          <p>Eventos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
-        </section>
-      `;
-    } else {
-      economiaHTML = `<section><h2>❌ Economía no disponible</h2><p>No se encontró información económica</p></section>`;
+    if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
+
+    if (!economiaData[userId]) {
+      economiaData[userId] = { balance: 0, ingresos: 0, gastos: 0, eventos: [] };
+      fs.writeFileSync('./economia.json', JSON.stringify(economiaData, null, 2));
     }
+
+    const datosUsuario = economiaData[userId];
+    balance = datosUsuario.balance || 0;
+    const { ingresos = 0, gastos = 0, eventos = [] } = datosUsuario;
+
+    economiaHTML = `
+      <section>
+        <h2>💰 Economía Bot</h2>
+        <p>Balance: <strong>$${balance.toLocaleString()}</strong></p>
+        <p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
+        <p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
+        <p>Eventos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
+      </section>
+    `;
   } catch (err) {
     economiaHTML = `<section><h2>❌ Error al cargar economía</h2><p>${err.message}</p></section>`;
   }
@@ -165,30 +169,30 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-res.send(`
-  <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
-    <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
-      <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
-      <p style="font-size:17px; color:#bbb;">Servidor activo · módulos integrados</p>
-      <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
-    </header>
+   res.send(`
+    <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
+      <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
+        <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
+        <p style="font-size:17px; color:#bbb;">Servidor activo · módulos integrados</p>
+        <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
+      </header>
 
-    <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
-      ${perfilHTML}
-      ${economiaHTML}
-      ${clienteHTML}
-      ${estadoHTML}
-      ${recompensasHTML}
-      ${statusHTML}
-      ${petHTML}
-      ${modlogHTML}
-    </section>
+      <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
+        ${perfilHTML}
+        ${economiaHTML}
+        ${clienteHTML}
+        ${estadoHTML}
+        ${recompensasHTML}
+        ${statusHTML}
+        ${petHTML}
+        ${modlogHTML}
+      </section>
 
-    <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
-      Sistema Abyssus · render institucional proyectado
-    </footer>
-  </main>
-`);
+      <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
+        Sistema Abyssus · render institucional proyectado
+      </footer>
+    </main>
+  `);
 }); // ← cierre correcto de app.get('/')
 
 const PORT = process.env.PORT;
@@ -197,6 +201,7 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
