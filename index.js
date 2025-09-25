@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const fs = require('fs');
-const economiaData = require('./Usuario.json');
+const economiaData = require('./Usuario.json'); // ← array de usuarios
 const modlogData = require('./modlogs.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
 const app = express();
@@ -74,24 +74,25 @@ app.get('/', async (req, res) => {
   try {
     if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
 
-    if (!economiaData[userId]) {
-      economiaData[userId] = { balance: 0, ingresos: 0, gastos: 0, eventos: [] };
-      fs.writeFileSync('./Usuario.json', JSON.stringify(economiaData, null, 2));
+    const datosUsuario = economiaData.find(u => u.id === userId);
+    if (datosUsuario) {
+      balance = datosUsuario.balance || 0;
+      const ingresos = datosUsuario.ingresos || 0;
+      const gastos = datosUsuario.gastos || 0;
+      const eventos = datosUsuario.eventos || [];
+
+      economiaHTML = `
+        <section>
+          <h2>💰 Economía Bot</h2>
+          <p>Balance: <strong>$${balance.toLocaleString()}</strong></p>
+          <p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
+          <p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
+          <p>Eventos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
+        </section>
+      `;
+    } else {
+      economiaHTML = `<section><h2>❌ Economía no disponible</h2><p>No se encontró información económica</p></section>`;
     }
-
-    const datosUsuario = economiaData[userId];
-    balance = datosUsuario.balance || 0;
-    const { ingresos = 0, gastos = 0, eventos = [] } = datosUsuario;
-
-    economiaHTML = `
-      <section>
-        <h2>💰 Economía Bot</h2>
-        <p>Balance: <strong>$${balance.toLocaleString()}</strong></p>
-        <p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
-        <p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
-        <p>Eventos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
-      </section>
-    `;
   } catch (err) {
     economiaHTML = `<section><h2>❌ Error al cargar economía</h2><p>${err.message}</p></section>`;
   }
@@ -169,7 +170,7 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-   res.send(`
+    res.send(`
     <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
       <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
         <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
@@ -201,6 +202,7 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
