@@ -197,7 +197,7 @@ actualizacionHTML = `
   <head>
     <meta charset="UTF-8">
     <title>Abyssus Dashboard</title>
-    <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="icon" href="/favicon1.png" type="image/png">
     <style>
       body { font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0; }
     </style>
