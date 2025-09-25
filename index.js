@@ -156,7 +156,7 @@ app.get('/', async (req, res) => {
   }
   const eventosRecientes = eventos.slice(-10).reverse();
 
-   modlogHTML = `
+  modlogHTML = `
     <section>
       <h2>📜 Registro de eventos</h2>
       ${eventosRecientes.length
@@ -170,28 +170,28 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  const stats = fs.statSync('./Usuario.json');
-  const ultimaActualizacion = new Date(stats.mtime);
-  const ahora = new Date();
-  const diferenciaMs = ahora - ultimaActualizacion;
-  const diferenciaDias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
+ const stats = fs.statSync('./Usuario.json');
+const ultimaActualizacion = new Date(stats.mtime);
+const ahora = new Date();
+const diferenciaMs = ahora - ultimaActualizacion;
+const diferenciaDias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
 
-  const actualizado = diferenciaDias <= 2;
-  const icono = actualizado ? '🟢' : '🔴';
-  const fondo = actualizado ? '#112611' : '#260f0f';
-  const colorTexto = actualizado ? '#00ff88' : '#ff4444';
+const actualizado = diferenciaDias <= 2;
+const icono = actualizado ? '🟢' : '🔴';
+const fondo = actualizado ? '#112611' : '#260f0f';
+const colorTexto = actualizado ? '#00ff88' : '#ff4444';
 
-  actualizacionHTML = `
-    <section style="background:${fondo}; padding:20px; border-radius:8px;">
-      <h2>${icono} Última actualización de datos</h2>
-      <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
-      <p>Estado: <strong style="color:${colorTexto};">
-        ${actualizado ? `Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}` : `Desactualizado (${diferenciaDias} días)`}
-      </strong></p>
-    </section>
-  `;
+actualizacionHTML = `
+  <section style="background:${fondo}; padding:20px; border-radius:8px;">
+    <h2>${icono} Última actualización de datos</h2>
+    <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
+    <p>Estado: <strong style="color:${colorTexto};">
+      ${actualizado ? `Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}` : `Desactualizado (${diferenciaDias} días)`}
+    </strong></p>
+  </section>
+`;
 
-  res.send(`
+    res.send(`
     <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
       <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
         <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
@@ -209,7 +209,6 @@ app.get('/', async (req, res) => {
         ${petHTML}
         ${modlogHTML}
         ${actualizacionHTML}
-        ${panelStaffHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
