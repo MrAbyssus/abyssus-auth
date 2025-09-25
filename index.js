@@ -5,6 +5,7 @@ const fs = require('fs');
 const economiaData = require('./Usuario.json');
 const modlogData = require('./modlogs.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
+const rolesData = JSON.parse(fs.readFileSync('./Roles.json', 'utf8'));
 const app = express();
 
 app.get('/activar', (req, res) => {
@@ -44,7 +45,7 @@ app.get('/callback', async (req, res) => {
 
 app.get('/', async (req, res) => {
   const token = req.query.token;
-  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '', estadoHTML = '', actualizacionHTML = '';
+  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '', estadoHTML = '', actualizacionHTML = '', panelStaffHTML = '';
   let userId = '', guildId = 'abyssus';
   let user = null;
 
@@ -70,10 +71,23 @@ app.get('/', async (req, res) => {
     perfilHTML = `<section><h2>❌ Error al cargar el perfil</h2><p>${error.message}</p></section>`;
   }
 
+  const rolUsuario = rolesData[userId] || 'usuario';
+  if (['staff', 'admin', 'dev', 'moderador'].includes(rolUsuario)) {
+    panelStaffHTML = `
+      <section style="background:#1c1c1c; padding:20px; border-radius:10px; box-shadow:0 0 12px #FFD70033;">
+        <h2 style="color:#FFD700;">🔧 Panel técnico</h2>
+        <p style="color:#ccc;">Rol detectado: <strong>${rolUsuario}</strong></p>
+        <ul style="padding-left:20px;">
+          <li>📌 Acceso a expulsiones</li>
+          <li>📌 Override de comandos</li>
+          <li>📌 Logging activo</li>
+        </ul>
+      </section>
+    `;
+  }
+
   let balance = 0;
   try {
-    if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
-
     const datosUsuario = economiaData.find(u => u.id === userId);
     if (datosUsuario) {
       balance = datosUsuario.balance || 0;
@@ -98,7 +112,6 @@ app.get('/', async (req, res) => {
   }
 
   try {
-    if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
     const id = `${guildId}-${userId}`;
     const petData = mascotasData[id];
 
@@ -156,7 +169,7 @@ app.get('/', async (req, res) => {
   }
   const eventosRecientes = eventos.slice(-10).reverse();
 
-  modlogHTML = `
+   modlogHTML = `
     <section>
       <h2>📜 Registro de eventos</h2>
       ${eventosRecientes.length
@@ -169,19 +182,6 @@ app.get('/', async (req, res) => {
         : `<p>No hay eventos registrados</p>`}
     </section>
   `;
-
-  const stats = fs.statSync('./Usuario.json');
-  const ultimaActualizacion = new Date(stats.mtime).toLocaleString('es-MX', {
-    timeZone: 'America/Mexico_City'
-  });
-
-  actualizacionHTML = `
-    <section>
-      <h2>🕒 Última actualización de datos</h2>
-      <p>Archivo actualizado el: <strong>${ultimaActualizacion}</strong></p>
-    </section>
-  `;
-
   res.send(`
     <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
       <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
@@ -200,6 +200,7 @@ app.get('/', async (req, res) => {
         ${petHTML}
         ${modlogHTML}
         ${actualizacionHTML}
+        ${panelStaffHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
@@ -207,14 +208,14 @@ app.get('/', async (req, res) => {
       </footer>
     </main>
   `);
-}); // ← cierre correcto de app.get('/')
-
+});
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
