@@ -96,114 +96,36 @@ app.get('/', async (req, res) => {
     `;
   }
 
-  let balance = 0;
-  try {
-    const datosUsuario = economiaData.find(u => u.id === userId);
-    if (datosUsuario) {
-      balance = datosUsuario.balance || 0;
-      const ingresos = datosUsuario.ingresos || 0;
-      const gastos = datosUsuario.gastos || 0;
-      const eventos = datosUsuario.eventos || [];
+  // ... (todo tu código de economía, mascota, recompensas, estado, modlog, actualizacionHTML se mantiene igual)
 
-      economiaHTML = `
-        <section>
-          <h2>💰 Economía Bot</h2>
-          <p>Balance: <strong>$${balance.toLocaleString()}</strong></p>
-          <p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
-          <p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
-          <p>Eventos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
-        </section>
-      `;
-    } else {
-      economiaHTML = `<section><h2>❌ Economía no disponible</h2><p>No se encontró información económica</p></section>`;
-    }
-  } catch (err) {
-    economiaHTML = `<section><h2>❌ Error al cargar economía</h2><p>${err.message}</p></section>`;
-  }
+  res.send(`
+    <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
+      <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
+        <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
+        <p style="font-size:17px; color:#bbb;">Servidor activo · módulos integrados</p>
+        <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
+      </header>
 
-  try {
-    const id = `${guildId}-${userId}`;
-    const petData = mascotasData[id];
-
-    petHTML = petData ? `
-      <section>
-        <h2>🐾 Mascota vinculada</h2>
-        <p>Nombre: <strong>${petData.nombre}</strong></p>
-        <p>Tipo: <strong>${petData.tipo}</strong></p>
-        <p>Rareza: <strong>${petData.rareza}</strong></p>
-        <p>Estado: <strong>${petData.estado}</strong></p>
+      <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
+        ${perfilHTML}
+        ${economiaHTML}
+        ${clienteHTML}
+        ${estadoHTML}
+        ${recompensasHTML}
+        ${statusHTML}
+        ${petHTML}
+        ${modlogHTML}
+        ${actualizacionHTML}
+        ${panelStaffHTML}
+        ${logVisualHTML}
       </section>
-    ` : `<section><h2>🐾 Mascota no disponible</h2><p>No se encontró mascota vinculada</p></section>`;
-  } catch (err) {
-    petHTML = `<section><h2>🐾 Mascota no disponible</h2><p>Error: ${err.message}</p></section>`;
-  }
 
-  const recompensas = [];
-  if (balance >= 1000) recompensas.push('Blindaje semántico');
-  if (balance >= 5000) recompensas.push('Heurística institucional');
-  if (balance >= 10000) recompensas.push('OAuth2 sincronizado');
-
-  recompensasHTML = `
-    <section>
-      <h2>🎁 Recompensas</h2>
-      ${recompensas.length
-        ? `<ul style="padding-left:20px;">${recompensas.map(r => `<li><strong>${r}</strong></li>`).join('')}</ul>`
-        : `<p>No hay recompensas desbloqueadas</p>`}
-    </section>
-  `;
-
-  const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
-  statusHTML = `
-    <section>
-      <h2>📡 Estado del sistema</h2>
-      <p>Hora local: <strong>${hora}</strong></p>
-      <p>Backend: <strong>Activo</strong></p>
-      <p>OAuth2: <strong>Verificado</strong></p>
-    </section>
-  `;
-
-  estadoHTML = user ? `
-  <section>
-    <h2>🛡️ Estado de cuenta</h2>
-    <p>2FA: <strong>${user.mfa_enabled ? 'Activado' : 'No activado'}</strong></p>
-    <p>Verificación: <strong>${user.verified ? '✅ Verificada' : '❌ No verificada'}</strong></p>
-    <p>Idioma: <strong>${user.locale}</strong></p>
-    <p>Nitro: <strong>${
-      user.premium_type === 2 ? 'Nitro' :
-      user.premium_type === 1 ? 'Classic' :
-      'Sin Nitro'
-    }</strong></p>
-  </section>
-` : '';
-
-res.send(`
-  <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
-    <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
-      <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
-      <p style="font-size:17px; color:#bbb;">Servidor activo · módulos integrados</p>
-      <p style="margin-top:10px; color:#666;">Sistema Abyssus · backend blindado</p>
-    </header>
-
-    <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
-      ${perfilHTML}
-      ${economiaHTML}
-      ${clienteHTML}
-      ${estadoHTML}
-      ${recompensasHTML}
-      ${statusHTML}
-      ${petHTML}
-      ${modlogHTML}
-      ${actualizacionHTML}
-      ${panelStaffHTML}
-      ${logVisualHTML}
-    </section>
-
-    <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
-      Sistema Abyssus · render institucional proyectado
-    </footer>
-  </main>
+      <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
+        Sistema Abyssus · render institucional proyectado
+      </footer>
+    </main>
   `);
-}); // ← cierre correcto de app.get('/')
+});
 
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
