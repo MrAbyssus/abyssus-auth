@@ -234,6 +234,15 @@
         "action": "Purge",
         "reason": "Eliminó 5 mensajes en #cmd-tester",
         "timestamp": "2025-09-20T07:24:32.150Z"
+      },
+      {
+        "id": "purge-1758671422363",
+        "guildId": "1405288107024060548",
+        "userId": "311059435076190208",
+        "userTag": "mr.abyssus",
+        "action": "Purge",
+        "reason": "Eliminó 3 mensajes en #cmd-tester",
+        "timestamp": "2025-09-23T23:50:22.363Z"
       }
     ],
     "config": {
@@ -262,6 +271,53 @@
         "action": "Unmute",
         "timestamp": "2025-09-20T06:59:25.023Z"
       }
+    ],
+    "423772547624992791": [
+      {
+        "id": "purge-1758594324363",
+        "guildId": "1405288107024060548",
+        "userId": "423772547624992791",
+        "userTag": "hikendrasec",
+        "action": "Purge",
+        "reason": "Eliminó 7 mensajes en #cmd-tester",
+        "timestamp": "2025-09-23T02:25:24.364Z"
+      },
+      {
+        "id": "rol-1758595247482",
+        "guildId": "1405288107024060548",
+        "userId": "423772547624992791",
+        "userTag": "hikendrasec",
+        "action": "CrearRol",
+        "reason": "Rol creado: los 7 pilares",
+        "timestamp": "2025-09-23T02:40:47.482Z"
+      },
+      {
+        "id": "rol-1758595275700",
+        "guildId": "1405288107024060548",
+        "userId": "423772547624992791",
+        "userTag": "hikendrasec",
+        "action": "EliminarRol",
+        "reason": "Rol eliminado: los 7 pilares",
+        "timestamp": "2025-09-23T02:41:15.700Z"
+      },
+      {
+        "id": "purge-1758596536201",
+        "guildId": "1405288107024060548",
+        "userId": "423772547624992791",
+        "userTag": "hikendrasec",
+        "action": "Purge",
+        "reason": "Eliminó 19 mensajes en #cmd-tester",
+        "timestamp": "2025-09-23T03:02:16.202Z"
+      },
+      {
+        "id": "purge-1758596571207",
+        "guildId": "1405288107024060548",
+        "userId": "423772547624992791",
+        "userTag": "hikendrasec",
+        "action": "Purge",
+        "reason": "Eliminó 12 mensajes en #cmd-tester",
+        "timestamp": "2025-09-23T03:02:51.207Z"
+      }
     ]
   },
   "937513456138059826": {
@@ -283,6 +339,41 @@
         "action": "EliminarRol",
         "reason": "Rol eliminado: rol 2",
         "timestamp": "2025-09-10T02:08:21.937Z"
+      }
+    ]
+  },
+  "1419891592227061773": {
+    "1418037938633310310": [
+      {
+        "id": "purge-1758608861269",
+        "guildId": "1419891592227061773",
+        "userId": "1418037938633310310",
+        "userTag": "squeled",
+        "action": "Purge",
+        "reason": "Eliminó 4 mensajes en #•『💬』ᴄʜᴀᴛ-ɢᴇɴᴇʀᴀʟ",
+        "timestamp": "2025-09-23T06:27:41.269Z"
+      },
+      {
+        "id": "purge-1758635387355",
+        "guildId": "1419891592227061773",
+        "userId": "1418037938633310310",
+        "userTag": "squeled",
+        "action": "Purge",
+        "reason": "Eliminó 29 mensajes en #•『💬』ᴄʜᴀᴛ-ɢᴇɴᴇʀᴀʟ",
+        "timestamp": "2025-09-23T13:49:47.355Z"
+      }
+    ]
+  },
+  "1418510742746828943": {
+    "1418037938633310310": [
+      {
+        "id": "purge-1758725054326",
+        "guildId": "1418510742746828943",
+        "userId": "1418037938633310310",
+        "userTag": "squeled",
+        "action": "Purge",
+        "reason": "Eliminó 100 mensajes en #🌎ɢᴇɴᴇʀᴀʟ",
+        "timestamp": "2025-09-24T14:44:14.326Z"
       }
     ]
   }
