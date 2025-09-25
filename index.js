@@ -191,8 +191,19 @@ actualizacionHTML = `
   </section>
 `;
 
-    res.send(`
-    <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
+  res.send(`
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <title>Abyssus Dashboard</title>
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <style>
+      body { font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0; }
+    </style>
+  </head>
+  <body>
+    <main>
       <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
         <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
         <p style="font-size:17px; color:#bbb;">Servidor activo · módulos integrados</p>
@@ -215,8 +226,10 @@ actualizacionHTML = `
         Sistema Abyssus · render institucional proyectado
       </footer>
     </main>
-  `);
-}); // ← cierre correcto de app.get('/')
+  </body>
+</html>
+`);
+
 
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
