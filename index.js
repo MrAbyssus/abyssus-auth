@@ -7,6 +7,8 @@ const modlogData = require('./modlogs.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
 const app = express();
 
+app.use(express.static('public')); // ← sirve favicon y archivos estáticos
+
 app.get('/activar', (req, res) => {
   res.send('🟢 Render activado · entorno despierto');
 });
@@ -170,18 +172,17 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
- const stats = fs.statSync('./Usuario.json');
-const ultimaActualizacion = new Date(stats.mtime);
-const ahora = new Date();
-const diferenciaMs = ahora - ultimaActualizacion;
-const diferenciaDias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
+  const stats = fs.statSync('./Usuario.json');
+  const ultimaActualizacion = new Date(stats.mtime);
+  const ahora = new Date();
+  const diferenciaMs = ahora - ultimaActualizacion;
+  const diferenciaDias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
 
-const actualizado = diferenciaDias <= 2;
-const icono = actualizado ? '🟢' : '🔴';
-const fondo = actualizado ? '#112611' : '#260f0f';
-const colorTexto = actualizado ? '#00ff88' : '#ff4444';
-
-actualizacionHTML = `
+  const actualizado = diferenciaDias <= 2;
+  const icono = actualizado ? '🟢' : '🔴';
+  const fondo = actualizado ? '#112611' : '#260f0f';
+  const colorTexto = actualizado ? '#00ff88' : '#ff4444';
+  actualizacionHTML = `
   <section style="background:${fondo}; padding:20px; border-radius:8px;">
     <h2>${icono} Última actualización de datos</h2>
     <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
@@ -190,9 +191,6 @@ actualizacionHTML = `
     </strong></p>
   </section>
 `;
-
-app.get('/', async (req, res) => {
-  // ... toda tu lógica previa (token, perfilHTML, economía, etc.) ...
 
   res.send(`
 <!DOCTYPE html>
@@ -232,7 +230,7 @@ app.get('/', async (req, res) => {
   </body>
 </html>
   `);
-}); // ← cierre correcto del bloque app.get('/')
+}); // ← cierre correcto del app.get('/')
 
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
@@ -240,6 +238,7 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
