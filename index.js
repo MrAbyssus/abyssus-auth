@@ -191,6 +191,9 @@ actualizacionHTML = `
   </section>
 `;
 
+app.get('/', async (req, res) => {
+  // ... toda tu lógica previa (token, perfilHTML, economía, etc.) ...
+
   res.send(`
 <!DOCTYPE html>
 <html lang="es">
@@ -228,8 +231,8 @@ actualizacionHTML = `
     </main>
   </body>
 </html>
-`);
-}); 
+  `);
+}); // ← cierre correcto del bloque app.get('/')
 
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
@@ -237,6 +240,7 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
