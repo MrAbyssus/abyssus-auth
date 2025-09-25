@@ -317,6 +317,24 @@
         "action": "Purge",
         "reason": "Eliminó 12 mensajes en #cmd-tester",
         "timestamp": "2025-09-23T03:02:51.207Z"
+      },
+      {
+        "id": "purge-1758762944790",
+        "guildId": "1405288107024060548",
+        "userId": "423772547624992791",
+        "userTag": "hikendrasec",
+        "action": "Purge",
+        "reason": "Eliminó 22 mensajes en #cmd-tester",
+        "timestamp": "2025-09-25T01:15:44.790Z"
+      },
+      {
+        "id": "purge-1758764166459",
+        "guildId": "1405288107024060548",
+        "userId": "423772547624992791",
+        "userTag": "hikendrasec",
+        "action": "Purge",
+        "reason": "Eliminó 23 mensajes en #cmd-tester",
+        "timestamp": "2025-09-25T01:36:06.459Z"
       }
     ]
   },
