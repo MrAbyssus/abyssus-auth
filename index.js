@@ -170,25 +170,27 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-  const stats = fs.statSync('./Usuario.json');
+const stats = fs.statSync('./Usuario.json');
 const ultimaActualizacion = new Date(stats.mtime);
 const ahora = new Date();
 const diferenciaMs = ahora - ultimaActualizacion;
 const diferenciaDias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
 
-const estadoArchivo = diferenciaDias > 2
-  ? `<span style="color:#ff4444;">Desactualizado (${diferenciaDias} días)</span>`
-  : `<span style="color:#00ff88;">Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}</span>`;
+const actualizado = diferenciaDias <= 2;
+const icono = actualizado ? '🟢' : '🔴';
+const fondo = actualizado ? '#112611' : '#260f0f';
+const colorTexto = actualizado ? '#00ff88' : '#ff4444';
 
 actualizacionHTML = `
-  <section>
-    <h2>🕒 Última actualización de datos</h2>
+  <section style="background:${fondo}; padding:20px; border-radius:8px;">
+    <h2>${icono} Última actualización de datos</h2>
     <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
-    <p>Estado: ${estadoArchivo}</p>
+    <p>Estado: <strong style="color:${colorTexto};">
+      ${actualizado ? `Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}` : `Desactualizado (${diferenciaDias} días)`}
+    </strong></p>
   </section>
 `;
-
-
+  
    res.send(`
     <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
       <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
