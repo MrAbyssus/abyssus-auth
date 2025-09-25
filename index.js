@@ -2,9 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const fs = require('fs');
-const economiaData = require('./Usuario.json'); // ← array de usuarios
+const economiaData = require('./Usuario.json');
 const modlogData = require('./modlogs.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
+const rolesData = JSON.parse(fs.readFileSync('./Roles.json', 'utf8')); // ← integración de roles
 const app = express();
 
 app.get('/activar', (req, res) => {
@@ -44,7 +45,7 @@ app.get('/callback', async (req, res) => {
 
 app.get('/', async (req, res) => {
   const token = req.query.token;
-  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '', estadoHTML = '', actualizacionHTML = '';
+  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '', estadoHTML = '', actualizacionHTML = '', panelStaffHTML = '';
   let userId = '', guildId = 'abyssus';
   let user = null;
 
@@ -70,10 +71,24 @@ app.get('/', async (req, res) => {
     perfilHTML = `<section><h2>❌ Error al cargar el perfil</h2><p>${error.message}</p></section>`;
   }
 
+  const rolUsuario = rolesData[userId] || 'usuario';
+  if (['staff', 'admin', 'dev', 'moderador'].includes(rolUsuario)) {
+    panelStaffHTML = `
+      <section style="background:#1c1c1c; padding:20px; border-radius:10px; box-shadow:0 0 12px #FFD70033;">
+        <h2 style="color:#FFD700;">🔧 Panel técnico</h2>
+        <p style="color:#ccc;">Rol detectado: <strong>${rolUsuario}</strong></p>
+        <ul style="padding-left:20px;">
+          <li>📌 Acceso a expulsiones</li>
+          <li>📌 Override de comandos</li>
+          <li>📌 Logging activo</li>
+        </ul>
+      </section>
+    `;
+  }
+
   let balance = 0;
   try {
     if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
-
     const datosUsuario = economiaData.find(u => u.id === userId);
     if (datosUsuario) {
       balance = datosUsuario.balance || 0;
@@ -160,6 +175,11 @@ app.get('/', async (req, res) => {
     <section>
       <h2>📜 Registro de eventos</h2>
       ${eventosRecientes.length
+
+  modlogHTML = `
+    <section>
+      <h2>📜 Registro de eventos</h2>
+      ${eventosRecientes.length
         ? `<ul style="list-style:none; padding:0;">${eventosRecientes.map(e => `
             <li>
               <strong>${e.action}</strong> · ${e.reason}<br>
@@ -170,28 +190,28 @@ app.get('/', async (req, res) => {
     </section>
   `;
 
-const stats = fs.statSync('./Usuario.json');
-const ultimaActualizacion = new Date(stats.mtime);
-const ahora = new Date();
-const diferenciaMs = ahora - ultimaActualizacion;
-const diferenciaDias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
+  const stats = fs.statSync('./Usuario.json');
+  const ultimaActualizacion = new Date(stats.mtime);
+  const ahora = new Date();
+  const diferenciaMs = ahora - ultimaActualizacion;
+  const diferenciaDias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
 
-const actualizado = diferenciaDias <= 2;
-const icono = actualizado ? '🟢' : '🔴';
-const fondo = actualizado ? '#112611' : '#260f0f';
-const colorTexto = actualizado ? '#00ff88' : '#ff4444';
+  const actualizado = diferenciaDias <= 2;
+  const icono = actualizado ? '🟢' : '🔴';
+  const fondo = actualizado ? '#112611' : '#260f0f';
+  const colorTexto = actualizado ? '#00ff88' : '#ff4444';
 
-actualizacionHTML = `
-  <section style="background:${fondo}; padding:20px; border-radius:8px;">
-    <h2>${icono} Última actualización de datos</h2>
-    <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
-    <p>Estado: <strong style="color:${colorTexto};">
-      ${actualizado ? `Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}` : `Desactualizado (${diferenciaDias} días)`}
-    </strong></p>
-  </section>
-`;
-  
-   res.send(`
+  actualizacionHTML = `
+    <section style="background:${fondo}; padding:20px; border-radius:8px;">
+      <h2>${icono} Última actualización de datos</h2>
+      <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
+      <p>Estado: <strong style="color:${colorTexto};">
+        ${actualizado ? `Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}` : `Desactualizado (${diferenciaDias} días)`}
+      </strong></p>
+    </section>
+  `;
+
+  res.send(`
     <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
       <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
         <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
@@ -209,6 +229,7 @@ actualizacionHTML = `
         ${petHTML}
         ${modlogHTML}
         ${actualizacionHTML}
+        ${panelStaffHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
