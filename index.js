@@ -5,7 +5,6 @@ const fs = require('fs');
 const economiaData = require('./Usuario.json');
 const modlogData = require('./modlogs.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
-const rolesData = JSON.parse(fs.readFileSync('./Roles.json', 'utf8')); // ← integración de roles
 const app = express();
 
 app.get('/activar', (req, res) => {
@@ -45,7 +44,7 @@ app.get('/callback', async (req, res) => {
 
 app.get('/', async (req, res) => {
   const token = req.query.token;
-  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '', estadoHTML = '', actualizacionHTML = '', panelStaffHTML = '', logVisualHTML = '';
+  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', clienteHTML = '', modlogHTML = '', petHTML = '', estadoHTML = '', actualizacionHTML = '';
   let userId = '', guildId = 'abyssus';
   let user = null;
 
@@ -71,34 +70,128 @@ app.get('/', async (req, res) => {
     perfilHTML = `<section><h2>❌ Error al cargar el perfil</h2><p>${error.message}</p></section>`;
   }
 
-  const rolUsuario = rolesData[userId] || 'usuario';
-  if (['admin', 'dev', 'staff', 'moderador'].includes(rolUsuario)) {
-    panelStaffHTML = `
-      <section style="background:#1c1c1c; padding:20px; border-radius:10px; box-shadow:0 0 12px #FFD70033;">
-        <h2 style="color:#FFD700;">🔧 Panel técnico</h2>
-        <p style="color:#ccc;">Rol detectado: <strong>${rolUsuario}</strong></p>
-        <ul style="padding-left:20px;">
-          <li>📌 Acceso a expulsiones</li>
-          <li>📌 Override de comandos</li>
-          <li>📌 Logging activo</li>
-        </ul>
-      </section>
-    `;
+  let balance = 0;
+  try {
+    if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
 
-    logVisualHTML = `
-      <section style="background:#111; padding:20px; border-radius:10px; box-shadow:0 0 12px #00ffff33;">
-        <h2 style="color:#00ffff;">📥 Registro de acceso técnico</h2>
-        <p>Usuario: <strong>${userId}</strong></p>
-        <p>Rol detectado: <strong style="color:#FFD700;">${rolUsuario}</strong></p>
-        <p>Archivo de roles: <code>Roles.json</code></p>
-        <p>Estado de lectura: <strong style="color:#00ff88;">Correcta</strong></p>
-      </section>
-    `;
+    const datosUsuario = economiaData.find(u => u.id === userId);
+    if (datosUsuario) {
+      balance = datosUsuario.balance || 0;
+      const ingresos = datosUsuario.ingresos || 0;
+      const gastos = datosUsuario.gastos || 0;
+      const eventos = datosUsuario.eventos || [];
+
+      economiaHTML = `
+        <section>
+          <h2>💰 Economía Bot</h2>
+          <p>Balance: <strong>$${balance.toLocaleString()}</strong></p>
+          <p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
+          <p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
+          <p>Eventos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
+        </section>
+      `;
+    } else {
+      economiaHTML = `<section><h2>❌ Economía no disponible</h2><p>No se encontró información económica</p></section>`;
+    }
+  } catch (err) {
+    economiaHTML = `<section><h2>❌ Error al cargar economía</h2><p>${err.message}</p></section>`;
   }
 
-  // ... (todo tu código de economía, mascota, recompensas, estado, modlog, actualizacionHTML se mantiene igual)
+  try {
+    if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
+    const id = `${guildId}-${userId}`;
+    const petData = mascotasData[id];
 
-  res.send(`
+    petHTML = petData ? `
+      <section>
+        <h2>🐾 Mascota vinculada</h2>
+        <p>Nombre: <strong>${petData.nombre}</strong></p>
+        <p>Tipo: <strong>${petData.tipo}</strong></p>
+        <p>Rareza: <strong>${petData.rareza}</strong></p>
+        <p>Estado: <strong>${petData.estado}</strong></p>
+      </section>
+    ` : `<section><h2>🐾 Mascota no disponible</h2><p>No se encontró mascota vinculada</p></section>`;
+  } catch (err) {
+    petHTML = `<section><h2>🐾 Mascota no disponible</h2><p>Error: ${err.message}</p></section>`;
+  }
+
+  const recompensas = [];
+  if (balance >= 1000) recompensas.push('Blindaje semántico');
+  if (balance >= 5000) recompensas.push('Heurística institucional');
+  if (balance >= 10000) recompensas.push('OAuth2 sincronizado');
+
+  recompensasHTML = `
+    <section>
+      <h2>🎁 Recompensas</h2>
+      ${recompensas.length
+        ? `<ul style="padding-left:20px;">${recompensas.map(r => `<li><strong>${r}</strong></li>`).join('')}</ul>`
+        : `<p>No hay recompensas desbloqueadas</p>`}
+    </section>
+  `;
+
+  const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
+  statusHTML = `
+    <section>
+      <h2>📡 Estado del sistema</h2>
+      <p>Hora local: <strong>${hora}</strong></p>
+      <p>Backend: <strong>Activo</strong></p>
+      <p>OAuth2: <strong>Verificado</strong></p>
+    </section>
+  `;
+
+  estadoHTML = user ? `
+    <section>
+      <h2>🛡️ Estado de cuenta</h2>
+      <p>2FA: <strong>${user.mfa_enabled ? 'Activado' : 'No activado'}</strong></p>
+      <p>Verificación: <strong>${user.verified ? '✅ Verificada' : '❌ No verificada'}</strong></p>
+      <p>Idioma: <strong>${user.locale}</strong></p>
+      <p>Nitro: <strong>${user.premium_type === 2 ? 'Nitro' : user.premium_type === 1 ? 'Classic' : 'Sin Nitro'}</strong></p>
+    </section>
+  ` : '';
+
+  let eventos = [];
+  for (const gId in modlogData) {
+    const logs = modlogData[gId]?.[userId];
+    if (Array.isArray(logs)) eventos.push(...logs);
+  }
+  const eventosRecientes = eventos.slice(-10).reverse();
+
+  modlogHTML = `
+    <section>
+      <h2>📜 Registro de eventos</h2>
+      ${eventosRecientes.length
+        ? `<ul style="list-style:none; padding:0;">${eventosRecientes.map(e => `
+            <li>
+              <strong>${e.action}</strong> · ${e.reason}<br>
+              <span style="color:#888;">${new Date(e.timestamp).toLocaleString()}</span>
+            </li>
+          `).join('')}</ul>`
+        : `<p>No hay eventos registrados</p>`}
+    </section>
+  `;
+
+ const stats = fs.statSync('./Usuario.json');
+const ultimaActualizacion = new Date(stats.mtime);
+const ahora = new Date();
+const diferenciaMs = ahora - ultimaActualizacion;
+const diferenciaDias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
+
+const actualizado = diferenciaDias <= 2;
+const icono = actualizado ? '🟢' : '🔴';
+const fondo = actualizado ? '#112611' : '#260f0f';
+const colorTexto = actualizado ? '#00ff88' : '#ff4444';
+
+actualizacionHTML = `
+  <section style="background:${fondo}; padding:20px; border-radius:8px;">
+    <h2>${icono} Última actualización de datos</h2>
+    <p>Fecha: <strong>${ultimaActualizacion.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</strong></p>
+    <p>Estado: <strong style="color:${colorTexto};">
+      ${actualizado ? `Actualizado hace ${diferenciaDias} día${diferenciaDias !== 1 ? 's' : ''}` : `Desactualizado (${diferenciaDias} días)`}
+    </strong></p>
+  </section>
+`;
+
+    res.send(`
     <main style="font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;">
       <header style="padding:40px 30px; text-align:center; background:#111; box-shadow:0 0 25px #00ffff55;">
         <h1 style="color:#00ffff; font-size:38px; margin-bottom:10px;">🔐 Abyssus Dashboard</h1>
@@ -116,8 +209,6 @@ app.get('/', async (req, res) => {
         ${petHTML}
         ${modlogHTML}
         ${actualizacionHTML}
-        ${panelStaffHTML}
-        ${logVisualHTML}
       </section>
 
       <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
@@ -125,7 +216,7 @@ app.get('/', async (req, res) => {
       </footer>
     </main>
   `);
-});
+}); // ← cierre correcto de app.get('/')
 
 const PORT = process.env.PORT;
 if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
@@ -133,6 +224,7 @@ if (!PORT) throw new Error('❌ Variable PORT no definida por Render');
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
+
 
 
 
