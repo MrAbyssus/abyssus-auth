@@ -106,21 +106,23 @@ let servidorHTML = '';
 try {
   const servidoresPropios = Object.values(servidoresData).filter(s => s.owner_id === user?.id);
 
-  if (servidor) {
-    servidorHTML = `
-      <section>
-        <h2>🛡️ Servidor vinculado</h2>
-        <p>Nombre: <strong>${servidor.nombre}</strong></p>
-        <p>ID: <strong>${servidor.id}</strong></p>
-        <img src="https://cdn.discordapp.com/icons/${servidor.id}/${servidor.icon}.png" style="width:80px; border-radius:12px;" />
-      </section>
-    `;
-  } else {
-    servidorHTML = `<section><h2>🛡️ Sin servidor vinculado</h2><p>No se detectó propiedad sobre ningún servidor</p></section>`;
-  }
+  servidorHTML = servidoresPropios.length ? `
+    <section>
+      <h2>🛡️ Servidores vinculados</h2>
+      <ul style="list-style:none; padding-left:0;">
+        ${servidoresPropios.map(s => `
+          <li style="margin-bottom:20px;">
+            <p><strong>${s.nombre}</strong> · ID: ${s.id}</p>
+            <img src="https://cdn.discordapp.com/icons/${s.id}/${s.icon}.png" style="width:80px; border-radius:12px;" />
+          </li>
+        `).join('')}
+      </ul>
+    </section>
+  ` : `<section><h2>🛡️ Sin servidores vinculados</h2><p>No se detectó propiedad sobre ningún servidor</p></section>`;
 } catch (error) {
-  servidorHTML = `<section><h2>🛡️ Error al cargar servidor</h2><p>${error.message}</p></section>`;
+  servidorHTML = `<section><h2>🛡️ Error al cargar servidores</h2><p>${error.message}</p></section>`;
 }
+
 
 
 
