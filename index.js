@@ -229,6 +229,8 @@ try {
         ${estadoHTML}
         ${recompensasHTML}
         ${statusHTML}
+        ${perfilHTML}
+        ${servidorHTML}
         ${modlogHTML}
         ${actualizacionHTML}
       </section>
