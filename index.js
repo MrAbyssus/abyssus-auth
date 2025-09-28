@@ -102,11 +102,14 @@ app.get('/', async (req, res) => {
 
 
 
+  
 
 let servidorHTML = '';
 try {
-  const servidor = servidoresData[guildId];
-  if (servidor && user && user.id === servidor.owner_id) {
+  // Buscar el servidor donde el usuario es owner
+  const servidor = Object.values(servidoresData).find(s => s.owner_id === user?.id);
+
+  if (servidor) {
     servidorHTML = `
       <section>
         <h2>🛡️ Servidor vinculado</h2>
@@ -119,8 +122,6 @@ try {
 } catch (error) {
   servidorHTML = `<section><h2>🛡️ Error al cargar servidor</h2><p>${error.message}</p></section>`;
 }
-
-
 
 
 
@@ -202,19 +203,6 @@ try {
     </strong></p>
   </section>
 `;
-
-  servidorHTML = `
-  <section>
-    <h2>🛡️ Servidor vinculado</h2>
-    <p>Nombre: <strong>${servidor.nombre}</strong></p>
-    <p>ID: <strong>${servidor.id}</strong></p>
-    <p>Miembros: <strong>${servidor.miembros}</strong></p>
-    <p>Canales: <strong>${servidor.canales}</strong></p>
-    <p>Módulos activos: <strong>${servidor.modulos_activos.join(', ')}</strong></p>
-    <img src="https://cdn.discordapp.com/icons/${servidor.id}/${servidor.icon}.png" style="width:80px; border-radius:12px;" />
-  </section>
-`;
-
 
   res.send(`
 <!DOCTYPE html>
