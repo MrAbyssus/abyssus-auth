@@ -229,7 +229,6 @@ ${clienteHTML}
 ${estadoHTML}
 ${recompensasHTML}
 ${statusHTML}
-${perfilHTML} ← este sobra
 ${servidorHTML}
 ${modlogHTML}
 ${actualizacionHTML}
