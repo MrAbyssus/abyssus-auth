@@ -6,7 +6,6 @@ const economiaData = require('./Usuario.json');
 const modlogData = require('./modlogs.json');
 const servidoresData = require('./servidores.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
-const servidor = Object.values(servidoresData).find(s => s.owner_id === user?.id);
 const app = express();
 
 app.use(express.static('public')); // ← sirve favicon y archivos estáticos
