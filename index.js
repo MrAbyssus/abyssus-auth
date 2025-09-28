@@ -203,6 +203,19 @@ try {
   </section>
 `;
 
+  servidorHTML = `
+  <section>
+    <h2>🛡️ Servidor vinculado</h2>
+    <p>Nombre: <strong>${servidor.nombre}</strong></p>
+    <p>ID: <strong>${servidor.id}</strong></p>
+    <p>Miembros: <strong>${servidor.miembros}</strong></p>
+    <p>Canales: <strong>${servidor.canales}</strong></p>
+    <p>Módulos activos: <strong>${servidor.modulos_activos.join(', ')}</strong></p>
+    <img src="https://cdn.discordapp.com/icons/${servidor.id}/${servidor.icon}.png" style="width:80px; border-radius:12px;" />
+  </section>
+`;
+
+
   res.send(`
 <!DOCTYPE html>
 <html lang="es">
@@ -222,8 +235,8 @@ try {
   <p style="font-size:12px; color:#72767d;">💾 Backend blindado · acceso verificado</p>
    </header>
 
-      <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
-        ${perfilHTML}
+<section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
+${perfilHTML}
 ${economiaHTML}
 ${clienteHTML}
 ${estadoHTML}
