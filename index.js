@@ -101,31 +101,6 @@ app.get('/', async (req, res) => {
   }
 
 
-
-  
-let servidorHTML = '';
-try {
-  const servidor = servidoresData[guildId]; // ← servidor fijo
-  const esOwner = servidor?.owner_id === user?.id;
-
-  servidorHTML = servidor ? `
-    <section>
-      <h2>🛡️ Servidor: <strong>${servidor.nombre}</strong></h2>
-      <p>ID: <strong>${servidor.id}</strong></p>
-      ${esOwner ? `<p>Rol: <strong>Propietario</strong></p>` : `<p>Rol: <strong>Miembro</strong></p>`}
-      <img src="https://cdn.discordapp.com/icons/${servidor.id}/${servidor.icon}.png" style="width:80px; border-radius:12px;" />
-    </section>
-  ` : '';
-} catch (error) {
-  servidorHTML = `<section><h2>🛡️ Error al cargar servidor</h2><p>${error.message}</p></section>`;
-}
-
-
-
-
-  
-  
-
   const recompensas = [];
   if (balance >= 1000) recompensas.push('Blindaje semántico');
   if (balance >= 5000) recompensas.push('Heurística institucional');
@@ -227,7 +202,6 @@ ${clienteHTML}
 ${estadoHTML}
 ${recompensasHTML}
 ${statusHTML}
-${servidorHTML}
 ${modlogHTML}
 ${actualizacionHTML}
 
