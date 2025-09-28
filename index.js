@@ -4,7 +4,6 @@ const axios = require('axios');
 const fs = require('fs');
 const economiaData = require('./Usuario.json');
 const modlogData = require('./modlogs.json');
-const servidoresData = require('./servidores.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
 const app = express();
 
@@ -104,7 +103,8 @@ app.get('/', async (req, res) => {
 
 let servidorHTML = '';
 try {
-const servidoresPropios = Object.values(servidoresData);
+const servidoresPropios = Object.values(servidoresData).filter(s => s.owner_id === user?.id);
+
 
   servidorHTML = servidoresPropios.length ? `
     <section>
