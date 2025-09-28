@@ -99,24 +99,6 @@ app.get('/', async (req, res) => {
     economiaHTML = `<section><h2>❌ Error al cargar economía</h2><p>${err.message}</p></section>`;
   }
 
-  try {
-    if (!userId || typeof userId !== 'string') throw new Error('userId no definido');
-    const id = `${guildId}-${userId}`;
-    const petData = mascotasData[id];
-
-    petHTML = petData ? `
-      <section>
-        <h2>🐾 Mascota vinculada</h2>
-        <p>Nombre: <strong>${petData.nombre}</strong></p>
-        <p>Tipo: <strong>${petData.tipo}</strong></p>
-        <p>Rareza: <strong>${petData.rareza}</strong></p>
-        <p>Estado: <strong>${petData.estado}</strong></p>
-      </section>
-    ` : `<section><h2>🐾 Mascota no disponible</h2><p>No se encontró mascota vinculada</p></section>`;
-  } catch (err) {
-    petHTML = `<section><h2>🐾 Mascota no disponible</h2><p>Error: ${err.message}</p></section>`;
-  }
-
   const recompensas = [];
   if (balance >= 1000) recompensas.push('Blindaje semántico');
   if (balance >= 5000) recompensas.push('Heurística institucional');
@@ -218,7 +200,6 @@ app.get('/', async (req, res) => {
         ${estadoHTML}
         ${recompensasHTML}
         ${statusHTML}
-        ${petHTML}
         ${modlogHTML}
         ${actualizacionHTML}
       </section>
