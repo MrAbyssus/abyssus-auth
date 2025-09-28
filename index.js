@@ -224,15 +224,16 @@ try {
 
       <section style="max-width:1100px; margin:50px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px;">
         ${perfilHTML}
-        ${economiaHTML}
-        ${clienteHTML}
-        ${estadoHTML}
-        ${recompensasHTML}
-        ${statusHTML}
-        ${perfilHTML}
-        ${servidorHTML}
-        ${modlogHTML}
-        ${actualizacionHTML}
+${economiaHTML}
+${clienteHTML}
+${estadoHTML}
+${recompensasHTML}
+${statusHTML}
+${perfilHTML} ← este sobra
+${servidorHTML}
+${modlogHTML}
+${actualizacionHTML}
+
       </section>
 
       <footer style="text-align:center; padding:30px; color:#777; font-size:13px; border-top:1px solid #222;">
