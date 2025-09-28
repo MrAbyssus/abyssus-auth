@@ -4,6 +4,7 @@ const axios = require('axios');
 const fs = require('fs');
 const economiaData = require('./Usuario.json');
 const modlogData = require('./modlogs.json');
+const servidoresData = require('./servidores.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
 const app = express();
 
@@ -98,6 +99,33 @@ app.get('/', async (req, res) => {
   } catch (err) {
     economiaHTML = `<section><h2>❌ Error al cargar economía</h2><p>${err.message}</p></section>`;
   }
+
+
+
+
+let servidorHTML = '';
+try {
+  const servidor = servidoresData[guildId];
+  if (servidor && user && user.id === servidor.owner_id) {
+    servidorHTML = `
+      <section>
+        <h2>🛡️ Servidor vinculado</h2>
+        <p>Nombre: <strong>${servidor.nombre}</strong></p>
+        <p>ID: <strong>${servidor.id}</strong></p>
+        <img src="https://cdn.discordapp.com/icons/${servidor.id}/${servidor.icon}.png" style="width:80px; border-radius:12px;" />
+      </section>
+    `;
+  }
+} catch (error) {
+  servidorHTML = `<section><h2>🛡️ Error al cargar servidor</h2><p>${error.message}</p></section>`;
+}
+
+
+
+
+
+
+  
   
 
   const recompensas = [];
