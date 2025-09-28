@@ -100,37 +100,6 @@ app.get('/', async (req, res) => {
   }
 
 
-
-let servidorHTML = '';
-try {
-const servidoresPropios = Object.values(servidoresData).filter(s => s.owner_id === user?.id);
-
-
-  servidorHTML = servidoresPropios.length ? `
-    <section>
-      <h2>🛡️ Servidores vinculados</h2>
-      <ul style="list-style:none; padding-left:0;">
-        ${servidoresPropios.map(s => `
-          <li style="margin-bottom:20px;">
-            <p><strong>${s.nombre}</strong> · ID: ${s.id}</p>
-            <img src="https://cdn.discordapp.com/icons/${s.id}/${s.icon}.png" style="width:80px; border-radius:12px;" />
-          </li>
-        `).join('')}
-      </ul>
-    </section>
-  ` : `<section><h2>🛡️ Sin servidores vinculados</h2><p>No se detectó propiedad sobre ningún servidor</p></section>`;
-} catch (error) {
-  servidorHTML = `<section><h2>🛡️ Error al cargar servidores</h2><p>${error.message}</p></section>`;
-}
-
-
-
-
-
-
-  
-  
-
   const recompensas = [];
   if (balance >= 1000) recompensas.push('Blindaje semántico');
   if (balance >= 5000) recompensas.push('Heurística institucional');
@@ -231,7 +200,6 @@ ${economiaHTML}
 ${clienteHTML}
 ${estadoHTML}
 ${recompensasHTML}
-${servidorHTML}
 ${statusHTML}
 ${modlogHTML}
 ${actualizacionHTML}
