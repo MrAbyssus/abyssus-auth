@@ -104,7 +104,7 @@ app.get('/', async (req, res) => {
 
 let servidorHTML = '';
 try {
-  const servidoresPropios = Object.values(servidoresData).filter(s => s.owner_id === user?.id);
+ const servidoresPropios = Object.values(servidoresData).filter(s => s.owner_id?.trim() === user?.id?.trim());
 
   servidorHTML = servidoresPropios.length ? `
     <section>
