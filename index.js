@@ -6,6 +6,7 @@ const economiaData = require('./Usuario.json');
 const modlogData = require('./modlogs.json');
 const servidoresData = require('./servidores.json');
 const mascotasData = JSON.parse(fs.readFileSync('./mascotas.json', 'utf8'));
+const servidor = Object.values(servidoresData).find(s => s.owner_id === user?.id);
 const app = express();
 
 app.use(express.static('public')); // ← sirve favicon y archivos estáticos
@@ -103,22 +104,19 @@ app.get('/', async (req, res) => {
 
 
   
-
 let servidorHTML = '';
 try {
-  // Buscar el servidor donde el usuario es owner
-  const servidor = Object.values(servidoresData).find(s => s.owner_id === user?.id);
+  const servidor = servidoresData[guildId]; // ← servidor fijo
+  const esOwner = servidor?.owner_id === user?.id;
 
-  if (servidor) {
-    servidorHTML = `
-      <section>
-        <h2>🛡️ Servidor vinculado</h2>
-        <p>Nombre: <strong>${servidor.nombre}</strong></p>
-        <p>ID: <strong>${servidor.id}</strong></p>
-        <img src="https://cdn.discordapp.com/icons/${servidor.id}/${servidor.icon}.png" style="width:80px; border-radius:12px;" />
-      </section>
-    `;
-  }
+  servidorHTML = servidor ? `
+    <section>
+      <h2>🛡️ Servidor: <strong>${servidor.nombre}</strong></h2>
+      <p>ID: <strong>${servidor.id}</strong></p>
+      ${esOwner ? `<p>Rol: <strong>Propietario</strong></p>` : `<p>Rol: <strong>Miembro</strong></p>`}
+      <img src="https://cdn.discordapp.com/icons/${servidor.id}/${servidor.icon}.png" style="width:80px; border-radius:12px;" />
+    </section>
+  ` : '';
 } catch (error) {
   servidorHTML = `<section><h2>🛡️ Error al cargar servidor</h2><p>${error.message}</p></section>`;
 }
