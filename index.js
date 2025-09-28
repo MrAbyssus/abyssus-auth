@@ -99,6 +99,38 @@ app.get('/', async (req, res) => {
     economiaHTML = `<section><h2>❌ Error al cargar economía</h2><p>${err.message}</p></section>`;
   }
 
+
+  let servidoresHTML = '';
+try {
+  const guildsResponse = await axios.get('https://discord.com/api/users/@me/guilds', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const guilds = guildsResponse.data;
+
+  servidoresHTML = guilds.length ? `
+    <section>
+      <h2>🧭 Servidores donde estás</h2>
+      <ul style="padding-left:20px;">
+        ${guilds.map(g => `<li><strong>${g.name}</strong> · ID: ${g.id}</li>`).join('')}
+      </ul>
+    </section>
+  ` : `<section><h2>🧭 Sin servidores</h2><p>No se detectaron servidores vinculados</p></section>`;
+} catch (error) {
+  servidoresHTML = `<section><h2>🧭 Error al cargar servidores</h2><p>${error.message}</p></section>`;
+}
+
+
+
+
+
+
+
+
+
+
+
+  
+
   const recompensas = [];
   if (balance >= 1000) recompensas.push('Blindaje semántico');
   if (balance >= 5000) recompensas.push('Heurística institucional');
@@ -200,6 +232,7 @@ app.get('/', async (req, res) => {
         ${estadoHTML}
         ${recompensasHTML}
         ${statusHTML}
+        ${servidoresHTML}
         ${modlogHTML}
         ${actualizacionHTML}
       </section>
