@@ -13,7 +13,7 @@
     "ultimaSemanaCofre": 2908,
     "ultimoPedido": 1757574834958,
     "usosIA": 3,
-    "ultimoUsoIA": 1758505364686,
+    "ultimoUsoIA": 1759204218972,
     "reputacion": 70,
     "boostActivo": true,
     "boostExpira": 1757916301269,
@@ -47,19 +47,20 @@
   },
   {
     "id": "423772547624992791",
-    "balance": 472,
+    "balance": 630,
     "inventario": [
-      "Fragmento de cobre"
+      "Fragmento de cobre",
+      "Poción fuerte"
     ],
     "usosIA": 3,
-    "ultimoUsoIA": 1758593734972,
-    "cofrePendiente": "raro",
+    "ultimoUsoIA": 1759203496787,
+    "cofrePendiente": null,
     "lastDaily": 1758761820484,
     "ultimaSemanaCofre": 2908,
     "ultimoPedido": 1758762597886,
     "banco": null,
-    "reputacion": 10,
-    "reputationCooldown": 1758764724037,
+    "reputacion": 20,
+    "reputationCooldown": 1759199728871,
     "guild": "1405288107024060548"
   },
   {
