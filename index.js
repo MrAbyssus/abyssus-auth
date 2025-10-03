@@ -9,7 +9,6 @@ const app = express();
 // Rutas JSON
 const economiaPath = path.join(__dirname, 'Usuario.json');
 const modlogPath = path.join(__dirname, 'modlogs.json');
-const mascotasPath = path.join(__dirname, 'mascotas.json');
 const nivelesPath = path.join(__dirname, 'nivelesData.json');
 
 // Función segura para leer JSON
@@ -22,10 +21,10 @@ function cargarJSON(ruta) {
   }
 }
 
-// Static files
+// Archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ruta de activación
+// Ruta activación
 app.get('/activar', (req, res) => res.send('🟢 Dashboard activo'));
 
 // Callback OAuth2
@@ -71,13 +70,14 @@ app.get('/', async (req, res) => {
     }
   }
 
-  // Cargar datos locales
+  // Datos locales
   const economiaData = cargarJSON(economiaPath);
   const nivelesData = cargarJSON(nivelesPath);
   const modlogData = cargarJSON(modlogPath);
 
   const datosUsuario = economiaData.find(u => u.id === userId) || {};
   const datosNivel = nivelesData.niveles?.[userId] || {};
+
   const balance = datosUsuario.balance || 0;
   const ingresos = datosUsuario.ingresos || 0;
   const gastos = datosUsuario.gastos || 0;
@@ -86,7 +86,6 @@ app.get('/', async (req, res) => {
   const xp = datosNivel.xp || 0;
   const xpSiguiente = 1000 + nivel * 500;
   const progreso = Math.min(100, Math.floor((xp / xpSiguiente) * 100));
-  const barra = '▭'.repeat(Math.floor(progreso / 5)).padEnd(20, '▭');
 
   const recompensas = [];
   if (balance >= 1000) recompensas.push('Blindaje semántico');
@@ -100,7 +99,10 @@ app.get('/', async (req, res) => {
   const diferenciaDias = Math.floor((ahora - ultimaActualizacion) / (1000 * 60 * 60 * 24));
   const actualizado = diferenciaDias <= 2;
 
-  // HTML
+  // Función color barra
+  const colorXP = progreso < 50 ? '#ff5555' : progreso < 80 ? '#ffbb33' : '#33ff88';
+  const colorBalance = balance < 1000 ? '#ff5555' : balance < 5000 ? '#ffbb33' : '#33ff88';
+
   res.send(`
 <!DOCTYPE html>
 <html lang="es">
@@ -108,13 +110,16 @@ app.get('/', async (req, res) => {
 <meta charset="UTF-8">
 <title>Abyssus Dashboard</title>
 <style>
-body { font-family: 'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; }
-header { background:#23272a; padding:20px; text-align:center; border-bottom:1px solid #2c2f33; }
-main { max-width:1100px; margin:40px auto; display:grid; grid-template-columns:1fr 1fr; gap:30px; }
-section { background:#1c1c1c; padding:20px; border-radius:10px; }
-h2 { color:#00ff88; }
-footer { text-align:center; padding:20px; color:#777; border-top:1px solid #222; }
-.progress { font-family: monospace; color:#00ff88; }
+body { font-family: 'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;}
+header { background:#23272a; padding:25px; text-align:center; border-bottom:1px solid #2c2f33; }
+header h1 { font-size:30px; margin:0; color:#00ff88; }
+main { max-width:1200px; margin:40px auto; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap:30px; }
+.card { background:#1c1c1c; padding:20px; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,0.5); }
+h2 { margin-top:0; color:#00ff88; }
+.progress-container { background:#333; border-radius:10px; height:20px; overflow:hidden; margin-top:5px; }
+.progress-bar { height:100%; border-radius:10px; transition: width 0.5s; }
+footer { text-align:center; padding:25px; color:#777; border-top:1px solid #222; }
+ul { padding-left:20px; }
 </style>
 </head>
 <body>
@@ -123,43 +128,49 @@ footer { text-align:center; padding:20px; color:#777; border-top:1px solid #222;
 <p>🟢 Servidor activo · módulos conectados</p>
 </header>
 <main>
-<section>
+
+<div class="card">
 <h2>👤 Perfil Discord</h2>
 ${user ? `
 <p><strong>${user.username}#${user.discriminator}</strong></p>
 <p>ID: ${user.id}</p>
+<img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="100" height="100" style="border-radius:50%;">
 ` : '<p>No autenticado</p>'}
-</section>
+</div>
 
-<section>
+<div class="card">
 <h2>💰 Economía</h2>
-<p>Balance: <strong>$${balance.toLocaleString()}</strong></p>
+<p>Balance: <strong style="color:${colorBalance}">$${balance.toLocaleString()}</strong></p>
 <p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
 <p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
 <p>Eventos: <strong>${eventos.length}</strong></p>
-</section>
+</div>
 
-<section>
+<div class="card">
 <h2>📈 Nivel</h2>
 <p>Nivel: <strong>${nivel}</strong></p>
 <p>XP: <strong>${xp} / ${xpSiguiente}</strong></p>
-<p class="progress">${barra} (${progreso}%)</p>
-</section>
+<div class="progress-container">
+<div class="progress-bar" style="width:${progreso}%; background:${colorXP};"></div>
+</div>
+<p>${progreso}%</p>
+</div>
 
-<section>
+<div class="card">
 <h2>🎁 Recompensas</h2>
 ${recompensas.length ? `<ul>${recompensas.map(r => `<li>${r}</li>`).join('')}</ul>` : '<p>No hay recompensas</p>'}
-</section>
+</div>
 
-<section>
+<div class="card">
 <h2>📜 Modlogs recientes</h2>
 <ul>${(modlogData[userId] || []).slice(-5).reverse().map(e => `<li>${e.action} - ${e.reason}</li>`).join('')}</ul>
-</section>
+</div>
 
-<section>
+<div class="card">
 <h2>🟢 Última actualización</h2>
 <p>${actualizado ? 'Actualizado recientemente' : `Desactualizado (${diferenciaDias} días)`}</p>
-</section>
+</div>
+
 </main>
 <footer>Sistema Abyssus · Renderizado local</footer>
 </body>
@@ -170,6 +181,7 @@ ${recompensas.length ? `<ul>${recompensas.map(r => `<li>${r}</li>`).join('')}</u
 // Puerto
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Dashboard activo en puerto ${PORT}`));
+
 
 
 
