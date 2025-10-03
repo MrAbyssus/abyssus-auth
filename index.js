@@ -1,214 +1,129 @@
+// server.js
 require('dotenv').config();
 const express = require('express');
-const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
 
-// Rutas de archivos JSON
+// Rutas de tus archivos JSON
 const economiaPath = path.join(__dirname, 'Usuario.json');
 const modlogPath = path.join(__dirname, 'modlogs.json');
 const nivelesPath = path.join(__dirname, 'nivelesData.json');
 
-// Función para cargar JSON
-function cargarJSON(ruta, nombre = 'archivo') {
+// Función para leer JSON de forma segura
+function cargarJSON(ruta) {
   try {
-    if (!fs.existsSync(ruta)) {
-      console.warn(`⚠️ ${nombre} no existe en ${ruta}`);
-      return [];
-    }
+    if (!fs.existsSync(ruta)) return [];
     return JSON.parse(fs.readFileSync(ruta, 'utf8'));
   } catch (err) {
-    console.error(`❌ Error leyendo ${nombre}:`, err.message);
+    console.error(`Error leyendo ${ruta}:`, err.message);
     return [];
   }
 }
 
-const economiaData = cargarJSON(economiaPath, 'Economía');
-const modlogData = cargarJSON(modlogPath, 'Modlogs');
-const nivelesData = cargarJSON(nivelesPath, 'Niveles');
-
+// Servir archivos estáticos (si tienes favicon, css, etc.)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ================== CALLBACK ==================
-app.get('/callback', async (req, res) => {
-  const code = req.query.code;
-  if (!code || typeof code !== 'string' || code.length < 10) return res.send('<h2>❌ Código OAuth2 no recibido</h2>');
-
-  try {
-    if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET || !process.env.REDIRECT_URI)
-      throw new Error('❌ Variables de entorno OAuth2 no definidas');
-
-    const tokenResponse = await axios.post(
-      'https://discord.com/api/oauth2/token',
-      new URLSearchParams({
-        client_id: process.env.CLIENT_ID,
-        client_secret: process.env.CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: process.env.REDIRECT_URI.trim(),
-      }).toString(),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
-
-    const accessToken = tokenResponse.data.access_token;
-    res.redirect(`/?token=${accessToken}`);
-  } catch (err) {
-    const msg = err.response?.data?.error_description || err.message;
-    res.send(`<h2>❌ Error OAuth2:</h2><p>${msg}</p>`);
-  }
-});
-
-// ================== API INTERNA ==================
-app.get('/api/economia/:userId', (req, res) => {
-  const datos = economiaData.find(u => u.id === req.params.userId) || {};
-  res.json(datos);
-});
-
-app.get('/api/niveles/:userId', (req, res) => {
-  const datos = nivelesData.niveles?.[req.params.userId] || {};
-  res.json(datos);
-});
-
-app.get('/api/modlogs/:userId', (req, res) => {
-  const eventos = [];
-  for (const gId in modlogData) {
-    const logs = modlogData[gId]?.[req.params.userId];
-    if (Array.isArray(logs)) eventos.push(...logs);
-  }
-  res.json(eventos);
-});
-
-// ================== DASHBOARD ==================
-app.get('/', async (req, res) => {
-  const token = req.query.token;
-  let userId = '';
-  let user = null;
-
-  if (token && token.length > 10) {
-    try {
-      const userResp = await axios.get('https://discord.com/api/users/@me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      user = userResp.data;
-      userId = user.id;
-    } catch {}
-  }
-
-  res.send(`
-<!DOCTYPE html>
+// Dashboard principal
+app.get('/', (req, res) => {
+  // Se envía todo el HTML desde aquí, sin archivo externo
+  res.send(`<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>Abyssus Dashboard</title>
 <style>
-body { font-family:'Segoe UI', sans-serif; background:#0f0f0f; color:#e0e0e0; margin:0; }
-header { background:#1b1b1b; padding:20px; text-align:center; border-bottom:2px solid #333; }
-header h1 { margin:0; font-size:28px; color:#00ff88; text-shadow: 0 0 5px #00ff88; }
-main { max-width:1200px; margin:40px auto; display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
-.card { background:#1e1e1e; padding:20px; border-radius:12px; box-shadow:0 0 20px rgba(0,255,136,0.2); transition:transform 0.3s; }
-.card:hover { transform: translateY(-5px); }
-.card h2 { margin-top:0; color:#00ff88; text-shadow: 0 0 3px #00ff88; }
-.bar { background:#333; width:100%; height:20px; border-radius:10px; overflow:hidden; margin-top:5px; }
-.bar-fill { height:100%; width:0%; background:linear-gradient(90deg,#00ff88,#00ffff); transition:width 0.5s ease; }
-ul { list-style:none; padding-left:0; max-height:250px; overflow-y:auto; }
-ul li { padding:5px 0; border-bottom:1px solid #333; }
-.badge { display:inline-block; padding:5px 10px; margin:3px; border-radius:8px; background:#222; color:#00ff88; font-weight:bold; text-shadow:0 0 2px #00ff88; }
-.badge.locked { color:#888; text-shadow:none; background:#111; }
+body { font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0; }
+header { padding:20px; text-align:center; background:#23272a; border-bottom:1px solid #2c2f33; }
+h1 { color:#fff; margin:0 0 5px 0; }
+section { background:#111; padding:15px; border-radius:8px; margin:20px; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:1200px; margin:auto; }
+.barra { font-family:monospace; color:#00ff88; }
 </style>
 </head>
 <body>
-
 <header>
-<h1>🔐 Abyssus · Dashboard</h1>
-<p>🟢 Servidor activo · módulos conectados</p>
+<h1>🔐 Abyssus Dashboard</h1>
+<p style="color:#b9bbbe;">🟢 Servidor activo · módulos conectados</p>
 </header>
 
-<main>
-<!-- Perfil -->
-<div class="card">
-<h2>👤 Perfil Discord</h2>
-${user ? `<img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" style="border-radius:50%; width:80px; height:80px;" />
-<p><strong>${user.username}#${user.discriminator}</strong></p>
-<p>ID: ${user.id}</p>
-<p>Estado: <span style="color:#00ff88;">Verificado</span></p>` : `<p>No conectado</p>`}
-</div>
+<div class="grid">
+  <section>
+    <h2>💰 Economía</h2>
+    <p>Balance: <strong id="balance">$0</strong></p>
+    <p>Ingresos: <strong id="ingresos">$0</strong></p>
+    <p>Gastos: <strong id="gastos">$0</strong></p>
+  </section>
 
-<!-- Economía -->
-<div class="card">
-<h2>💰 Economía</h2>
-<p>Balance: <strong id="balance">0</strong></p>
-<p>Ingresos: <strong id="ingresos">0</strong></p>
-<p>Gastos: <strong id="gastos">0</strong></p>
-<div id="recompensas">
-<h3>🏅 Recompensas</h3>
-<span class="badge locked">Blindaje semántico</span>
-<span class="badge locked">Heurística institucional</span>
-<span class="badge locked">OAuth2 sincronizado</span>
-</div>
-</div>
+  <section>
+    <h2>📈 Nivel</h2>
+    <p>Nivel: <strong id="nivel">0</strong></p>
+    <p>XP: <strong id="xp">0 / 0</strong></p>
+    <p>Progreso: <span id="barra" class="barra">▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭▭</span></p>
+  </section>
 
-<!-- Niveles -->
-<div class="card">
-<h2>📈 Nivel</h2>
-<p>Nivel: <strong id="nivel">0</strong></p>
-<p>XP: <strong id="xp">0 / 0</strong></p>
-<div class="bar"><div id="barra" class="bar-fill"></div></div>
+  <section>
+    <h2>📜 Modlogs</h2>
+    <ul id="modlogs-list" style="list-style:none; padding:0;"></ul>
+  </section>
 </div>
-
-<!-- Modlogs -->
-<div class="card">
-<h2>📜 Modlogs recientes</h2>
-<ul id="modlogs"><li>No hay eventos</li></ul>
-</div>
-</main>
 
 <script>
-const userId = "${userId}";
+const USER_ID = 'TU_USER_ID_AQUI'; // Cambiar por el ID de usuario a mostrar
 
-async function actualizar() {
-  if(!userId) return;
+async function actualizarDashboard() {
   try {
-    const econ = await (await fetch('/api/economia/' + userId)).json();
-    document.getElementById('balance').innerText = "$" + (econ.balance || 0).toLocaleString();
-    document.getElementById('ingresos').innerText = "$" + (econ.ingresos || 0).toLocaleString();
-    document.getElementById('gastos').innerText = "$" + (econ.gastos || 0).toLocaleString();
+    // Leer JSONs desde el servidor
+    const [usuariosRes, nivelesRes, modlogsRes] = await Promise.all([
+      fetch('/json/Usuario.json').then(r=>r.json()),
+      fetch('/json/nivelesData.json').then(r=>r.json()),
+      fetch('/json/modlogs.json').then(r=>r.json())
+    ]);
 
-    // Recompensas
-    const badges = document.querySelectorAll('#recompensas .badge');
-    badges.forEach(b => b.classList.add('locked'));
-    if(econ.balance >= 1000) badges[0].classList.remove('locked');
-    if(econ.balance >= 5000) badges[1].classList.remove('locked');
-    if(econ.balance >= 10000) badges[2].classList.remove('locked');
+    // Economía
+    const datosUsuario = usuariosRes.find(u=>u.id===USER_ID)||{};
+    document.getElementById('balance').innerText = '$'+(datosUsuario.balance||0).toLocaleString();
+    document.getElementById('ingresos').innerText = '$'+(datosUsuario.ingresos||0).toLocaleString();
+    document.getElementById('gastos').innerText = '$'+(datosUsuario.gastos||0).toLocaleString();
 
-    const nivel = await (await fetch('/api/niveles/' + userId)).json();
-    const xpSiguiente = 1000 + (nivel.nivel || 0)*500;
-    const progreso = Math.min(100, Math.floor((nivel.xp || 0)/xpSiguiente*100));
-    document.getElementById('nivel').innerText = nivel.nivel || 0;
-    document.getElementById('xp').innerText = (nivel.xp || 0) + " / " + xpSiguiente;
-    document.getElementById('barra').style.width = progreso + "%";
+    // Niveles
+    const datosNivel = nivelesRes.niveles?.[USER_ID]||{};
+    const nivel = datosNivel.nivel||0;
+    const xp = datosNivel.xp||0;
+    const xpSiguiente = 1000 + nivel*500;
+    document.getElementById('nivel').innerText = nivel;
+    document.getElementById('xp').innerText = xp + ' / ' + xpSiguiente;
+    const progreso = Math.min(100, Math.floor((xp/xpSiguiente)*100));
+    document.getElementById('barra').innerText = '▭'.repeat(Math.floor(progreso/5)).padEnd(20,'▭');
 
-    const logs = await (await fetch('/api/modlogs/' + userId)).json();
-    document.getElementById('modlogs').innerHTML = logs.slice(-10).reverse().map(e => 
-      "<li><strong>"+e.action+"</strong> · "+e.reason+"<br><span style='color:#888;'>"+new Date(e.timestamp).toLocaleString()+"</span></li>"
-    ).join('') || "<li>No hay eventos</li>";
+    // Modlogs
+    const lista = [];
+    for(const gId in modlogsRes){
+      const logs = modlogsRes[gId]?.[USER_ID]||[];
+      lista.push(...logs.slice(-5).reverse());
+    }
+    const ul = document.getElementById('modlogs-list');
+    ul.innerHTML = lista.length ? lista.map(e=>\`<li><strong>\${e.action}</strong>: \${e.reason}</li>\`).join('') : '<li>No hay eventos</li>';
 
-  } catch(err){ console.error(err); }
+  } catch(err){
+    console.error('Error actualizando dashboard:', err);
+  }
 }
 
-setInterval(actualizar,5000);
-actualizar();
+// Actualizar cada 5 segundos
+actualizarDashboard();
+setInterval(actualizarDashboard,5000);
 </script>
-
 </body>
-</html>
-  `);
+</html>`);
 });
 
-// ================== PUERTO ==================
+// Servir los JSON como si fueran "API" interna
+app.use('/json', express.static(__dirname));
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`));
+app.listen(PORT, () => console.log(\`Dashboard activo en puerto \${PORT}\`));
 
 
 
