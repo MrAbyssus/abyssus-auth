@@ -174,12 +174,12 @@ try {
 let nivelesExternosHTML = '';
 try {
   if (userId) {
-    const tokenBot = process.env.BOT_TOKEN || 'SUPERSECRETO123';
-    const endpoint = `http://IP_DEL_BOT:3000/api/niveles/${userId}`;
+   const tokenBot = process.env.BOT_TOKEN || 'SUPERSECRETO123'; // debe ser idéntico al del bot
+const endpoint = `http://51.77.211.104:3000/api/niveles/${userId}`;
 
-    const response = await axios.get(endpoint, {
-      headers: { Authorization: `Bearer ${tokenBot}` }
-    });
+const response = await axios.get(endpoint, {
+  headers: { Authorization: `Bearer ${tokenBot}` }
+});
 
     const data = response.data;
     const nivel = data.nivel || 0;
