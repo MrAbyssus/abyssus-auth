@@ -170,6 +170,36 @@ try {
   nivelesHTML = `<section><h2>❌ Error al cargar niveles</h2><p>${err.message}</p></section>`;
 }
 
+  // Consulta externa al bot vía API protegida
+let nivelesExternosHTML = '';
+try {
+  if (userId) {
+    const tokenBot = process.env.BOT_TOKEN || 'SUPERSECRETO123';
+    const endpoint = `http://IP_DEL_BOT:3000/api/niveles/${userId}`;
+
+    const response = await axios.get(endpoint, {
+      headers: { Authorization: `Bearer ${tokenBot}` }
+    });
+
+    const data = response.data;
+    const nivel = data.nivel || 0;
+    const xp = data.xp || 0;
+    const xpSiguiente = data.xpSiguiente || 1000 + nivel * 500;
+    const progreso = Math.min(100, Math.floor((xp / xpSiguiente) * 100));
+    const barra = '▭'.repeat(Math.floor(progreso / 5)).padEnd(20, '▭');
+
+    nivelesExternosHTML = `<section>
+      <h2>📡 Nivel desde API Bot</h2>
+      <p>Nivel: <strong>${nivel}</strong></p>
+      <p>XP: <strong>${xp} / ${xpSiguiente}</strong></p>
+      <p>Progreso: <span style="font-family:monospace;">${barra}</span> (${progreso}%)</p>
+    </section>`;
+  }
+} catch (err) {
+  nivelesExternosHTML = `<section><h2>❌ Error al consultar API del bot</h2><p>${err.message}</p></section>`;
+}
+
+
  // Modlogs
 try {
   let eventos = [];
@@ -242,6 +272,7 @@ ${perfilHTML}
 ${economiaHTML}
 ${estadoHTML}
 ${nivelesHTML}
+${nivelesExternosHTML}
 ${recompensasHTML}
 ${modlogHTML}
 ${actualizacionHTML}
