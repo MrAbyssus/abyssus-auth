@@ -148,27 +148,27 @@ app.get('/', async (req, res) => {
     </section>`;
   }
 
-  // Niveles
-  try {
-    if (userId) {
-      const datosNivel = nivelesData.find(u => u.id === userId) || {};
-      const nivel = datosNivel.nivel || 0;
-      const xp = datosNivel.xp || 0;
-      const xpSiguiente = datosNivel.xpSiguiente || 1000;
+ // Niveles
+try {
+  if (userId) {
+    const datosNivel = nivelesData.niveles?.[userId] || {};
+    const nivel = datosNivel.nivel || 0;
+    const xp = datosNivel.xp || 0;
+    const xpSiguiente = 1000 + (nivel * 500); // Escalado simple
 
-      const progreso = Math.min(100, Math.floor((xp / xpSiguiente) * 100));
-      const barra = '▭'.repeat(Math.floor(progreso / 5)).padEnd(20, '▭');
+    const progreso = Math.min(100, Math.floor((xp / xpSiguiente) * 100));
+    const barra = '▭'.repeat(Math.floor(progreso / 5)).padEnd(20, '▭');
 
-      nivelesHTML = `<section>
-        <h2>📈 Nivel actual</h2>
-        <p>Nivel: <strong>${nivel}</strong></p>
-        <p>XP: <strong>${xp} / ${xpSiguiente}</strong></p>
-        <p>Progreso: <span style="font-family:monospace;">${barra}</span> (${progreso}%)</p>
-      </section>`;
-    }
-  } catch (err) {
-    nivelesHTML = `<section><h2>❌ Error al cargar niveles</h2><p>${err.message}</p></section>`;
+    nivelesHTML = `<section>
+      <h2>📈 Nivel actual</h2>
+      <p>Nivel: <strong>${nivel}</strong></p>
+      <p>XP: <strong>${xp} / ${xpSiguiente}</strong></p>
+      <p>Progreso: <span style="font-family:monospace;">${barra}</span> (${progreso}%)</p>
+    </section>`;
   }
+} catch (err) {
+  nivelesHTML = `<section><h2>❌ Error al cargar niveles</h2><p>${err.message}</p></section>`;
+}
 
  // Modlogs
 try {
