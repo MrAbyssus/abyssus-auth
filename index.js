@@ -5,76 +5,58 @@ const axios = require('axios');
 const app = express();
 app.use(express.static('public'));
 
-app.get('/', async (req, res) => {
-  const userId = req.query.userId || '';
-  let nivelesHTML = '';
-
-  if (userId) {
-    try {
-      const endpoint = `${process.env.BOT_API_URL}/api/niveles/${userId}`;
-      const tokenBot = process.env.API_TOKEN;
-
-      const response = await axios.get(endpoint, {
-        headers: { Authorization: `Bearer ${tokenBot}` }
-      });
-
-      const data = response.data;
-      const progreso = Math.min(100, Math.floor((data.xp / data.xpSiguiente) * 100));
-
-      // Barra visual con colores tipo Discord
-      const barraTotal = 20;
-      const filled = Math.floor((progreso / 100) * barraTotal);
-      const barra = '🟦'.repeat(filled) + '⬛'.repeat(barraTotal - filled);
-
-      // Colores dinámicos según nivel
-      const colores = ['#2ECC71','#3498DB','#9B59B6','#E67E22','#E74C3C'];
-      const color = colores[data.nivel % colores.length];
-
-      nivelesHTML = `
-        <div style="border:1px solid #444; border-radius:10px; padding:20px; background:#1e1e2f; max-width:400px; margin:auto;">
-          <div style="display:flex; align-items:center; margin-bottom:15px;">
-            <img src="https://cdn.discordapp.com/avatars/${userId}/${data.avatar || 'default.png'}.png" style="border-radius:50%; width:70px; height:70px; margin-right:15px;" />
-            <h2 style="margin:0; color:#fff;">Nivel ${data.nivel}</h2>
-          </div>
-          <p style="margin:5px 0;">⭐ XP: <strong>${data.xp} / ${data.xpSiguiente}</strong></p>
-          <p style="margin:5px 0;">📈 Progreso: <span style="font-family:monospace;">${barra}</span> (${progreso}%)</p>
-          <div style="height:10px; background:#555; border-radius:5px; margin-top:10px;">
-            <div style="width:${progreso}%; background:${color}; height:100%; border-radius:5px;"></div>
-          </div>
-        </div>
-      `;
-    } catch (err) {
-      nivelesHTML = `<p style="color:red;">❌ Error al consultar API: ${err.message}</p>`;
-    }
-  }
-
+// Ruta inicial → muestra link de login
+app.get('/', (req, res) => {
+  const loginURL = `https://discord.com/api/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify`;
   res.send(`
-    <html>
-    <head>
-      <title>Abyssus Dashboard</title>
-      <style>
-        body { background:#0a0a0a; color:#eee; font-family:'Segoe UI', sans-serif; padding:40px; }
-        input, button { padding:8px; margin-top:10px; }
-        button { cursor:pointer; background:#5865F2; color:#fff; border:none; border-radius:5px; }
-        h1 { text-align:center; margin-bottom:30px; }
-      </style>
-    </head>
-    <body>
-      <h1>📊 Abyssus Dashboard</h1>
-      <form method="get" style="text-align:center;">
-        <input type="text" name="userId" placeholder="ID Usuario" style="width:250px;" />
-        <button type="submit">Consultar</button>
-      </form>
-      <div style="margin-top:40px;">
-        ${nivelesHTML}
-      </div>
-    </body>
-    </html>
+    <h1>Dashboard Abyssus</h1>
+    <a href="${loginURL}">🔑 Conectar con Discord</a>
   `);
 });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`🌐 Dashboard activo en puerto ${PORT}`));
+// Callback OAuth2
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.send('❌ Código OAuth2 no recibido');
+
+  try {
+    // Solicitar token de acceso
+    const tokenResponse = await axios.post(
+      'https://discord.com/api/oauth2/token',
+      new URLSearchParams({
+        client_id: process.env.CLIENT_ID,
+        client_secret: process.env.CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: process.env.REDIRECT_URI,
+      }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    const accessToken = tokenResponse.data.access_token;
+
+    // Obtener datos del usuario
+    const userResponse = await axios.get('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const user = userResponse.data;
+
+    res.send(`
+      <h1>Bienvenido, ${user.username}#${user.discriminator}</h1>
+      <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="100"/>
+      <p>ID: ${user.id}</p>
+      <p>Token: <strong>${accessToken}</strong></p>
+      <p><a href="/">🏠 Volver</a></p>
+    `);
+  } catch (err) {
+    console.error(err);
+    res.send('❌ Error al obtener datos del usuario');
+  }
+});
+
+// Puerto
+app.listen(process.env.PORT || 3000, () => console.log('🚀 Dashboard activo'));
 
 
 
