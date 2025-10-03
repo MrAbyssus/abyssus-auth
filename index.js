@@ -17,12 +17,12 @@ function cargarJSON(ruta, nombre = 'archivo') {
   try {
     if (!fs.existsSync(ruta)) {
       console.warn(`⚠️ ${nombre} no existe en ${ruta}`);
-      return {};
+      return [];
     }
     return JSON.parse(fs.readFileSync(ruta, 'utf8'));
   } catch (err) {
     console.error(`❌ Error leyendo ${nombre}:`, err.message);
-    return {};
+    return [];
   }
 }
 
@@ -33,12 +33,11 @@ const nivelesData = cargarJSON(nivelesPath, 'Niveles');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Activación
+// Rutas
 app.get('/activar', (req, res) => {
   res.send('🟢 Render activado · entorno despierto');
 });
 
-// Callback OAuth2
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code || typeof code !== 'string' || code.length < 10) {
@@ -76,7 +75,7 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-// Dashboard principal
+// Ruta principal
 app.get('/', async (req, res) => {
   const token = req.query.token;
   let userId = '';
@@ -149,29 +148,29 @@ app.get('/', async (req, res) => {
     </section>`;
   }
 
-  // Niveles
-  try {
-    if (userId) {
-      const datosNivel = nivelesData.niveles?.[userId] || {};
-      const nivel = datosNivel.nivel || 0;
-      const xp = datosNivel.xp || 0;
-      const xpSiguiente = 1000 + (nivel * 500);
+ // Niveles
+try {
+  if (userId) {
+    const datosNivel = nivelesData.niveles?.[userId] || {};
+    const nivel = datosNivel.nivel || 0;
+    const xp = datosNivel.xp || 0;
+    const xpSiguiente = 1000 + (nivel * 500); // Escalado simple
 
-      const progreso = Math.min(100, Math.floor((xp / xpSiguiente) * 100));
-      const barra = '▭'.repeat(Math.floor(progreso / 5)).padEnd(20, '▭');
+    const progreso = Math.min(100, Math.floor((xp / xpSiguiente) * 100));
+    const barra = '▭'.repeat(Math.floor(progreso / 5)).padEnd(20, '▭');
 
-      nivelesHTML = `<section>
-        <h2>📈 Nivel actual</h2>
-        <p>Nivel: <strong>${nivel}</strong></p>
-        <p>XP: <strong>${xp} / ${xpSiguiente}</strong></p>
-        <p>Progreso: <span style="font-family:monospace;">${barra}</span> (${progreso}%)</p>
-      </section>`;
-    }
-  } catch (err) {
-    nivelesHTML = `<section><h2>❌ Error al cargar niveles</h2><p>${err.message}</p></section>`;
+    nivelesHTML = `<section>
+      <h2>📈 Nivel actual</h2>
+      <p>Nivel: <strong>${nivel}</strong></p>
+      <p>XP: <strong>${xp} / ${xpSiguiente}</strong></p>
+      <p>Progreso: <span style="font-family:monospace;">${barra}</span> (${progreso}%)</p>
+    </section>`;
   }
+} catch (err) {
+  nivelesHTML = `<section><h2>❌ Error al cargar niveles</h2><p>${err.message}</p></section>`;
+}
 
-  // Modlogs
+ // Modlogs
 try {
   let eventos = [];
   for (const gId in modlogData) {
@@ -194,7 +193,6 @@ try {
 } catch (err) {
   modlogHTML = `<section><h2>❌ Error al cargar modlogs</h2><p>${err.message}</p></section>`;
 }
-
   // Última actualización
   try {
     const stats = fs.statSync(economiaPath);
@@ -263,7 +261,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`);
 });
-
 
 
 
