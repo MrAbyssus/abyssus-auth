@@ -6,12 +6,13 @@ const path = require('path');
 
 const app = express();
 
-// Rutas absolutas para JSON
+// Rutas absolutas
 const economiaPath = path.join(__dirname, 'Usuario.json');
 const modlogPath = path.join(__dirname, 'modlogs.json');
 const mascotasPath = path.join(__dirname, 'mascotas.json');
+const nivelesPath = path.join(__dirname, 'nivelesData.json');
 
-// Funciones seguras para cargar JSON
+// Función segura para cargar JSON
 function cargarJSON(ruta, nombre = 'archivo') {
   try {
     if (!fs.existsSync(ruta)) {
@@ -28,6 +29,7 @@ function cargarJSON(ruta, nombre = 'archivo') {
 const economiaData = cargarJSON(economiaPath, 'Economía');
 const modlogData = cargarJSON(modlogPath, 'Modlogs');
 const mascotasData = cargarJSON(mascotasPath, 'Mascotas');
+const nivelesData = cargarJSON(nivelesPath, 'Niveles');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -39,12 +41,10 @@ app.get('/activar', (req, res) => {
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code || typeof code !== 'string' || code.length < 10) {
-    return res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
-        <h2>❌ Código OAuth2 no recibido</h2>
-        <p>Discord no envió el parámetro <code>code</code> o está incompleto.</p>
-      </section>
-    `);
+    return res.send(`<section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+      <h2>❌ Código OAuth2 no recibido</h2>
+      <p>Discord no envió el parámetro <code>code</code> o está incompleto.</p>
+    </section>`);
   }
 
   try {
@@ -68,12 +68,10 @@ app.get('/callback', async (req, res) => {
     res.redirect(`/?token=${accessToken}`);
   } catch (error) {
     const errorMsg = error.response?.data?.error || error.message || 'Error desconocido';
-    res.send(`
-      <section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
-        <h2>❌ Error al procesar el código OAuth2</h2>
-        <p>${errorMsg}</p>
-      </section>
-    `);
+    res.send(`<section style="font-family:sans-serif; background:#1c1c1c; color:#ff4444; padding:30px; text-align:center;">
+      <h2>❌ Error al procesar el código OAuth2</h2>
+      <p>${errorMsg}</p>
+    </section>`);
   }
 });
 
@@ -83,9 +81,9 @@ app.get('/', async (req, res) => {
   let userId = '';
   let user = null;
 
-  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', statusHTML = '', estadoHTML = '', modlogHTML = '', actualizacionHTML = '';
+  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', estadoHTML = '', nivelesHTML = '', modlogHTML = '', actualizacionHTML = '';
 
-  // Perfil del usuario
+  // Perfil
   if (token && token.length > 10) {
     try {
       const userResponse = await axios.get('https://discord.com/api/users/@me', {
@@ -94,15 +92,13 @@ app.get('/', async (req, res) => {
       user = userResponse.data;
       userId = user.id;
 
-      perfilHTML = `
-        <section>
-          <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" style="border-radius:50%; width:100px; height:100px;" />
-          <h2>👤 Perfil Discord</h2>
-          <p><strong>${user.username}#${user.discriminator}</strong></p>
-          <p>ID: ${user.id}</p>
-          <p>Estado: <span style="color:#00ff88;">Verificado</span></p>
-        </section>
-      `;
+      perfilHTML = `<section>
+        <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" style="border-radius:50%; width:100px; height:100px;" />
+        <h2>👤 Perfil Discord</h2>
+        <p><strong>${user.username}#${user.discriminator}</strong></p>
+        <p>ID: ${user.id}</p>
+        <p>Estado: <span style="color:#00ff88;">Verificado</span></p>
+      </section>`;
     } catch (err) {
       perfilHTML = `<section><h2>❌ Error al cargar el perfil</h2><p>${err.message}</p></section>`;
     }
@@ -117,30 +113,25 @@ app.get('/', async (req, res) => {
       const gastos = datosUsuario.gastos || 0;
       const eventos = datosUsuario.eventos || [];
 
-      economiaHTML = `
-        <section>
-          <h2>💰 Economía Bot</h2>
-          <p>Balance: <strong>$${balance.toLocaleString()}</strong></p>
-          <p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
-          <p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
-          <p>Eventos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
-        </section>
-      `;
+      economiaHTML = `<section>
+        <h2>💰 Economía Bot</h2>
+        <p>Balance: <strong>$${balance.toLocaleString()}</strong></p>
+        <p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
+        <p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
+        <p>Eventos: <strong>${eventos.length ? eventos.join(', ') : 'Ninguno'}</strong></p>
+      </section>`;
 
-      // Recompensas
       const recompensas = [];
       if (balance >= 1000) recompensas.push('Blindaje semántico');
       if (balance >= 5000) recompensas.push('Heurística institucional');
       if (balance >= 10000) recompensas.push('OAuth2 sincronizado');
 
-      recompensasHTML = `
-        <section>
-          <h2>🎁 Recompensas</h2>
-          ${recompensas.length
-            ? `<ul style="padding-left:20px;">${recompensas.map(r => `<li><strong>${r}</strong></li>`).join('')}</ul>`
-            : `<p>No hay recompensas desbloqueadas</p>`}
-        </section>
-      `;
+      recompensasHTML = `<section>
+        <h2>🎁 Recompensas</h2>
+        ${recompensas.length
+          ? `<ul style="padding-left:20px;">${recompensas.map(r => `<li><strong>${r}</strong></li>`).join('')}</ul>`
+          : `<p>No hay recompensas desbloqueadas</p>`}
+      </section>`;
     }
   } catch (err) {
     economiaHTML = `<section><h2>❌ Error al cargar economía</h2><p>${err.message}</p></section>`;
@@ -148,43 +139,60 @@ app.get('/', async (req, res) => {
 
   // Estado de cuenta
   if (user) {
-    estadoHTML = `
-      <section>
-        <h2>🛡️ Estado de cuenta</h2>
-        <p>2FA: <strong>${user.mfa_enabled ? 'Activado' : 'No activado'}</strong></p>
-        <p>Verificación: <strong>${user.verified ? '✅ Verificada' : '❌ No verificada'}</strong></p>
-        <p>Idioma: <strong>${user.locale}</strong></p>
-        <p>Nitro: <strong>${user.premium_type === 2 ? 'Nitro' : user.premium_type === 1 ? 'Classic' : 'Sin Nitro'}</strong></p>
-      </section>
-    `;
+    estadoHTML = `<section>
+      <h2>🛡️ Estado de cuenta</h2>
+      <p>2FA: <strong>${user.mfa_enabled ? 'Activado' : 'No activado'}</strong></p>
+      <p>Verificación: <strong>${user.verified ? '✅ Verificada' : '❌ No verificada'}</strong></p>
+      <p>Idioma: <strong>${user.locale}</strong></p>
+      <p>Nitro: <strong>${user.premium_type === 2 ? 'Nitro' : user.premium_type === 1 ? 'Classic' : 'Sin Nitro'}</strong></p>
+    </section>`;
   }
 
-  // Modlogs
+  // Niveles
   try {
-    let eventos = [];
-    for (const gId in modlogData) {
-      const logs = modlogData[gId]?.[userId];
-      if (Array.isArray(logs)) eventos.push(...logs);
-    }
-    const eventosRecientes = eventos.slice(-10).reverse();
+    if (userId) {
+      const datosNivel = nivelesData.find(u => u.id === userId) || {};
+      const nivel = datosNivel.nivel || 0;
+      const xp = datosNivel.xp || 0;
+      const xpSiguiente = datosNivel.xpSiguiente || 1000;
 
-    modlogHTML = `
-      <section>
-        <h2>📜 Registro de eventos</h2>
-        ${eventosRecientes.length
-          ? `<ul style="list-style:none; padding:0;">${eventosRecientes.map(e => `
-              <li>
-                <strong>${e.action}</strong> · ${e.reason}<br>
-                <span style="color:#888;">${new Date(e.timestamp).toLocaleString()}</span>
-              </li>
-            `).join('')}</ul>`
-          : `<p>No hay eventos registrados</p>`}
-      </section>
-    `;
+      const progreso = Math.min(100, Math.floor((xp / xpSiguiente) * 100));
+      const barra = '▭'.repeat(Math.floor(progreso / 5)).padEnd(20, '▭');
+
+      nivelesHTML = `<section>
+        <h2>📈 Nivel actual</h2>
+        <p>Nivel: <strong>${nivel}</strong></p>
+        <p>XP: <strong>${xp} / ${xpSiguiente}</strong></p>
+        <p>Progreso: <span style="font-family:monospace;">${barra}</span> (${progreso}%)</p>
+      </section>`;
+    }
   } catch (err) {
-    modlogHTML = `<section><h2>❌ Error al cargar modlogs</h2><p>${err.message}</p></section>`;
+    nivelesHTML = `<section><h2>❌ Error al cargar niveles</h2><p>${err.message}</p></section>`;
   }
 
+ // Modlogs
+try {
+  let eventos = [];
+  for (const gId in modlogData) {
+    const logs = modlogData[gId]?.[userId];
+    if (Array.isArray(logs)) eventos.push(...logs);
+  }
+  const eventosRecientes = eventos.slice(-10).reverse();
+
+  modlogHTML = `<section>
+    <h2>📜 Registro de eventos</h2>
+    ${eventosRecientes.length
+      ? `<ul style="list-style:none; padding:0;">${eventosRecientes.map(e => `
+          <li>
+            <strong>${e.action}</strong> · ${e.reason}<br>
+            <span style="color:#888;">${new Date(e.timestamp).toLocaleString()}</span>
+          </li>
+        `).join('')}</ul>`
+      : `<p>No hay eventos registrados</p>`}
+  </section>`;
+} catch (err) {
+  modlogHTML = `<section><h2>❌ Error al cargar modlogs</h2><p>${err.message}</p></section>`;
+}
   // Última actualización
   try {
     const stats = fs.statSync(economiaPath);
@@ -209,7 +217,7 @@ app.get('/', async (req, res) => {
     actualizacionHTML = `<section><h2>❌ Error al calcular actualización</h2><p>${err.message}</p></section>`;
   }
 
-  // Envío del HTML
+  // Render final
   res.send(`
 <!DOCTYPE html>
 <html lang="es">
@@ -233,6 +241,7 @@ body { font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; ma
 ${perfilHTML}
 ${economiaHTML}
 ${estadoHTML}
+${nivelesHTML}
 ${recompensasHTML}
 ${modlogHTML}
 ${actualizacionHTML}
