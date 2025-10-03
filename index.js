@@ -1,122 +1,160 @@
 require('dotenv').config();
 const express = require('express');
+const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
 
-// Rutas absolutas de JSON
+// Rutas absolutas de datos
 const economiaPath = path.join(__dirname, 'Usuario.json');
 const modlogPath = path.join(__dirname, 'modlogs.json');
+const mascotasPath = path.join(__dirname, 'mascotas.json');
 const nivelesPath = path.join(__dirname, 'nivelesData.json');
 
-// Función para cargar JSON seguro
-function cargarJSON(ruta) {
+// Función segura para cargar JSON
+function cargarJSON(ruta, nombre = 'archivo') {
   try {
     if (!fs.existsSync(ruta)) return [];
     return JSON.parse(fs.readFileSync(ruta, 'utf8'));
-  } catch {
+  } catch (err) {
+    console.error(`❌ Error leyendo ${nombre}:`, err.message);
     return [];
   }
 }
 
-// Servir dashboard principal
-app.get('/', (req, res) => {
-  res.send(`
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Abyssus Dashboard</title>
-<style>
-body { font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0; }
-main { max-width:1200px; margin:50px auto; display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:30px; }
-.card { background:#1c1c1c; border-radius:12px; padding:20px; box-shadow:0 0 15px rgba(0,0,0,0.5); }
-.card h2 { margin-top:0; color:#00ff88; }
-.progress-bar { background:#2c2c2c; border-radius:8px; overflow:hidden; height:20px; margin-top:5px; }
-.progress-bar-inner { background:#00ff88; height:100%; width:0; transition:width 0.5s ease-in-out; }
-</style>
-</head>
-<body>
-<main>
-<section id="perfil" class="card"><h2>Perfil</h2></section>
-<section id="economia" class="card"><h2>Economía</h2></section>
-<section id="recompensas" class="card"><h2>Recompensas</h2></section>
-<section id="niveles" class="card"><h2>Niveles</h2></section>
-<section id="modlogs" class="card"><h2>Modlogs</h2></section>
-<section id="actualizacion" class="card"><h2>Actualización</h2></section>
-</main>
+const economiaData = cargarJSON(economiaPath, 'Economía');
+const modlogData = cargarJSON(modlogPath, 'Modlogs');
+const mascotasData = cargarJSON(mascotasPath, 'Mascotas');
+const nivelesData = cargarJSON(nivelesPath, 'Niveles');
 
-<script>
-async function actualizarDashboard() {
-  try {
-    const res = await fetch('/api/dashboard');
-    const data = await res.json();
+// Archivos públicos
+app.use(express.static(path.join(__dirname, 'public')));
 
-    document.getElementById('perfil').innerHTML = "<h2>Perfil</h2>" + data.perfilHTML;
-    document.getElementById('economia').innerHTML = "<h2>Economía</h2>" + data.economiaHTML;
-    document.getElementById('recompensas').innerHTML = "<h2>Recompensas</h2>" + data.recompensasHTML;
-    document.getElementById('niveles').innerHTML = "<h2>Niveles</h2>" + data.nivelesHTML;
-    document.getElementById('modlogs').innerHTML = "<h2>Modlogs</h2>" + data.modlogHTML;
-    document.getElementById('actualizacion').innerHTML = "<h2>Actualización</h2>" + data.actualizacionHTML;
-
-    const barra = document.querySelector('.progress-bar-inner');
-    if(barra) barra.style.width = data.progreso + '%';
-  } catch(err) { console.error(err); }
-}
-
-setInterval(actualizarDashboard, 15000); // cada 15 segundos
-actualizarDashboard();
-</script>
-</body>
-</html>
-`);
-});
-
-// Ruta de datos para dashboard
-app.get('/api/dashboard', (req, res) => {
-  const economiaData = cargarJSON(economiaPath);
-  const modlogData = cargarJSON(modlogPath);
-  const nivelesData = cargarJSON(nivelesPath);
-
-  const userId = req.query.userId || '1234567890';
-  const datosUsuario = economiaData.find(u => u.id === userId) || {};
-  const datosNivel = nivelesData.niveles?.[userId] || {};
-  const logs = [];
-  for (const gId in modlogData) {
-    const l = modlogData[gId]?.[userId];
-    if (Array.isArray(l)) logs.push(...l);
+// RUTA DE CALLBACK DE OAUTH2
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code || code.length < 10) {
+    return res.send('<h2>❌ Código OAuth2 no recibido o inválido</h2>');
   }
 
+  try {
+    if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET || !process.env.REDIRECT_URI)
+      throw new Error('❌ Variables de entorno OAuth2 no definidas');
+
+    const tokenResponse = await axios.post(
+      'https://discord.com/api/oauth2/token',
+      new URLSearchParams({
+        client_id: process.env.CLIENT_ID,
+        client_secret: process.env.CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: process.env.REDIRECT_URI.trim(),
+      }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    const accessToken = tokenResponse.data.access_token;
+    // Redirige al dashboard con el token en query string
+    res.redirect(`/?token=${accessToken}`);
+  } catch (err) {
+    const msg = err.response?.data?.error_description || err.message;
+    res.send(`<h2>❌ Error OAuth2</h2><p>${msg}</p>`);
+  }
+});
+
+// DASHBOARD PRINCIPAL
+app.get('/', async (req, res) => {
+  const token = req.query.token;
+  let user = null;
+  let userId = '';
+
+  try {
+    if (token) {
+      const userRes = await axios.get('https://discord.com/api/users/@me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      user = userRes.data;
+      userId = user.id;
+    }
+  } catch {
+    return res.send('<h2>❌ Error al obtener datos del usuario. Token inválido.</h2>');
+  }
+
+  // Generar HTML dinámico
+  const perfilHTML = user ? `
+    <section>
+      <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" style="border-radius:50%; width:100px;" />
+      <h2>${user.username}#${user.discriminator}</h2>
+      <p>ID: ${user.id}</p>
+    </section>` : `<p>No hay usuario autenticado</p>`;
+
+  const datosUsuario = economiaData.find(u => u.id === userId) || {};
+  const balance = datosUsuario.balance || 0;
+  const ingresos = datosUsuario.ingresos || 0;
+  const gastos = datosUsuario.gastos || 0;
+
+  const economiaHTML = `
+    <section>
+      <h2>💰 Economía</h2>
+      <p>Balance: $${balance.toLocaleString()}</p>
+      <p>Ingresos: $${ingresos.toLocaleString()}</p>
+      <p>Gastos: $${gastos.toLocaleString()}</p>
+    </section>
+  `;
+
+  // Niveles locales
+  const datosNivel = nivelesData.niveles?.[userId] || {};
   const nivel = datosNivel.nivel || 0;
   const xp = datosNivel.xp || 0;
   const xpSiguiente = 1000 + nivel * 500;
   const progreso = Math.min(100, Math.floor((xp / xpSiguiente) * 100));
+  const barra = '▭'.repeat(Math.floor(progreso / 5)).padEnd(20, '▭');
 
+  const nivelesHTML = `
+    <section>
+      <h2>📈 Nivel</h2>
+      <p>Nivel: ${nivel}</p>
+      <p>XP: ${xp} / ${xpSiguiente}</p>
+      <p>${barra} (${progreso}%)</p>
+    </section>
+  `;
+
+  // Última actualización
   const stats = fs.statSync(economiaPath);
   const ultimaActualizacion = new Date(stats.mtime);
-  const ahora = new Date();
-  const diferenciaDias = Math.floor((ahora - ultimaActualizacion)/(1000*60*60*24));
-  const actualizado = diferenciaDias <= 2;
+  const actualizacionHTML = `
+    <section>
+      <h2>🔄 Última actualización</h2>
+      <p>${ultimaActualizacion.toLocaleString()}</p>
+    </section>
+  `;
 
-  // Generamos HTML simple para cada sección
-  res.json({
-    perfilHTML: `<p>ID: ${userId}</p>`,
-    economiaHTML: `<p>Balance: $${datosUsuario.balance || 0}</p>
-                   <p>Ingresos: $${datosUsuario.ingresos || 0}</p>
-                   <p>Gastos: $${datosUsuario.gastos || 0}</p>`,
-    recompensasHTML: `<p>${(datosUsuario.balance||0)>=1000?'Blindaje semántico, ':''}${(datosUsuario.balance||0)>=5000?'Heurística institucional, ':''}${(datosUsuario.balance||0)>=10000?'OAuth2 sincronizado':''}</p>`,
-    nivelesHTML: `<p>Nivel ${nivel} - XP: ${xp}/${xpSiguiente}</p>
-                  <div class="progress-bar"><div class="progress-bar-inner" style="width:${progreso}%"></div></div>`,
-    modlogHTML: `<p>Eventos recientes: ${logs.slice(-5).map(e => e.action).join(', ') || 'Ninguno'}</p>`,
-    actualizacionHTML: `<p>${actualizado ? '🟢 Actualizado' : '🔴 Desactualizado'} (${diferenciaDias} días)</p>`,
-    progreso
-  });
+  // Render final
+  res.send(`
+    <html>
+      <head>
+        <title>Abyssus Dashboard</title>
+        <style>
+          body { font-family:sans-serif; background:#0a0a0a; color:#eee; }
+          section { padding:15px; border:1px solid #444; margin:10px; border-radius:8px; }
+        </style>
+      </head>
+      <body>
+        <h1>🔐 Abyssus Dashboard</h1>
+        ${perfilHTML}
+        ${economiaHTML}
+        ${nivelesHTML}
+        ${actualizacionHTML}
+      </body>
+    </html>
+  `);
 });
 
 // Puerto
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🔐 Abyssus Run activo en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🔐 Dashboard activo en puerto ${PORT}`));
+
 
 
 
