@@ -1,15 +1,13 @@
 require('dotenv').config();
 const express = require('express');
-const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-
 const app = express();
 
-// Rutas JSON
+// Archivos JSON
 const economiaPath = path.join(__dirname, 'Usuario.json');
-const modlogPath = path.join(__dirname, 'modlogs.json');
 const nivelesPath = path.join(__dirname, 'nivelesData.json');
+const modlogPath = path.join(__dirname, 'modlogs.json');
 
 // Función segura para leer JSON
 function cargarJSON(ruta) {
@@ -24,93 +22,39 @@ function cargarJSON(ruta) {
 // Archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ruta activación
-app.get('/activar', (req, res) => res.send('🟢 Dashboard activo'));
-
-// Callback OAuth2
-app.get('/callback', async (req, res) => {
-  const code = req.query.code;
-  if (!code) return res.send('❌ Código OAuth2 no recibido');
-
-  try {
-    const tokenResp = await axios.post(
-      'https://discord.com/api/oauth2/token',
-      new URLSearchParams({
-        client_id: process.env.CLIENT_ID,
-        client_secret: process.env.CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: process.env.REDIRECT_URI
-      }).toString(),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
-
-    const accessToken = tokenResp.data.access_token;
-    res.redirect(`/?token=${accessToken}`);
-  } catch (err) {
-    res.send(`❌ Error OAuth2: ${err.response?.data?.error || err.message}`);
-  }
-});
-
-// Ruta principal
-app.get('/', async (req, res) => {
-  const token = req.query.token || '';
-  let user = null;
-  let userId = '';
-
-  if (token.length > 10) {
-    try {
-      const userResp = await axios.get('https://discord.com/api/users/@me', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      user = userResp.data;
-      userId = user.id;
-    } catch {
-      user = null;
-    }
-  }
-
-  // Datos locales
+// Endpoint para obtener datos dinámicos en JSON
+app.get('/api/datos/:userId', (req, res) => {
+  const userId = req.params.userId;
   const economiaData = cargarJSON(economiaPath);
   const nivelesData = cargarJSON(nivelesPath);
   const modlogData = cargarJSON(modlogPath);
 
   const datosUsuario = economiaData.find(u => u.id === userId) || {};
   const datosNivel = nivelesData.niveles?.[userId] || {};
+  const eventos = (modlogData[userId] || []).slice(-5).reverse();
 
-  const balance = datosUsuario.balance || 0;
-  const ingresos = datosUsuario.ingresos || 0;
-  const gastos = datosUsuario.gastos || 0;
-  const eventos = datosUsuario.eventos || [];
-  const nivel = datosNivel.nivel || 0;
-  const xp = datosNivel.xp || 0;
-  const xpSiguiente = 1000 + nivel * 500;
-  const progreso = Math.min(100, Math.floor((xp / xpSiguiente) * 100));
+  res.json({
+    balance: datosUsuario.balance || 0,
+    ingresos: datosUsuario.ingresos || 0,
+    gastos: datosUsuario.gastos || 0,
+    eventos,
+    nivel: datosNivel.nivel || 0,
+    xp: datosNivel.xp || 0,
+    xpSiguiente: 1000 + (datosNivel.nivel || 0) * 500
+  });
+});
 
-  const recompensas = [];
-  if (balance >= 1000) recompensas.push('Blindaje semántico');
-  if (balance >= 5000) recompensas.push('Heurística institucional');
-  if (balance >= 10000) recompensas.push('OAuth2 sincronizado');
-
-  // Última actualización
-  const stats = fs.existsSync(economiaPath) ? fs.statSync(economiaPath) : new Date();
-  const ultimaActualizacion = new Date(stats.mtime || Date.now());
-  const ahora = new Date();
-  const diferenciaDias = Math.floor((ahora - ultimaActualizacion) / (1000 * 60 * 60 * 24));
-  const actualizado = diferenciaDias <= 2;
-
-  // Función color barra
-  const colorXP = progreso < 50 ? '#ff5555' : progreso < 80 ? '#ffbb33' : '#33ff88';
-  const colorBalance = balance < 1000 ? '#ff5555' : balance < 5000 ? '#ffbb33' : '#33ff88';
-
+// Ruta principal
+app.get('/', (req, res) => {
+  const userId = req.query.userId || ''; // para prueba local puedes pasar ?userId=123
   res.send(`
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Abyssus Dashboard</title>
+<title>Dashboard Abyssus</title>
 <style>
-body { font-family: 'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0;}
+body { font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0; }
 header { background:#23272a; padding:25px; text-align:center; border-bottom:1px solid #2c2f33; }
 header h1 { font-size:30px; margin:0; color:#00ff88; }
 main { max-width:1200px; margin:40px auto; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap:30px; }
@@ -128,51 +72,61 @@ ul { padding-left:20px; }
 <p>🟢 Servidor activo · módulos conectados</p>
 </header>
 <main>
-
-<div class="card">
-<h2>👤 Perfil Discord</h2>
-${user ? `
-<p><strong>${user.username}#${user.discriminator}</strong></p>
-<p>ID: ${user.id}</p>
-<img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" width="100" height="100" style="border-radius:50%;">
-` : '<p>No autenticado</p>'}
-</div>
-
 <div class="card">
 <h2>💰 Economía</h2>
-<p>Balance: <strong style="color:${colorBalance}">$${balance.toLocaleString()}</strong></p>
-<p>Ingresos: <strong>$${ingresos.toLocaleString()}</strong></p>
-<p>Gastos: <strong>$${gastos.toLocaleString()}</strong></p>
-<p>Eventos: <strong>${eventos.length}</strong></p>
+<p>Balance: <strong id="balance">0</strong></p>
+<p>Ingresos: <strong id="ingresos">0</strong></p>
+<p>Gastos: <strong id="gastos">0</strong></p>
 </div>
-
 <div class="card">
 <h2>📈 Nivel</h2>
-<p>Nivel: <strong>${nivel}</strong></p>
-<p>XP: <strong>${xp} / ${xpSiguiente}</strong></p>
+<p>Nivel: <strong id="nivel">0</strong></p>
+<p>XP: <strong id="xp">0 / 0</strong></p>
 <div class="progress-container">
-<div class="progress-bar" style="width:${progreso}%; background:${colorXP};"></div>
+<div class="progress-bar" id="xpBar" style="width:0%; background:#33ff88;"></div>
 </div>
-<p>${progreso}%</p>
+<p id="progreso">0%</p>
 </div>
-
 <div class="card">
-<h2>🎁 Recompensas</h2>
-${recompensas.length ? `<ul>${recompensas.map(r => `<li>${r}</li>`).join('')}</ul>` : '<p>No hay recompensas</p>'}
+<h2>📜 Eventos recientes</h2>
+<ul id="eventos"></ul>
 </div>
-
-<div class="card">
-<h2>📜 Modlogs recientes</h2>
-<ul>${(modlogData[userId] || []).slice(-5).reverse().map(e => `<li>${e.action} - ${e.reason}</li>`).join('')}</ul>
-</div>
-
-<div class="card">
-<h2>🟢 Última actualización</h2>
-<p>${actualizado ? 'Actualizado recientemente' : `Desactualizado (${diferenciaDias} días)`}</p>
-</div>
-
 </main>
 <footer>Sistema Abyssus · Renderizado local</footer>
+
+<script>
+// Función para actualizar datos dinámicamente
+async function actualizarDatos() {
+  try {
+    const userId = "${userId}";
+    if (!userId) return;
+
+    const resp = await fetch('/api/datos/' + userId);
+    const data = await resp.json();
+
+    document.getElementById('balance').textContent = "$" + data.balance.toLocaleString();
+    document.getElementById('ingresos').textContent = "$" + data.ingresos.toLocaleString();
+    document.getElementById('gastos').textContent = "$" + data.gastos.toLocaleString();
+
+    document.getElementById('nivel').textContent = data.nivel;
+    document.getElementById('xp').textContent = data.xp + " / " + data.xpSiguiente;
+    const progreso = Math.min(100, Math.floor((data.xp / data.xpSiguiente) * 100));
+    document.getElementById('progreso').textContent = progreso + "%";
+    document.getElementById('xpBar').style.width = progreso + "%";
+    document.getElementById('xpBar').style.background = progreso < 50 ? '#ff5555' : progreso < 80 ? '#ffbb33' : '#33ff88';
+
+    const eventosList = document.getElementById('eventos');
+    eventosList.innerHTML = data.eventos.map(e => '<li>' + e.action + ' - ' + e.reason + '</li>').join('');
+  } catch(err) {
+    console.error(err);
+  }
+}
+
+// Actualizar cada 5 segundos
+actualizarDatos();
+setInterval(actualizarDatos, 5000);
+</script>
+
 </body>
 </html>
   `);
@@ -181,6 +135,7 @@ ${recompensas.length ? `<ul>${recompensas.map(r => `<li>${r}</li>`).join('')}</u
 // Puerto
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Dashboard activo en puerto ${PORT}`));
+
 
 
 
