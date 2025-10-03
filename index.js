@@ -1,178 +1,214 @@
 require('dotenv').config();
 const express = require('express');
+const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
 
 const app = express();
 
-// Archivos JSON
+// Rutas absolutas de los JSON
 const economiaPath = path.join(__dirname, 'Usuario.json');
-const nivelesPath = path.join(__dirname, 'nivelesData.json');
 const modlogPath = path.join(__dirname, 'modlogs.json');
+const nivelesPath = path.join(__dirname, 'nivelesData.json');
 
-// Función segura para leer JSON
-function cargarJSON(ruta) {
+// Función segura para cargar JSON
+function cargarJSON(ruta, nombre = 'archivo') {
   try {
-    if (!fs.existsSync(ruta)) return {};
+    if (!fs.existsSync(ruta)) {
+      console.warn(`⚠️ ${nombre} no existe en ${ruta}`);
+      return [];
+    }
     return JSON.parse(fs.readFileSync(ruta, 'utf8'));
-  } catch {
-    return {};
+  } catch (err) {
+    console.error(`❌ Error leyendo ${nombre}:`, err.message);
+    return [];
   }
 }
 
-// Archivos estáticos
+// Cargar datos locales
+const economiaData = cargarJSON(economiaPath, 'Economía');
+const modlogData = cargarJSON(modlogPath, 'Modlogs');
+const nivelesData = cargarJSON(nivelesPath, 'Niveles');
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Endpoint para obtener datos dinámicos
-app.get('/api/datos/:userId', async (req, res) => {
-  const userId = req.params.userId;
-  const economiaData = cargarJSON(economiaPath);
-  const nivelesData = cargarJSON(nivelesPath);
-  const modlogData = cargarJSON(modlogPath);
+// Ruta de activación
+app.get('/activar', (req, res) => res.send('🟢 Render activado · entorno despierto'));
 
-  // Datos de economía
-  const datosUsuario = economiaData.find(u => u.id === userId) || {};
-  const balance = datosUsuario.balance || 0;
-  const ingresos = datosUsuario.ingresos || 0;
-  const gastos = datosUsuario.gastos || 0;
-  const eventos = (modlogData[userId] || []).slice(-5).reverse();
-
-  // Datos de niveles
-  const datosNivel = nivelesData.niveles?.[userId] || {};
-  const nivel = datosNivel.nivel || 0;
-  const xp = datosNivel.xp || 0;
-  const xpSiguiente = 1000 + nivel * 500;
-
-  // Recompensas según balance
-  const recompensas = [];
-  if (balance >= 1000) recompensas.push('Blindaje semántico');
-  if (balance >= 5000) recompensas.push('Heurística institucional');
-  if (balance >= 10000) recompensas.push('OAuth2 sincronizado');
-
-  // Datos de Discord si hay token
-  let discordUser = null;
-  if (req.query.token) {
-    try {
-      const resp = await axios.get('https://discord.com/api/users/@me', {
-        headers: { Authorization: `Bearer ${req.query.token}` }
-      });
-      discordUser = resp.data;
-    } catch {}
+// Callback OAuth2
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code || code.length < 10) {
+    return res.status(400).send('❌ Código OAuth2 no recibido o inválido');
   }
 
-  res.json({ balance, ingresos, gastos, eventos, nivel, xp, xpSiguiente, recompensas, discordUser });
+  const { CLIENT_ID, CLIENT_SECRET, REDIRECT_URI } = process.env;
+  if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
+    return res.status(500).send('❌ Configuración OAuth2 incompleta');
+  }
+
+  try {
+    const tokenResponse = await axios.post(
+      'https://discord.com/api/oauth2/token',
+      new URLSearchParams({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: REDIRECT_URI.trim(),
+      }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    const accessToken = tokenResponse.data.access_token;
+    res.redirect(`/?token=${accessToken}`);
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    res.status(400).send('❌ Error al obtener token OAuth2');
+  }
 });
 
-// Ruta principal
-app.get('/', (req, res) => {
-  const userId = req.query.userId || '';
-  const token = req.query.token || '';
-  res.send(`
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Dashboard Abyssus</title>
-<style>
-body { font-family:'Segoe UI', sans-serif; background:#0a0a0a; color:#e0e0e0; margin:0; padding:0; }
-header { background:#23272a; padding:25px; text-align:center; border-bottom:1px solid #2c2f33; }
-header h1 { font-size:30px; margin:0; color:#00ff88; }
-main { max-width:1200px; margin:40px auto; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap:30px; }
-.card { background:#1c1c1c; padding:20px; border-radius:12px; box-shadow:0 0 10px rgba(0,0,0,0.5); }
-h2 { margin-top:0; color:#00ff88; }
-.progress-container { background:#333; border-radius:10px; height:20px; overflow:hidden; margin-top:5px; }
-.progress-bar { height:100%; border-radius:10px; transition: width 0.5s; }
-footer { text-align:center; padding:25px; color:#777; border-top:1px solid #222; }
-ul { padding-left:20px; }
-img.avatar { border-radius:50%; width:100px; height:100px; }
-</style>
-</head>
-<body>
-<header>
-<h1>🔐 Abyssus · Dashboard</h1>
-<p>🟢 Servidor activo · módulos conectados</p>
-</header>
-<main>
-<div class="card">
-<h2>👤 Perfil Discord</h2>
-<img id="avatar" class="avatar" src="" />
-<p id="username">Usuario: -</p>
-<p id="userId">ID: -</p>
-<p id="estado">Estado: -</p>
-</div>
-<div class="card">
-<h2>💰 Economía</h2>
-<p>Balance: <strong id="balance">0</strong></p>
-<p>Ingresos: <strong id="ingresos">0</strong></p>
-<p>Gastos: <strong id="gastos">0</strong></p>
-<h3>🎁 Recompensas</h3>
-<ul id="recompensas"></ul>
-</div>
-<div class="card">
-<h2>📈 Nivel</h2>
-<p>Nivel: <strong id="nivel">0</strong></p>
-<p>XP: <strong id="xp">0 / 0</strong></p>
-<div class="progress-container">
-<div class="progress-bar" id="xpBar" style="width:0%; background:#33ff88;"></div>
-</div>
-<p id="progreso">0%</p>
-</div>
-<div class="card">
-<h2>📜 Eventos recientes</h2>
-<ul id="eventos"></ul>
-</div>
-</main>
-<footer>Sistema Abyssus · Renderizado local</footer>
+// Dashboard principal
+app.get('/', async (req, res) => {
+  const token = req.query.token;
+  let user = null;
+  let userId = '';
 
-<script>
-async function actualizarDatos() {
-  try {
-    const userId = "${userId}";
-    if (!userId) return;
-    const resp = await fetch('/api/datos/' + userId + '?token=${token}');
-    const data = await resp.json();
+  let perfilHTML = '', economiaHTML = '', recompensasHTML = '', nivelesHTML = '', modlogHTML = '', actualizacionHTML = '';
 
-    // Perfil Discord
-    if(data.discordUser){
-      document.getElementById('avatar').src = 'https://cdn.discordapp.com/avatars/' + data.discordUser.id + '/' + data.discordUser.avatar + '.png';
-      document.getElementById('username').textContent = data.discordUser.username + '#' + data.discordUser.discriminator;
-      document.getElementById('userId').textContent = 'ID: ' + data.discordUser.id;
-      document.getElementById('estado').textContent = data.discordUser.verified ? '✅ Verificado' : '❌ No verificado';
+  // Obtener datos del usuario desde Discord
+  if (token) {
+    try {
+      const userResp = await axios.get('https://discord.com/api/users/@me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      user = userResp.data;
+      userId = user.id;
+
+      perfilHTML = `
+        <div class="card">
+          <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" class="avatar"/>
+          <h2>${user.username}#${user.discriminator}</h2>
+          <p>ID: ${user.id}</p>
+        </div>
+      `;
+    } catch (err) {
+      perfilHTML = `<div class="card error">❌ No se pudo obtener perfil: ${err.message}</div>`;
     }
+  }
 
-    // Economía
-    document.getElementById('balance').textContent = "$" + data.balance.toLocaleString();
-    document.getElementById('ingresos').textContent = "$" + data.ingresos.toLocaleString();
-    document.getElementById('gastos').textContent = "$" + data.gastos.toLocaleString();
-    document.getElementById('recompensas').innerHTML = data.recompensas.length ? data.recompensas.map(r=>'<li>'+r+'</li>').join('') : '<li>No hay recompensas</li>';
+  // Economía
+  if (userId) {
+    const datos = economiaData.find(u => u.id === userId) || {};
+    const balance = datos.balance || 0;
+    const ingresos = datos.ingresos || 0;
+    const gastos = datos.gastos || 0;
 
-    // Niveles
-    document.getElementById('nivel').textContent = data.nivel;
-    document.getElementById('xp').textContent = data.xp + ' / ' + data.xpSiguiente;
-    const progreso = Math.min(100, Math.floor((data.xp / data.xpSiguiente)*100));
-    document.getElementById('progreso').textContent = progreso + '%';
-    const barra = document.getElementById('xpBar');
-    barra.style.width = progreso + '%';
-    barra.style.background = progreso < 50 ? '#ff5555' : progreso < 80 ? '#ffbb33' : '#33ff88';
+    economiaHTML = `
+      <div class="card">
+        <h2>💰 Economía</h2>
+        <p>Balance: $${balance.toLocaleString()}</p>
+        <p>Ingresos: $${ingresos.toLocaleString()}</p>
+        <p>Gastos: $${gastos.toLocaleString()}</p>
+      </div>
+    `;
 
-    // Eventos recientes
-    document.getElementById('eventos').innerHTML = data.eventos.length ? data.eventos.map(e=>'<li>'+e.action+' - '+e.reason+'</li>').join('') : '<li>No hay eventos</li>';
+    // Recompensas
+    const recompensas = [];
+    if (balance >= 1000) recompensas.push('Blindaje semántico');
+    if (balance >= 5000) recompensas.push('Heurística institucional');
+    if (balance >= 10000) recompensas.push('OAuth2 sincronizado');
 
-  } catch(err){ console.error(err); }
-}
+    recompensasHTML = `
+      <div class="card">
+        <h2>🎁 Recompensas</h2>
+        ${recompensas.length ? `<ul>${recompensas.map(r => `<li>${r}</li>`).join('')}</ul>` : '<p>No hay recompensas</p>'}
+      </div>
+    `;
+  }
 
-// Actualizar cada 5 segundos
-actualizarDatos();
-setInterval(actualizarDatos, 5000);
-</script>
-</body>
-</html>
+  // Niveles
+  if (userId) {
+    const datosNivel = nivelesData.niveles?.[userId] || {};
+    const nivel = datosNivel.nivel || 0;
+    const xp = datosNivel.xp || 0;
+    const xpNext = 1000 + nivel * 500;
+    const progreso = Math.min(100, Math.floor((xp / xpNext) * 100));
+    const barra = '▭'.repeat(Math.floor(progreso / 5)).padEnd(20, '▭');
+
+    nivelesHTML = `
+      <div class="card">
+        <h2>📈 Nivel</h2>
+        <p>Nivel: ${nivel}</p>
+        <p>XP: ${xp} / ${xpNext}</p>
+        <p>Progreso: <span class="barra">${barra}</span> (${progreso}%)</p>
+      </div>
+    `;
+  }
+
+  // Modlogs
+  if (userId) {
+    let eventos = [];
+    for (const gId in modlogData) {
+      const logs = modlogData[gId]?.[userId];
+      if (Array.isArray(logs)) eventos.push(...logs);
+    }
+    const recientes = eventos.slice(-10).reverse();
+
+    modlogHTML = `
+      <div class="card">
+        <h2>📜 Modlogs</h2>
+        ${recientes.length ? `<ul>${recientes.map(e => `<li>${e.action} - ${e.reason} (${new Date(e.timestamp).toLocaleString()})</li>`).join('')}</ul>` : '<p>No hay registros</p>'}
+      </div>
+    `;
+  }
+
+  // Última actualización
+  try {
+    const stats = fs.statSync(economiaPath);
+    const lastUpdate = new Date(stats.mtime);
+    actualizacionHTML = `
+      <div class="card">
+        <h2>🕒 Última actualización</h2>
+        <p>${lastUpdate.toLocaleString('es-MX')}</p>
+      </div>
+    `;
+  } catch { actualizacionHTML = ''; }
+
+  // Render HTML completo
+  res.send(`
+    <html>
+    <head>
+      <title>Abyssus Dashboard</title>
+      <style>
+        body { background:#0a0a0a; color:#eee; font-family:sans-serif; margin:0; padding:20px;}
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px;}
+        .card { background:#23272a; padding:20px; border-radius:10px; }
+        .avatar { width:80px; height:80px; border-radius:50%; }
+        .barra { font-family:monospace; }
+        ul { padding-left:20px; }
+        .error { color:#ff5555; }
+      </style>
+    </head>
+    <body>
+      <h1>Abyssus Dashboard</h1>
+      <div class="grid">
+        ${perfilHTML}
+        ${economiaHTML}
+        ${recompensasHTML}
+        ${nivelesHTML}
+        ${modlogHTML}
+        ${actualizacionHTML}
+      </div>
+    </body>
+    </html>
   `);
 });
 
+// Puerto
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Dashboard activo en puerto ${PORT}`));
+
 
 
 
