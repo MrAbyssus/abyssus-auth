@@ -1,0 +1,62 @@
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName('quienhabla')
+    .setDescription('Analiza quiénes son los más activos en el canal actual.')
+    .addIntegerOption(option =>
+      option.setName('cantidad')
+        .setDescription('Cantidad de mensajes a analizar (máx 500).')
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages), // solo mods/admins
+
+  async execute(interaction) {
+    const cantidad = interaction.options.getInteger('cantidad') || 100;
+    if (cantidad > 500) {
+      return interaction.reply({ content: '⚠️ Máximo 500 mensajes.', ephemeral: true });
+    }
+
+    await interaction.deferReply();
+
+    const channel = interaction.channel;
+    const mensajes = await channel.messages.fetch({ limit: cantidad });
+
+    // Contador de mensajes por usuario
+    const conteo = {};
+    mensajes.forEach(msg => {
+      const id = msg.author.id;
+      conteo[id] = (conteo[id] || 0) + 1;
+    });
+
+    const total = mensajes.size;
+    const usuarios = Object.entries(conteo)
+      .map(([id, count]) => ({
+        usuario: `<@${id}>`,
+        count,
+        porcentaje: ((count / total) * 100).toFixed(1)
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    let descripcion = usuarios
+      .map((u, i) => `🥇🥈🥉⚡🔹`.split('')[i] + ` ${u.usuario} — **${u.count}** mensajes (${u.porcentaje}%)`)
+      .join('\n');
+
+    if (!descripcion) descripcion = '⚠️ No se encontraron mensajes suficientes.';
+
+    // Embed de resultado
+    const embed = new EmbedBuilder()
+      .setTitle(`📊 Análisis de actividad en #${channel.name}`)
+      .setDescription(descripcion)
+      .addFields(
+        { name: 'Total analizado', value: `${total} mensajes`, inline: true },
+        { name: 'Usuarios únicos', value: `${Object.keys(conteo).length}`, inline: true }
+      )
+      .setColor(0x5865F2)
+      .setFooter({ text: 'Abyssus Bot • /quienhabla' })
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+  }
+};
