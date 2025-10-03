@@ -103,16 +103,19 @@ app.get('/', async (req, res) => {
 <meta charset="UTF-8">
 <title>Abyssus Dashboard</title>
 <style>
-body { font-family:'Segoe UI', sans-serif; background:#121212; color:#e0e0e0; margin:0; }
-header { background:#1f1f1f; padding:20px; text-align:center; border-bottom:2px solid #333; }
-header h1 { margin:0; font-size:28px; color:#00ff88; }
+body { font-family:'Segoe UI', sans-serif; background:#0f0f0f; color:#e0e0e0; margin:0; }
+header { background:#1b1b1b; padding:20px; text-align:center; border-bottom:2px solid #333; }
+header h1 { margin:0; font-size:28px; color:#00ff88; text-shadow: 0 0 5px #00ff88; }
 main { max-width:1200px; margin:40px auto; display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
-.card { background:#1e1e1e; padding:20px; border-radius:12px; box-shadow:0 0 15px rgba(0,255,136,0.2); }
-.card h2 { margin-top:0; color:#00ff88; }
+.card { background:#1e1e1e; padding:20px; border-radius:12px; box-shadow:0 0 20px rgba(0,255,136,0.2); transition:transform 0.3s; }
+.card:hover { transform: translateY(-5px); }
+.card h2 { margin-top:0; color:#00ff88; text-shadow: 0 0 3px #00ff88; }
 .bar { background:#333; width:100%; height:20px; border-radius:10px; overflow:hidden; margin-top:5px; }
-.bar-fill { height:100%; width:0%; background:#00ff88; transition:width 0.5s ease; }
+.bar-fill { height:100%; width:0%; background:linear-gradient(90deg,#00ff88,#00ffff); transition:width 0.5s ease; }
 ul { list-style:none; padding-left:0; max-height:250px; overflow-y:auto; }
 ul li { padding:5px 0; border-bottom:1px solid #333; }
+.badge { display:inline-block; padding:5px 10px; margin:3px; border-radius:8px; background:#222; color:#00ff88; font-weight:bold; text-shadow:0 0 2px #00ff88; }
+.badge.locked { color:#888; text-shadow:none; background:#111; }
 </style>
 </head>
 <body>
@@ -138,6 +141,12 @@ ${user ? `<img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}
 <p>Balance: <strong id="balance">0</strong></p>
 <p>Ingresos: <strong id="ingresos">0</strong></p>
 <p>Gastos: <strong id="gastos">0</strong></p>
+<div id="recompensas">
+<h3>🏅 Recompensas</h3>
+<span class="badge locked">Blindaje semántico</span>
+<span class="badge locked">Heurística institucional</span>
+<span class="badge locked">OAuth2 sincronizado</span>
+</div>
 </div>
 
 <!-- Niveles -->
@@ -166,6 +175,13 @@ async function actualizar() {
     document.getElementById('ingresos').innerText = "$" + (econ.ingresos || 0).toLocaleString();
     document.getElementById('gastos').innerText = "$" + (econ.gastos || 0).toLocaleString();
 
+    // Recompensas
+    const badges = document.querySelectorAll('#recompensas .badge');
+    badges.forEach(b => b.classList.add('locked'));
+    if(econ.balance >= 1000) badges[0].classList.remove('locked');
+    if(econ.balance >= 5000) badges[1].classList.remove('locked');
+    if(econ.balance >= 10000) badges[2].classList.remove('locked');
+
     const nivel = await (await fetch('/api/niveles/' + userId)).json();
     const xpSiguiente = 1000 + (nivel.nivel || 0)*500;
     const progreso = Math.min(100, Math.floor((nivel.xp || 0)/xpSiguiente*100));
@@ -193,6 +209,7 @@ actualizar();
 // ================== PUERTO ==================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🔐 Abyssus Run activo en Render · Puerto ${PORT}`));
+
 
 
 
