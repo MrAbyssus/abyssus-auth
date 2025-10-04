@@ -1,70 +1,53 @@
 // index.js
 require('dotenv').config();
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --------------------
-// 1️⃣ Bot de Discord
-// --------------------
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
-  partials: [Partials.User]
-});
+// Rutas a tus JSON
+const economiaPath = path.join(__dirname, 'Usuario.json');
+const nivelesPath  = path.join(__dirname, 'nivelesData.json');
+const modlogsPath  = path.join(__dirname, 'modlogs.json');
 
-// Datos en memoria
-const db = {
-  usuarios: {},      // { userId: { balance, ingresos, gastos } }
-  niveles: {},       // { userId: { xp, nivel } }
-  modlogs: {}        // { userId: [{ action, reason, date }] }
-};
+// Función segura para leer JSON
+function safeReadJSON(filePath, defaultValue = {}) {
+  try {
+    if (!fs.existsSync(filePath)) return defaultValue;
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return raw ? JSON.parse(raw) : defaultValue;
+  } catch (err) {
+    console.error(`Error leyendo ${filePath}:`, err.message);
+    return defaultValue;
+  }
+}
 
-// Ejemplo de evento: cuando alguien manda mensaje, gana XP
-client.on('messageCreate', msg => {
-  if (msg.author.bot) return;
-
-  const uid = msg.author.id;
-
-  // Economía
-  if (!db.usuarios[uid]) db.usuarios[uid] = { balance: 0, ingresos: 0, gastos: 0 };
-  db.usuarios[uid].balance += 10;
-  db.usuarios[uid].ingresos += 10;
-
-  // Niveles
-  if (!db.niveles[uid]) db.niveles[uid] = { xp: 0, nivel: 0 };
-  db.niveles[uid].xp += 15;
-  const lvl = Math.floor(db.niveles[uid].xp / 1000);
-  if (lvl > db.niveles[uid].nivel) db.niveles[uid].nivel = lvl;
-});
-
-// Modlogs de ejemplo
-client.on('guildBanAdd', (guild, user) => {
-  if (!db.modlogs[user.id]) db.modlogs[user.id] = [];
-  db.modlogs[user.id].push({ action: 'BAN', reason: 'Automático', date: new Date() });
-});
-
-client.login(process.env.TOKEN);
-
-// --------------------
-// 2️⃣ Dashboard
-// --------------------
-
-// Endpoint de datos
+// Endpoint de datos para el frontend
 app.get('/data', (req, res) => {
-  const usuariosArr = Object.entries(db.usuarios).map(([id, u]) => ({ id, ...u }));
-  const nivelesArr = Object.entries(db.niveles).map(([id, n]) => ({ id, ...n }));
+  const economiaData = safeReadJSON(economiaPath, []);
+  const nivelesData  = safeReadJSON(nivelesPath, { niveles: {} });
+  const modlogData   = safeReadJSON(modlogsPath, {});
 
-  // KPIs
-  const totalUsuarios = usuariosArr.length;
-  const economiaTotal = usuariosArr.reduce((a,b)=>a+(b.balance||0),0);
-  const totalWarns = Object.values(db.modlogs).flat().length;
-  const promedioNivel = nivelesArr.length ? (nivelesArr.reduce((a,b)=>a+b.nivel,0)/nivelesArr.length).toFixed(2) : 0;
+  const totalUsuarios = Array.isArray(economiaData) ? economiaData.length : 0;
+  const economiaTotal = economiaData.reduce((s, u) => s + (Number(u.balance) || 0), 0);
 
-  // Top
-  const topXP = nivelesArr.slice().sort((a,b)=>b.xp-a.xp).slice(0,10);
-  const topBalance = usuariosArr.slice().sort((a,b)=>b.balance-a.balance).slice(0,10);
+  let totalWarns = 0;
+  try {
+    totalWarns = Object.values(modlogData).flatMap(x => Object.values(x).flat()).length;
+  } catch {}
+
+  const nivelesArr = Object.entries(nivelesData.niveles || {}).map(([id, v]) => ({
+    id, xp: Number(v.xp) || 0, nivel: Number(v.nivel) || 0
+  }));
+
+  const promedioNivel = nivelesArr.length ? (nivelesArr.reduce((s,i)=>s+i.nivel,0)/nivelesArr.length) : 0;
+  const topXP = nivelesArr.slice().sort((a,b)=>b.xp - a.xp).slice(0,10);
+  const topNivel = nivelesArr.slice().sort((a,b)=>b.nivel - a.nivel).slice(0,10);
+  const topBalance = economiaData.slice().sort((a,b) => (b.balance||0)-(a.balance||0)).slice(0,10);
+
+  const lastUpdate = fs.existsSync(economiaPath) ? fs.statSync(economiaPath).mtime : new Date();
 
   res.json({
     ok: true,
@@ -74,20 +57,25 @@ app.get('/data', (req, res) => {
     totalWarns,
     promedioNivel,
     topXP,
+    topNivel,
     topBalance,
-    lastUpdate: new Date().toISOString()
+    lastUpdate: lastUpdate.toISOString()
   });
 });
 
-// Frontend simple
-app.get('/', (req,res) => {
-  res.sendFile(__dirname + '/public/index.html'); // Aquí va tu HTML estilo dashboard
+// Servir frontend
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Servir static assets
-app.use(express.static('public'));
+// Archivos estáticos
+app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, () => console.log(`✅ Dashboard activo en http://localhost:${PORT}`));
+// Iniciar servidor
+app.listen(PORT, () => {
+  console.log(`✅ Abyssus Dashboard activo en http://localhost:${PORT}`);
+});
+
 
 
 
