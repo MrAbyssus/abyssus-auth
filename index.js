@@ -91,7 +91,7 @@ img.avatar { width:80px; height:80px; border-radius:50%; margin-bottom:1rem; bor
 <h1>✅ Autenticación OK</h1>
 <p><strong>${userData.username}#${userData.discriminator}</strong></p>
 <p>ID: ${userData.id}</p>
-<a class="button" href="/mis-guild/${userData.id}">Ver mi servidor con Abyssus</a>
+<a class="button" href="/mis-guilds/${userData.id}">Ver mi servidor con Abyssus</a>
 </div>
 </body>
 </html>
@@ -103,8 +103,8 @@ img.avatar { width:80px; height:80px; border-radius:50%; margin-bottom:1rem; bor
   }
 });
 
-// -------------------- /mis-guild/:userId --------------------
-app.get('/mis-guild/:userId', async (req, res) => {
+// -------------------- /mis-guilds/:userId --------------------
+app.get('/mis-guilds/:userId', async (req, res) => {
   const userId = req.params.userId;
   const usuario = usuariosAutenticados.get(userId);
   if (!usuario) return res.redirect('/login');
@@ -114,25 +114,24 @@ app.get('/mis-guild/:userId', async (req, res) => {
       headers: { Authorization: `Bearer ${usuario.accessToken}` }
     });
 
-    // Filtrar solo servidores donde el usuario es administrador
+    // Filtrar guilds donde el usuario es admin (0x8)
     const adminGuilds = guildsRes.data.filter(g => (BigInt(g.permissions) & BigInt(0x8)) !== 0);
 
-    // Para simplificar, asumimos que Abyssus solo está en un servidor relevante
-    const abyssusGuild = adminGuilds[0]; // si hay más de uno, puedes elegir según tu lógica
-
-    let guildCard = '<li>No tienes un servidor con Abyssus.</li>';
-    if (abyssusGuild) {
-      const iconUrl = abyssusGuild.icon
-        ? `https://cdn.discordapp.com/icons/${abyssusGuild.id}/${abyssusGuild.icon}.png?size=64`
+    // Solo mostrar información básica: nombre e icono
+    let guildList = '';
+    adminGuilds.forEach(g => {
+      const iconUrl = g.icon
+        ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`
         : 'https://via.placeholder.com/32?text=?';
 
-      guildCard = `
+      guildList += `
 <li>
   <img src="${iconUrl}" class="avatar">
-  <strong>${abyssusGuild.name}</strong> (ID: ${abyssusGuild.id})<br>
-  <small>💪 Eres administrador</small>
+  <strong>${g.name}</strong> (ID: ${g.id})
 </li>`;
-    }
+    });
+
+    if (!guildList) guildList = '<li>No tienes un servidor con Abyssus o sin permisos de administración.</li>';
 
     res.send(`
 <!DOCTYPE html>
@@ -155,7 +154,7 @@ img.avatar { width:32px; height:32px; border-radius:50%; vertical-align:middle; 
 <div class="card">
 <h1>Mi servidor con Abyssus</h1>
 <ul>
-${guildCard}
+${guildList}
 </ul>
 <a class="button" href="/login">Cerrar sesión / Volver a login</a>
 </div>
@@ -172,6 +171,7 @@ ${guildCard}
 // -------------------- Servidor --------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
