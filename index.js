@@ -5,14 +5,9 @@ const app = express();
 
 app.use(express.static('public'));
 
-// ------------------------------
-// Almacenamiento en memoria
-// ------------------------------
 const usuariosAutenticados = new Map();
 
-// ------------------------------
 // Función para renovar token
-// ------------------------------
 async function refreshToken(userId) {
   const usuario = usuariosAutenticados.get(userId);
   if (!usuario) throw new Error('Usuario no encontrado');
@@ -37,9 +32,7 @@ async function refreshToken(userId) {
   return usuario.accessToken;
 }
 
-// ------------------------------
-// /login
-// ------------------------------
+// -------------------- /login --------------------
 app.get('/login', (req, res) => {
   const clientId = process.env.CLIENT_ID;
   const redirect = process.env.REDIRECT_URI;
@@ -74,9 +67,7 @@ a.button:hover { background-color:#f0f0f0; }
   `);
 });
 
-// ------------------------------
-// /callback
-// ------------------------------
+// -------------------- /callback --------------------
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.redirect('/login');
@@ -141,19 +132,48 @@ img.avatar { width:80px; height:80px; border-radius:50%; margin-bottom:1rem; bor
 
   } catch (err) {
     const data = err.response?.data;
+
+    // Código inválido o expirado
     if (data?.error === 'invalid_grant') return res.redirect('/login');
+
+    // Rate limit en tokens
+    if (data?.error === 'invalid_request' && data?.error_description?.includes('rate limited')) {
+      return res.status(429).send(`
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Rate Limit</title>
+<style>
+body { font-family:'Segoe UI',Tahoma,Verdana,sans-serif; background:#764ba2; color:#fff; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
+.card { background-color: rgba(0,0,0,0.35); padding:2rem; border-radius:15px; text-align:center; box-shadow:0 8px 25px rgba(0,0,0,0.5); }
+h1 { font-size:2rem; margin-bottom:1rem; }
+p { font-size:1.2rem; margin-bottom:1rem; }
+a.button { display:inline-block; padding:0.6rem 1.2rem; background-color:#fff; color:#764ba2; text-decoration:none; font-weight:bold; border-radius:8px; transition:0.3s; }
+a.button:hover { background-color:#f0f0f0; }
+</style>
+</head>
+<body>
+<div class="card">
+<h1>⚠️ Demasiadas solicitudes</h1>
+<p>Estás siendo rate limited por Discord.</p>
+<p>Por favor espera unos minutos antes de intentar de nuevo.</p>
+<a class="button" href="/login">Volver a login</a>
+</div>
+</body>
+</html>
+      `);
+    }
+
     console.error('Error OAuth2:', data || err.message);
     res.status(500).send('<h2>Error OAuth2</h2><pre>' + JSON.stringify(data || err.message, null, 2) + '</pre>');
   }
 });
 
-// ------------------------------
-// /mis-guilds
-// ------------------------------
+// -------------------- /mis-guilds --------------------
 app.get('/mis-guilds/:userId', async (req, res) => {
   const userId = req.params.userId;
   const usuario = usuariosAutenticados.get(userId);
-
   if (!usuario) return res.redirect('/login');
 
   try {
@@ -166,8 +186,8 @@ app.get('/mis-guilds/:userId', async (req, res) => {
     guilds.forEach(g => {
       const iconUrl = g.icon
         ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`
-        : 'https://via.placeholder.com/64?text=?';
-      guildList += `<li><img src="${iconUrl}" width="32" height="32" style="vertical-align:middle;border-radius:6px;margin-right:0.5rem;"> ${g.name} (ID: ${g.id})</li>`;
+        : 'https://via.placeholder.com/32?text=?';
+      guildList += `<li><img src="${iconUrl}" class="avatar"> ${g.name} (ID: ${g.id})</li>`;
     });
 
     res.send(`
@@ -213,11 +233,10 @@ ${guildList || '<li>No se encontraron guilds</li>'}
   }
 });
 
-// ------------------------------
-// Iniciar servidor
-// ------------------------------
+// -------------------- Servidor --------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
