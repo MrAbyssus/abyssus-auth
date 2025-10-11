@@ -5,7 +5,6 @@ const app = express();
 
 app.use(express.static('public'));
 
-// Guardar usuarios autenticados temporalmente
 const usuariosAutenticados = new Map();
 
 // -------------------- /login --------------------
@@ -121,14 +120,17 @@ app.get('/mis-guilds/:userId', async (req, res) => {
 
     const adminGuilds = guildsRes.data.filter(g => (BigInt(g.permissions) & BigInt(0x8)) !== 0);
 
-    // Filtrar solo servidores donde Abyssus (bot) está presente
+    // Filtrar solo servidores donde Abyssus está presente
     const botGuilds = [];
     for (const g of adminGuilds) {
       try {
-        await axios.get(`https://discord.com/api/v10/guilds/${g.id}`, {
+        const guildInfo = await axios.get(`https://discord.com/api/v10/guilds/${g.id}?with_counts=true`, {
           headers: { Authorization: `Bot ${BOT_TOKEN}` }
         });
-        botGuilds.push(g);
+
+        // Roles visibles para el bot
+        const rolesCount = guildInfo.data.roles ? guildInfo.data.roles.length : 0;
+        botGuilds.push({ ...g, member_count: guildInfo.data.approximate_member_count || 'N/A', roles_count: rolesCount });
       } catch { /* bot no presente */ }
     }
 
@@ -140,7 +142,8 @@ app.get('/mis-guilds/:userId', async (req, res) => {
       guildList += `
 <li>
   <img src="${iconUrl}" class="avatar">
-  <strong>${g.name}</strong> (ID: ${g.id})
+  <strong>${g.name}</strong> (ID: ${g.id})<br>
+  Miembros: ${g.member_count}, Roles: ${g.roles_count}
 </li>`;
     });
 
@@ -184,6 +187,7 @@ ${guildList}
 // -------------------- Servidor --------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
