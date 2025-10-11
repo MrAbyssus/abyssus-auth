@@ -7,30 +7,6 @@ app.use(express.static('public'));
 
 const usuariosAutenticados = new Map();
 
-// -------------------- Función para renovar token --------------------
-async function refreshToken(userId) {
-  const usuario = usuariosAutenticados.get(userId);
-  if (!usuario) throw new Error('Usuario no encontrado');
-
-  const response = await axios.post(
-    'https://discord.com/api/oauth2/token',
-    new URLSearchParams({
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      grant_type: 'refresh_token',
-      refresh_token: usuario.refreshToken,
-      redirect_uri: process.env.REDIRECT_URI
-    }).toString(),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-  );
-
-  usuario.accessToken = response.data.access_token;
-  usuario.refreshToken = response.data.refresh_token;
-  usuariosAutenticados.set(userId, usuario);
-
-  return usuario.accessToken;
-}
-
 // -------------------- /login --------------------
 app.get('/login', (req, res) => {
   const clientId = process.env.CLIENT_ID;
@@ -84,7 +60,6 @@ app.get('/callback', async (req, res) => {
     );
 
     const accessToken = tokenResponse.data.access_token;
-    const refreshToken = tokenResponse.data.refresh_token;
 
     const userRes = await axios.get('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${accessToken}` }
@@ -92,13 +67,7 @@ app.get('/callback', async (req, res) => {
 
     const userData = userRes.data;
 
-    usuariosAutenticados.set(userData.id, {
-      accessToken,
-      refreshToken,
-      username: userData.username,
-      discriminator: userData.discriminator,
-      avatar: userData.avatar
-    });
+    usuariosAutenticados.set(userData.id, { accessToken, username: userData.username, discriminator: userData.discriminator, avatar: userData.avatar });
 
     res.send(`
 <!DOCTYPE html>
@@ -122,71 +91,55 @@ img.avatar { width:80px; height:80px; border-radius:50%; margin-bottom:1rem; bor
 <h1>✅ Autenticación OK</h1>
 <p><strong>${userData.username}#${userData.discriminator}</strong></p>
 <p>ID: ${userData.id}</p>
-<a class="button" href="/mis-guilds/${userData.id}">Ver servidores con Abyssus</a>
+<a class="button" href="/mis-guild/${userData.id}">Ver mi servidor con Abyssus</a>
 </div>
 </body>
 </html>
     `);
 
   } catch (err) {
-    const data = err.response?.data;
-    if (data?.error === 'invalid_grant') return res.redirect('/login');
-    if (data?.error === 'invalid_request' && data?.error_description?.includes('rate limited')) {
-      return res.status(429).send(`<h2>⚠️ Rate limit alcanzado. Espera unos minutos e intenta de nuevo.</h2><a href="/login">Volver a login</a>`);
-    }
-    console.error('Error OAuth2:', data || err.message);
-    res.status(500).send('<h2>Error OAuth2</h2><pre>' + JSON.stringify(data || err.message, null, 2) + '</pre>');
+    console.error(err.response?.data || err.message);
+    res.status(500).send('Error OAuth2');
   }
 });
 
-// -------------------- /mis-guilds --------------------
-app.get('/mis-guilds/:userId', async (req, res) => {
+// -------------------- /mis-guild/:userId --------------------
+app.get('/mis-guild/:userId', async (req, res) => {
   const userId = req.params.userId;
   const usuario = usuariosAutenticados.get(userId);
   if (!usuario) return res.redirect('/login');
-
-  const BOT_TOKEN = process.env.BOT_TOKEN;
-  if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
 
   try {
     const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${usuario.accessToken}` }
     });
 
-    const allGuilds = guildsRes.data;
+    // Filtrar solo servidores donde el usuario es administrador
+    const adminGuilds = guildsRes.data.filter(g => (BigInt(g.permissions) & BigInt(0x8)) !== 0);
 
-    // Filtrar solo guilds donde el bot está presente
-    const botGuilds = [];
-    for (const g of allGuilds) {
-      try {
-        await axios.get(`https://discord.com/api/v10/guilds/${g.id}`, {
-          headers: { Authorization: `Bot ${BOT_TOKEN}` }
-        });
-        botGuilds.push(g);
-      } catch { /* no está el bot, no agregamos */ }
-    }
+    // Para simplificar, asumimos que Abyssus solo está en un servidor relevante
+    const abyssusGuild = adminGuilds[0]; // si hay más de uno, puedes elegir según tu lógica
 
-    let guildList = '';
-    botGuilds.forEach(g => {
-      const iconUrl = g.icon
-        ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`
+    let guildCard = '<li>No tienes un servidor con Abyssus.</li>';
+    if (abyssusGuild) {
+      const iconUrl = abyssusGuild.icon
+        ? `https://cdn.discordapp.com/icons/${abyssusGuild.id}/${abyssusGuild.icon}.png?size=64`
         : 'https://via.placeholder.com/32?text=?';
-      const isAdmin = (BigInt(g.permissions) & BigInt(0x8)) !== 0;
 
-      guildList += `
+      guildCard = `
 <li>
   <img src="${iconUrl}" class="avatar">
-  <strong>${g.name}</strong> (ID: ${g.id})<br>
-  <small>${isAdmin ? '💪 Administrador del bot' : '🔹 Sin permisos de admin'}</small>
+  <strong>${abyssusGuild.name}</strong> (ID: ${abyssusGuild.id})<br>
+  <small>💪 Eres administrador</small>
 </li>`;
-    });
+    }
 
     res.send(`
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Servidores con Abyssus</title>
+<title>Mi servidor con Abyssus</title>
 <style>
 body { font-family:'Segoe UI',Tahoma,Verdana,sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:#fff; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; padding:2rem; }
 .card { background-color: rgba(0,0,0,0.35); padding:2rem; border-radius:15px; text-align:center; box-shadow:0 8px 25px rgba(0,0,0,0.5); width:100%; max-width:500px; }
@@ -200,9 +153,9 @@ img.avatar { width:32px; height:32px; border-radius:50%; vertical-align:middle; 
 </head>
 <body>
 <div class="card">
-<h1>Servidores con Abyssus</h1>
+<h1>Mi servidor con Abyssus</h1>
 <ul>
-${guildList || '<li>No se encontraron servidores con Abyssus</li>'}
+${guildCard}
 </ul>
 <a class="button" href="/login">Cerrar sesión / Volver a login</a>
 </div>
@@ -211,17 +164,15 @@ ${guildList || '<li>No se encontraron servidores con Abyssus</li>'}
     `);
 
   } catch (err) {
-    if (err.response?.status === 401) {
-      try { await refreshToken(userId); return res.redirect(`/mis-guilds/${userId}`); } catch { return res.redirect('/login'); }
-    }
     console.error(err.response?.data || err.message);
-    res.status(500).send('Error obteniendo guilds');
+    res.status(500).send('Error obteniendo tu servidor');
   }
 });
 
 // -------------------- Servidor --------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
