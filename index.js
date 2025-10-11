@@ -15,12 +15,10 @@ const usuariosAutenticados = new Map();
 // Ruta /login: redirige a Discord
 // ------------------------------
 app.get('/login', (req, res) => {
-  const redirect = process.env.REDIRECT_URI;
   const clientId = process.env.CLIENT_ID;
+  const redirect = process.env.REDIRECT_URI;
 
-  if (!redirect || !clientId) {
-    return res.status(500).send('Falta CLIENT_ID o REDIRECT_URI en .env');
-  }
+  if (!clientId || !redirect) return res.status(500).send('Falta CLIENT_ID o REDIRECT_URI en .env');
 
   const authorizeUrl =
     'https://discord.com/oauth2/authorize' +
@@ -29,25 +27,28 @@ app.get('/login', (req, res) => {
     `&response_type=code` +
     `&scope=identify%20guilds`;
 
-  return res.redirect(authorizeUrl);
+  res.send(`
+    <h2>Iniciar sesión con Discord</h2>
+    <a href="${authorizeUrl}">
+      <button>Login con Discord</button>
+    </a>
+  `);
 });
 
 // ------------------------------
-// Ruta /callback: recibe el code de Discord
+// Ruta /callback: recibe el code
 // ------------------------------
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
 
   if (!code) {
     return res.status(400).send(`
-      <h2>❌ No se recibió "code" en la query</h2>
-      <pre>${JSON.stringify(req.query, null, 2)}</pre>
-      <p>Usa la URL de /login para autorizar primero.</p>
+      <h2>❌ No se recibió code</h2>
+      <p>Usa <a href="/login">/login</a> para iniciar sesión.</p>
     `);
   }
 
   try {
-    // Intercambiar code por token
     const tokenResponse = await axios.post(
       'https://discord.com/api/oauth2/token',
       new URLSearchParams({
@@ -63,7 +64,6 @@ app.get('/callback', async (req, res) => {
     const accessToken = tokenResponse.data.access_token;
     const refreshToken = tokenResponse.data.refresh_token;
 
-    // Obtener info del usuario
     const userRes = await axios.get('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
@@ -78,23 +78,30 @@ app.get('/callback', async (req, res) => {
       discriminator: userData.discriminator
     });
 
-    console.log('Usuarios autenticados actualmente:', Array.from(usuariosAutenticados.keys()));
+    console.log('Usuarios autenticados:', Array.from(usuariosAutenticados.keys()));
 
-    res.send(`<h2>✅ Autenticación OK</h2>
+    res.send(`
+      <h2>✅ Autenticación OK</h2>
       <p>${userData.username}#${userData.discriminator} (ID: ${userData.id})</p>
       <p>Puedes consultar tus guilds en: <a href="/mis-guilds/${userData.id}">/mis-guilds/${userData.id}</a></p>
     `);
 
   } catch (err) {
-    console.error('Error OAuth2:', err.response?.data || err.message);
-    res.status(500).send(`<h2>❌ Error OAuth2</h2>
-      <pre>${JSON.stringify(err.response?.data || err.message, null, 2)}</pre>
-    `);
+    const data = err.response?.data;
+
+    // Código inválido o expirado
+    if (data?.error === 'invalid_grant') {
+      console.warn('Code inválido/expirado, redirigiendo a /login');
+      return res.redirect('/login');
+    }
+
+    console.error('Error OAuth2:', data || err.message);
+    return res.status(500).send('<h2>❌ Error OAuth2</h2><pre>' + JSON.stringify(data || err.message, null, 2) + '</pre>');
   }
 });
 
 // ------------------------------
-// Ruta para obtener los guilds del usuario
+// Ruta para obtener guilds del usuario
 // ------------------------------
 app.get('/mis-guilds/:userId', async (req, res) => {
   const userId = req.params.userId;
@@ -110,8 +117,8 @@ app.get('/mis-guilds/:userId', async (req, res) => {
     res.json(guildsRes.data);
 
   } catch (err) {
-    // Si el token expiró, intentar renovarlo
     if (err.response?.status === 401) {
+      // Token expirado → renovar automáticamente
       try {
         const newAccessToken = await refreshToken(userId);
         const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
