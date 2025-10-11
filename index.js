@@ -7,7 +7,7 @@ app.use(express.static('public'));
 
 const usuariosAutenticados = new Map();
 
-// Función para renovar token
+// -------------------- Función para renovar token --------------------
 async function refreshToken(userId) {
   const usuario = usuariosAutenticados.get(userId);
   if (!usuario) throw new Error('Usuario no encontrado');
@@ -35,7 +35,6 @@ async function refreshToken(userId) {
 app.get('/login', (req, res) => {
   const clientId = process.env.CLIENT_ID;
   const redirect = process.env.REDIRECT_URI;
-
   if (!clientId || !redirect) return res.status(500).send('Falta CLIENT_ID o REDIRECT_URI en .env');
 
   const authorizeUrl =
@@ -146,24 +145,25 @@ app.get('/mis-guilds/:userId', async (req, res) => {
   const usuario = usuariosAutenticados.get(userId);
   if (!usuario) return res.redirect('/login');
 
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
+
   try {
     const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${usuario.accessToken}` }
     });
 
     const allGuilds = guildsRes.data;
-    const botToken = process.env.BOT_TOKEN;
-    if (!botToken) return res.status(500).send('Falta BOT_TOKEN en .env');
 
-    // Filtrar solo guilds donde está el bot usando API REST
+    // Filtrar solo guilds donde el bot está presente
     const botGuilds = [];
     for (const g of allGuilds) {
       try {
         await axios.get(`https://discord.com/api/v10/guilds/${g.id}`, {
-          headers: { Authorization: `Bot ${botToken}` }
+          headers: { Authorization: `Bot ${BOT_TOKEN}` }
         });
         botGuilds.push(g);
-      } catch { /* no está el bot */ }
+      } catch { /* no está el bot, no agregamos */ }
     }
 
     let guildList = '';
@@ -172,11 +172,12 @@ app.get('/mis-guilds/:userId', async (req, res) => {
         ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`
         : 'https://via.placeholder.com/32?text=?';
       const isAdmin = (BigInt(g.permissions) & BigInt(0x8)) !== 0;
+
       guildList += `
 <li>
   <img src="${iconUrl}" class="avatar">
   <strong>${g.name}</strong> (ID: ${g.id})<br>
-  <small>${isAdmin ? '💪 Administrador' : '🔹 Sin permisos de admin'}</small>
+  <small>${isAdmin ? '💪 Administrador del bot' : '🔹 Sin permisos de admin'}</small>
 </li>`;
     });
 
@@ -221,6 +222,7 @@ ${guildList || '<li>No se encontraron servidores con Abyssus</li>'}
 // -------------------- Servidor --------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
