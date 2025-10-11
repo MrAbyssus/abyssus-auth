@@ -9,131 +9,6 @@ app.use(express.static('public'));
 // Almacenamiento en memoria
 // ------------------------------
 const usuariosAutenticados = new Map();
-// key = userID, value = { accessToken, refreshToken, username, discriminator }
-
-// ------------------------------
-// Ruta /login: redirige a Discord
-// ------------------------------
-app.get('/login', (req, res) => {
-  const clientId = process.env.CLIENT_ID;
-  const redirect = process.env.REDIRECT_URI;
-
-  if (!clientId || !redirect) return res.status(500).send('Falta CLIENT_ID o REDIRECT_URI en .env');
-
-  const authorizeUrl =
-    'https://discord.com/oauth2/authorize' +
-    `?client_id=${encodeURIComponent(clientId)}` +
-    `&redirect_uri=${encodeURIComponent(redirect)}` +
-    `&response_type=code` +
-    `&scope=identify%20guilds`;
-
-  res.send(`
-    <h2>Iniciar sesión con Discord</h2>
-    <a href="${authorizeUrl}">
-      <button>Login con Discord</button>
-    </a>
-  `);
-});
-
-// ------------------------------
-// Ruta /callback: recibe el code
-// ------------------------------
-app.get('/callback', async (req, res) => {
-  const code = req.query.code;
-
-  if (!code) {
-    return res.status(400).send(`
-      <h2>❌ No se recibió code</h2>
-      <p>Usa <a href="/login">/login</a> para iniciar sesión.</p>
-    `);
-  }
-
-  try {
-    const tokenResponse = await axios.post(
-      'https://discord.com/api/oauth2/token',
-      new URLSearchParams({
-        client_id: process.env.CLIENT_ID,
-        client_secret: process.env.CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: process.env.REDIRECT_URI
-      }).toString(),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
-
-    const accessToken = tokenResponse.data.access_token;
-    const refreshToken = tokenResponse.data.refresh_token;
-
-    const userRes = await axios.get('https://discord.com/api/users/@me', {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-
-    const userData = userRes.data;
-
-    // Guardar usuario en memoria
-    usuariosAutenticados.set(userData.id, {
-      accessToken,
-      refreshToken,
-      username: userData.username,
-      discriminator: userData.discriminator
-    });
-
-    console.log('Usuarios autenticados:', Array.from(usuariosAutenticados.keys()));
-
-    res.send(`
-      <h2>✅ Autenticación OK</h2>
-      <p>${userData.username}#${userData.discriminator} (ID: ${userData.id})</p>
-      <p>Puedes consultar tus guilds en: <a href="/mis-guilds/${userData.id}">/mis-guilds/${userData.id}</a></p>
-    `);
-
-  } catch (err) {
-    const data = err.response?.data;
-
-    // Código inválido o expirado
-    if (data?.error === 'invalid_grant') {
-      console.warn('Code inválido/expirado, redirigiendo a /login');
-      return res.redirect('/login');
-    }
-
-    console.error('Error OAuth2:', data || err.message);
-    return res.status(500).send('<h2>❌ Error OAuth2</h2><pre>' + JSON.stringify(data || err.message, null, 2) + '</pre>');
-  }
-});
-
-// ------------------------------
-// Ruta para obtener guilds del usuario
-// ------------------------------
-app.get('/mis-guilds/:userId', async (req, res) => {
-  const userId = req.params.userId;
-  const usuario = usuariosAutenticados.get(userId);
-
-  if (!usuario) return res.status(404).send('Usuario no autenticado');
-
-  try {
-    const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
-      headers: { Authorization: `Bearer ${usuario.accessToken}` }
-    });
-
-    res.json(guildsRes.data);
-
-  } catch (err) {
-    if (err.response?.status === 401) {
-      // Token expirado → renovar automáticamente
-      try {
-        const newAccessToken = await refreshToken(userId);
-        const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
-          headers: { Authorization: `Bearer ${newAccessToken}` }
-        });
-        return res.json(guildsRes.data);
-      } catch (refreshErr) {
-        return res.status(500).send('Error renovando token: ' + JSON.stringify(refreshErr.response?.data || refreshErr.message));
-      }
-    }
-
-    console.error(err.response?.data || err.message);
-    res.status(500).send('Error al obtener guilds');
-  }
-});
 
 // ------------------------------
 // Función para renovar token
@@ -161,6 +36,182 @@ async function refreshToken(userId) {
   console.log(`Token renovado para ${usuario.username}#${usuario.discriminator}`);
   return usuario.accessToken;
 }
+
+// ------------------------------
+// /login
+// ------------------------------
+app.get('/login', (req, res) => {
+  const clientId = process.env.CLIENT_ID;
+  const redirect = process.env.REDIRECT_URI;
+
+  if (!clientId || !redirect) return res.status(500).send('Falta CLIENT_ID o REDIRECT_URI en .env');
+
+  const authorizeUrl =
+    'https://discord.com/oauth2/authorize' +
+    `?client_id=${encodeURIComponent(clientId)}` +
+    `&redirect_uri=${encodeURIComponent(redirect)}` +
+    `&response_type=code` +
+    `&scope=identify%20guilds`;
+
+  res.send(`
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Login con Discord</title>
+<style>
+body { font-family:'Segoe UI',Tahoma,Verdana,sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; }
+h1 { font-size:2.5rem; margin-bottom:1rem; }
+a.button { display:inline-block; padding:0.8rem 1.5rem; background-color:#fff; color:#764ba2; font-weight:bold; text-decoration:none; border-radius:10px; font-size:1.2rem; transition:0.3s; }
+a.button:hover { background-color:#f0f0f0; }
+</style>
+</head>
+<body>
+<h1>Inicia sesión con Discord</h1>
+<a class="button" href="${authorizeUrl}">Login con Discord</a>
+</body>
+</html>
+  `);
+});
+
+// ------------------------------
+// /callback
+// ------------------------------
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.redirect('/login');
+
+  try {
+    const tokenResponse = await axios.post(
+      'https://discord.com/api/oauth2/token',
+      new URLSearchParams({
+        client_id: process.env.CLIENT_ID,
+        client_secret: process.env.CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: process.env.REDIRECT_URI
+      }).toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    const accessToken = tokenResponse.data.access_token;
+    const refreshToken = tokenResponse.data.refresh_token;
+
+    const userRes = await axios.get('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const userData = userRes.data;
+
+    usuariosAutenticados.set(userData.id, {
+      accessToken,
+      refreshToken,
+      username: userData.username,
+      discriminator: userData.discriminator,
+      avatar: userData.avatar
+    });
+
+    res.send(`
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Autenticación Exitosa</title>
+<style>
+body { font-family:'Segoe UI',Tahoma,Verdana,sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:#fff; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
+.card { background-color: rgba(0,0,0,0.35); padding:2rem; border-radius:15px; text-align:center; box-shadow:0 8px 25px rgba(0,0,0,0.5); }
+h1 { font-size:2.5rem; margin-bottom:0.5rem; }
+p { font-size:1.2rem; margin:0.3rem 0; }
+a.button { display:inline-block; margin-top:1rem; padding:0.6rem 1.2rem; background-color:#fff; color:#764ba2; text-decoration:none; font-weight:bold; border-radius:8px; transition:0.3s; }
+a.button:hover { background-color:#f0f0f0; }
+img.avatar { width:80px; height:80px; border-radius:50%; margin-bottom:1rem; border:2px solid #fff; }
+</style>
+</head>
+<body>
+<div class="card">
+<img class="avatar" src="https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png" alt="Avatar"/>
+<h1>✅ Autenticación OK</h1>
+<p><strong>${userData.username}#${userData.discriminator}</strong></p>
+<p>ID: ${userData.id}</p>
+<a class="button" href="/mis-guilds/${userData.id}">Consultar mis guilds</a>
+</div>
+</body>
+</html>
+    `);
+
+  } catch (err) {
+    const data = err.response?.data;
+    if (data?.error === 'invalid_grant') return res.redirect('/login');
+    console.error('Error OAuth2:', data || err.message);
+    res.status(500).send('<h2>Error OAuth2</h2><pre>' + JSON.stringify(data || err.message, null, 2) + '</pre>');
+  }
+});
+
+// ------------------------------
+// /mis-guilds
+// ------------------------------
+app.get('/mis-guilds/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  const usuario = usuariosAutenticados.get(userId);
+
+  if (!usuario) return res.redirect('/login');
+
+  try {
+    const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bearer ${usuario.accessToken}` }
+    });
+
+    const guilds = guildsRes.data;
+    let guildList = '';
+    guilds.forEach(g => {
+      const iconUrl = g.icon
+        ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`
+        : 'https://via.placeholder.com/64?text=?';
+      guildList += `<li><img src="${iconUrl}" width="32" height="32" style="vertical-align:middle;border-radius:6px;margin-right:0.5rem;"> ${g.name} (ID: ${g.id})</li>`;
+    });
+
+    res.send(`
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mis Guilds</title>
+<style>
+body { font-family:'Segoe UI',Tahoma,Verdana,sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:#fff; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; padding:2rem; }
+.card { background-color: rgba(0,0,0,0.35); padding:2rem; border-radius:15px; text-align:center; box-shadow:0 8px 25px rgba(0,0,0,0.5); width:100%; max-width:500px; }
+h1 { font-size:2rem; margin-bottom:1rem; }
+ul { list-style:none; padding:0; }
+li { margin:0.5rem 0; background: rgba(255,255,255,0.1); padding:0.5rem 1rem; border-radius:8px; text-align:left; }
+a.button { display:inline-block; margin-top:1rem; padding:0.6rem 1.2rem; background-color:#fff; color:#764ba2; text-decoration:none; font-weight:bold; border-radius:8px; transition:0.3s; }
+a.button:hover { background-color:#f0f0f0; }
+img.avatar { width:32px; height:32px; border-radius:50%; vertical-align:middle; margin-right:0.5rem; }
+</style>
+</head>
+<body>
+<div class="card">
+<h1>Mis Guilds</h1>
+<ul>
+${guildList || '<li>No se encontraron guilds</li>'}
+</ul>
+<a class="button" href="/login">Cerrar sesión / Volver a login</a>
+</div>
+</body>
+</html>
+    `);
+
+  } catch (err) {
+    if (err.response?.status === 401) {
+      try {
+        await refreshToken(userId);
+        return res.redirect(`/mis-guilds/${userId}`);
+      } catch {
+        return res.redirect('/login');
+      }
+    }
+    console.error(err.response?.data || err.message);
+    res.status(500).send('Error obteniendo guilds');
+  }
+});
 
 // ------------------------------
 // Iniciar servidor
