@@ -5,6 +5,7 @@ const app = express();
 
 app.use(express.static('public'));
 
+// Guardar usuarios autenticados temporalmente
 const usuariosAutenticados = new Map();
 
 // -------------------- /login --------------------
@@ -113,24 +114,24 @@ app.get('/mis-guilds/:userId', async (req, res) => {
   if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
 
   try {
+    // Servidores donde el usuario tiene permisos de administrador
     const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${usuario.accessToken}` }
     });
 
-    const allGuilds = guildsRes.data;
+    const adminGuilds = guildsRes.data.filter(g => (BigInt(g.permissions) & BigInt(0x8)) !== 0);
 
-    // Filtrar solo servidores donde el bot está presente
+    // Filtrar solo servidores donde Abyssus (bot) está presente
     const botGuilds = [];
-    for (const g of allGuilds) {
+    for (const g of adminGuilds) {
       try {
         await axios.get(`https://discord.com/api/v10/guilds/${g.id}`, {
           headers: { Authorization: `Bot ${BOT_TOKEN}` }
         });
         botGuilds.push(g);
-      } catch { /* el bot no está */ }
+      } catch { /* bot no presente */ }
     }
 
-    // Generar lista de servidores para mostrar
     let guildList = '';
     botGuilds.forEach(g => {
       const iconUrl = g.icon
@@ -143,7 +144,7 @@ app.get('/mis-guilds/:userId', async (req, res) => {
 </li>`;
     });
 
-    if (!guildList) guildList = '<li>No se encontraron servidores con Abyssus.</li>';
+    if (!guildList) guildList = '<li>No se encontraron servidores con Abyssus donde eres admin.</li>';
 
     res.send(`
 <!DOCTYPE html>
@@ -183,6 +184,7 @@ ${guildList}
 // -------------------- Servidor --------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
