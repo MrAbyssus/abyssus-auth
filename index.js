@@ -91,7 +91,7 @@ img.avatar { width:80px; height:80px; border-radius:50%; margin-bottom:1rem; bor
 <h1>✅ Autenticación OK</h1>
 <p><strong>${userData.username}#${userData.discriminator}</strong></p>
 <p>ID: ${userData.id}</p>
-<a class="button" href="/mis-guilds/${userData.id}">Ver mi servidor con Abyssus</a>
+<a class="button" href="/mis-guilds/${userData.id}">Ver servidores con Abyssus</a>
 </div>
 </body>
 </html>
@@ -109,21 +109,33 @@ app.get('/mis-guilds/:userId', async (req, res) => {
   const usuario = usuariosAutenticados.get(userId);
   if (!usuario) return res.redirect('/login');
 
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
+
   try {
     const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${usuario.accessToken}` }
     });
 
-    // Filtrar guilds donde el usuario es admin (0x8)
-    const adminGuilds = guildsRes.data.filter(g => (BigInt(g.permissions) & BigInt(0x8)) !== 0);
+    const allGuilds = guildsRes.data;
 
-    // Solo mostrar información básica: nombre e icono
+    // Filtrar solo servidores donde el bot está presente
+    const botGuilds = [];
+    for (const g of allGuilds) {
+      try {
+        await axios.get(`https://discord.com/api/v10/guilds/${g.id}`, {
+          headers: { Authorization: `Bot ${BOT_TOKEN}` }
+        });
+        botGuilds.push(g);
+      } catch { /* el bot no está */ }
+    }
+
+    // Generar lista de servidores para mostrar
     let guildList = '';
-    adminGuilds.forEach(g => {
+    botGuilds.forEach(g => {
       const iconUrl = g.icon
         ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`
         : 'https://via.placeholder.com/32?text=?';
-
       guildList += `
 <li>
   <img src="${iconUrl}" class="avatar">
@@ -131,14 +143,14 @@ app.get('/mis-guilds/:userId', async (req, res) => {
 </li>`;
     });
 
-    if (!guildList) guildList = '<li>No tienes un servidor con Abyssus o sin permisos de administración.</li>';
+    if (!guildList) guildList = '<li>No se encontraron servidores con Abyssus.</li>';
 
     res.send(`
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Mi servidor con Abyssus</title>
+<title>Servidores con Abyssus</title>
 <style>
 body { font-family:'Segoe UI',Tahoma,Verdana,sans-serif; background: linear-gradient(135deg,#667eea,#764ba2); color:#fff; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; padding:2rem; }
 .card { background-color: rgba(0,0,0,0.35); padding:2rem; border-radius:15px; text-align:center; box-shadow:0 8px 25px rgba(0,0,0,0.5); width:100%; max-width:500px; }
@@ -152,7 +164,7 @@ img.avatar { width:32px; height:32px; border-radius:50%; vertical-align:middle; 
 </head>
 <body>
 <div class="card">
-<h1>Mi servidor con Abyssus</h1>
+<h1>Servidores con Abyssus</h1>
 <ul>
 ${guildList}
 </ul>
@@ -164,13 +176,14 @@ ${guildList}
 
   } catch (err) {
     console.error(err.response?.data || err.message);
-    res.status(500).send('Error obteniendo tu servidor');
+    res.status(500).send('Error obteniendo servidores con Abyssus');
   }
 });
 
 // -------------------- Servidor --------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
