@@ -122,92 +122,73 @@ a.btn{display:inline-block;margin-top:1rem;padding:.6rem 1rem;background:#fff;co
 // -------------------- /mis-guilds/:userId --------------------
 app.get('/mis-guilds/:userId', async (req, res) => {
   const userId = req.params.userId;
-  const usuario = usuariosAutenticados.get(userId);
-  if (!usuario) return res.redirect('/login');
+  const sesion = sesiones.get(userId); // o usuariosAutenticados si usas ese mapa
+  if (!sesion) return res.redirect('/login');
 
   const BOT_TOKEN = process.env.BOT_TOKEN;
   if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
 
   try {
-    // Obtener guilds where user is (OAuth2)
+    // 1) obtener los guilds del usuario (OAuth2)
     const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
-      headers: { Authorization: `Bearer ${usuario.accessToken}` }
+      headers: { Authorization: `Bearer ${sesion.accessToken}` }
     });
 
-    // filtrar donde user tiene admin permission
     const adminGuilds = Array.isArray(guildsRes.data)
       ? guildsRes.data.filter(g => (BigInt(g.permissions) & BigInt(0x8)) !== 0)
       : [];
 
-    // Para cada guild admin, verificar si el bot está (usando BOT_TOKEN) y recoger stats
+    // 2) chequeamos presencia del bot consultando /guilds/{id}?with_counts=true con Bot token
     const botGuilds = [];
-    for (const g of adminGuilds) {
-      try {
-        // pedir info con counts
-        const guildInfoRes = await axios.get(`https://discord.com/api/v10/guilds/${g.id}?with_counts=true`, {
-          headers: { Authorization: `Bot ${BOT_TOKEN}` },
-          timeout: 8000
-        });
-        const guildInfo = guildInfoRes.data;
 
-        // obtener channels y roles counts pueden venir desde guildInfo.roles? no siempre, así que pedir endpoints rápidos
-        const [rolesRes, channelsRes] = await Promise.all([
-          axios.get(`https://discord.com/api/v10/guilds/${g.id}/roles`, { headers: { Authorization: `Bot ${BOT_TOKEN}` }, timeout: 8000 }),
-          axios.get(`https://discord.com/api/v10/guilds/${g.id}/channels`, { headers: { Authorization: `Bot ${BOT_TOKEN}` }, timeout: 8000 })
-        ]);
+    // hacemos procesamiento por "chunks" para no bombardear la API (concurrency control simple)
+    const CONCURRENCY = 5;
+    for (let i = 0; i < adminGuilds.length; i += CONCURRENCY) {
+      const chunk = adminGuilds.slice(i, i + CONCURRENCY);
+      const promises = chunk.map(async (g) => {
+        try {
+          const guildInfoRes = await axios.get(
+            `https://discord.com/api/v10/guilds/${g.id}?with_counts=true`,
+            { headers: { Authorization: `Bot ${BOT_TOKEN}` }, timeout: 8000 }
+          );
+          const guildInfo = guildInfoRes.data;
 
-        botGuilds.push({
-          id: g.id,
-          name: g.name,
-          icon: g.icon,
-          member_count: guildInfo.approximate_member_count || 'N/A',
-          roles_count: Array.isArray(rolesRes.data) ? rolesRes.data.length : 'N/A',
-          channels_count: Array.isArray(channelsRes.data) ? channelsRes.data.length : 'N/A'
-        });
-      } catch (e) {
-        // si el bot no está o no puede acceder, lo ignoramos silenciosamente
-        continue;
-      }
+          // opcional: pedir roles/channels counts si los quieres aquí (pero evita muchas llamadas)
+          botGuilds.push({
+            id: g.id,
+            name: g.name,
+            icon: g.icon,
+            member_count: guildInfo.approximate_member_count || 'N/A'
+            // puedes añadir roles_count / channels_count pidiendo endpoints separados si lo deseas
+          });
+        } catch (err) {
+          // el bot no está en ese guild o no tiene permisos; lo ignoramos
+          return;
+        }
+      });
+
+      // esperar este bloque
+      await Promise.all(promises);
+      // opcional: pequeña pausa para reducir riesgos de rate-limit (descomenta si tienes problemas)
+      // await new Promise(r => setTimeout(r, 200));
     }
 
-    // Render simple
+    // 3) renderizar
     const guildListHtml = botGuilds.length
       ? botGuilds.map(g => {
         const iconUrl = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64` : 'https://via.placeholder.com/64?text=?';
         return `<li>
           <img src="${iconUrl}" class="gicon" alt="icon">
-          <strong>${escapeHtml(g.name)}</strong> (ID: ${g.id})<br>
-          👥 ${g.member_count} &nbsp; | &nbsp; 🧾 Roles: ${g.roles_count} &nbsp; | &nbsp; 💬 Canales: ${g.channels_count}<br>
-          <a class="small" href="https://discord.com/channels/${g.id}" target="_blank">Abrir Discord</a>
-          <a class="small" href="/panel/${g.id}?userId=${userId}" target="_blank">Panel Abyssus</a>
+          <strong>${escapeHtml(g.name)}</strong><br>
+          👥 ${g.member_count} <br>
+          <a class="small" href="/panel/${g.id}?userId=${userId}">Abrir panel</a>
         </li>`;
       }).join('')
-      : '<li>No se encontraron servidores con Abyssus donde eres administrador.</li>';
+      : '<li>No hay servidores con Abyssus disponibles.</li>';
 
-    res.send(`<!doctype html>
-<html lang="es"><head><meta charset="utf-8"><title>Mis servidores</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-:root{--accent:#764ba2}
-body{font-family:Inter,Segoe UI,Arial;margin:0;min-height:100vh;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;padding:1rem}
-.container{max-width:900px;width:100%}
-.card{background:rgba(0,0,0,0.36);padding:1.5rem;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
-h1{margin:0 0 0.6rem}
-ul{list-style:none;padding:0;margin:0}
-li{display:block;padding:.8rem;border-radius:10px;background:rgba(255,255,255,0.04);margin-bottom:.6rem}
-.gicon{width:48px;height:48px;border-radius:8px;vertical-align:middle;margin-right:.6rem}
-.small{display:inline-block;margin-top:.5rem;margin-right:.6rem;padding:.35rem .6rem;background:#fff;color:var(--accent);border-radius:8px;text-decoration:none;font-weight:700}
-.note{margin-top:.8rem;color:rgba(255,255,255,0.8);font-size:.9rem}
-</style>
-</head><body>
-<div class="container">
-  <div class="card">
-    <h1>Servidores con Abyssus</h1>
-    <ul>${guildListHtml}</ul>
-    <p class="note">Mostrando solo servidores donde eres administrador y Abyssus está presente.</p>
-  </div>
-</div>
-</body></html>`);
+    res.send(`<!doctype html><html lang="es"><head>... estilos ...</head><body>
+      <div class="container"><div class="card"><h1>Servidores donde Abyssus está presente</h1><ul style="list-style:none;padding:0">${guildListHtml}</ul></div></div>
+      </body></html>`);
   } catch (err) {
     console.error('mis-guilds err:', err.response?.data || err.message);
     res.status(500).send('<h2>Error obteniendo servidores</h2><pre>' + safeJson(err.response?.data || err.message) + '</pre>');
