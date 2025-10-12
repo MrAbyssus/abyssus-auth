@@ -3,173 +3,142 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 
-// Mapa temporal de sesiones de usuario (se limpia cada cierto tiempo)
 const sesiones = new Map();
-
-function limpiarSesiones() {
+setInterval(() => {
   const ahora = Date.now();
-  for (const [id, sesion] of sesiones) {
-    if (ahora - sesion.timestamp > 1000 * 60 * 10) { // 10 minutos
-      sesiones.delete(id);
-    }
+  for (const [id, s] of sesiones) {
+    if (ahora - s.timestamp > 1000 * 60 * 10) sesiones.delete(id);
   }
-}
-setInterval(limpiarSesiones, 1000 * 60 * 2);
+}, 1000 * 60 * 2);
 
-// Ruta de login → redirige al OAuth2 de Discord
+function escapeHtml(s = '') {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 app.get('/login', (req, res) => {
   const redirect = process.env.REDIRECT_URI;
   const clientId = process.env.CLIENT_ID;
-  if (!redirect || !clientId) {
-    return res.status(500).send('Falta CLIENT_ID o REDIRECT_URI en .env');
-  }
+  if (!redirect || !clientId) return res.status(500).send('Falta CLIENT_ID o REDIRECT_URI');
 
-  const authorizeUrl =
-    'https://discord.com/oauth2/authorize' +
-    `?client_id=${encodeURIComponent(clientId)}` +
+  const url =
+    `https://discord.com/oauth2/authorize` +
+    `?client_id=${clientId}` +
     `&redirect_uri=${encodeURIComponent(redirect)}` +
-    `&response_type=code` +
-    `&scope=identify%20guilds`;
-
-  return res.redirect(authorizeUrl);
+    `&response_type=code&scope=identify%20guilds`;
+  res.redirect(url);
 });
 
-// Callback del OAuth2
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
-  if (!code) {
-    return res.status(400).send('<h2>❌ No se recibió "code" en la query</h2>');
-  }
+  if (!code) return res.redirect('/login');
 
   try {
-    const tokenResponse = await axios.post(
+    const tokenRes = await axios.post(
       'https://discord.com/api/oauth2/token',
       new URLSearchParams({
         client_id: process.env.CLIENT_ID,
         client_secret: process.env.CLIENT_SECRET,
         grant_type: 'authorization_code',
         code,
-        redirect_uri: process.env.REDIRECT_URI
-      }).toString(),
+        redirect_uri: process.env.REDIRECT_URI,
+      }),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
     );
 
-    const accessToken = tokenResponse.data.access_token;
-
+    const accessToken = tokenRes.data.access_token;
     const userRes = await axios.get('https://discord.com/api/users/@me', {
-      headers: { Authorization: `Bearer ${accessToken}` }
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     const user = userRes.data;
-
-    // Guardar sesión temporal
     sesiones.set(user.id, { accessToken, timestamp: Date.now() });
 
     res.send(`
-      <h2>✅ Autenticación OK</h2>
-      <p>${user.username}#${user.discriminator} (ID: ${user.id})</p>
-      <p><a href="/mis-guilds/${user.id}">Ver servidores donde está Abyssus</a></p>
+      <h2>✅ Bienvenido ${escapeHtml(user.username)}#${user.discriminator}</h2>
+      <a href="/mis-guilds/${user.id}">Ver mis servidores (Owner)</a>
     `);
   } catch (err) {
-    console.error('Error OAuth2:', err.response?.data || err.message);
-    res.status(500).send(`<h2>❌ Error OAuth2</h2><pre>${JSON.stringify(err.response?.data || err.message, null, 2)}</pre>`);
+    res.status(500).send(`<pre>${escapeHtml(JSON.stringify(err.response?.data || err.message, null, 2))}</pre>`);
   }
 });
 
-// Mostrar solo los servidores donde está el bot
 app.get('/mis-guilds/:userId', async (req, res) => {
   const userId = req.params.userId;
   const sesion = sesiones.get(userId);
   if (!sesion) return res.redirect('/login');
 
-  const BOT_TOKEN = process.env.BOT_TOKEN;
-  if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
-
   try {
-    // 1️⃣ Obtener los servidores del usuario
-    const userGuildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
-      headers: { Authorization: `Bearer ${sesion.accessToken}` }
+    const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bearer ${sesion.accessToken}` },
     });
 
-    const userGuilds = Array.isArray(userGuildsRes.data) ? userGuildsRes.data : [];
+    const guilds = Array.isArray(guildsRes.data)
+      ? guildsRes.data.filter(g => g.owner === true) // 🔥 solo los que el usuario es owner
+      : [];
+
+    const BOT_TOKEN = process.env.BOT_TOKEN;
     const botGuilds = [];
 
-    // 2️⃣ Verificar dónde está el bot
-    const CONCURRENCY = 5;
-    for (let i = 0; i < userGuilds.length; i += CONCURRENCY) {
-      const chunk = userGuilds.slice(i, i + CONCURRENCY);
-      const promises = chunk.map(async (g) => {
-        try {
-          const guildInfoRes = await axios.get(
-            `https://discord.com/api/v10/guilds/${g.id}?with_counts=true`,
-            { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
-          );
-
-          const guildInfo = guildInfoRes.data;
-          botGuilds.push({
-            id: g.id,
-            name: g.name,
-            icon: g.icon,
-            member_count: guildInfo.approximate_member_count || 'N/A'
-          });
-        } catch {
-          // Ignorar si el bot no está
-        }
-      });
-
-      await Promise.all(promises);
+    for (const g of guilds) {
+      try {
+        const info = await axios.get(
+          `https://discord.com/api/v10/guilds/${g.id}?with_counts=true`,
+          { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+        );
+        botGuilds.push({ ...g, member_count: info.data.approximate_member_count });
+      } catch {
+        // ignorar guilds donde el bot no está
+      }
     }
 
-    // 3️⃣ Renderizar
-    const guildListHtml = botGuilds.length
+    const htmlGuilds = botGuilds.length
       ? botGuilds.map(g => {
           const icon = g.icon
-            ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`
+            ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png`
             : 'https://via.placeholder.com/64?text=?';
           return `
-            <li>
-              <img src="${icon}" alt="icon" style="width:50px;border-radius:50%;margin-right:10px;vertical-align:middle;">
-              <strong>${g.name}</strong><br>
-              👥 Miembros: ${g.member_count}<br>
+            <li style="margin:10px 0;padding:10px;border-radius:8px;background:#161b22;">
+              <img src="${icon}" width="50" height="50" style="vertical-align:middle;border-radius:8px;margin-right:8px;">
+              <strong>${escapeHtml(g.name)}</strong><br>
+              👑 Owner | 👥 ${g.member_count || 'N/A'} miembros<br>
               <a href="/panel/${g.id}?userId=${userId}" style="color:#5865F2;">Abrir panel</a>
             </li>`;
         }).join('')
-      : '<li>No hay servidores donde Abyssus esté presente.</li>';
+      : '<p>No eres owner de ningún servidor donde Abyssus esté presente.</p>';
 
     res.send(`
-      <!doctype html>
-      <html lang="es">
+      <html>
       <head>
-        <meta charset="utf-8">
-        <title>Servidores de Abyssus</title>
+        <title>Servidores (Owner)</title>
         <style>
-          body { font-family: Arial, sans-serif; background-color: #0d1117; color: white; text-align: center; }
-          .card { background: #161b22; border-radius: 10px; padding: 20px; max-width: 500px; margin: 50px auto; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
-          a { text-decoration: none; }
-          ul { list-style: none; padding: 0; }
-          li { margin-bottom: 20px; }
+          body { background:#0d1117;color:white;font-family:Arial;padding:20px;text-align:center; }
+          ul { list-style:none;padding:0; }
         </style>
       </head>
       <body>
-        <div class="card">
-          <h2>Servidores donde Abyssus está presente</h2>
-          <ul>${guildListHtml}</ul>
-        </div>
+        <h2>Servidores donde eres Owner y está Abyssus</h2>
+        <ul>${htmlGuilds}</ul>
       </body>
       </html>
     `);
   } catch (err) {
-    console.error('Error mis-guilds:', err.response?.data || err.message);
-    res.status(500).send('<h2>Error obteniendo servidores</h2><pre>' + JSON.stringify(err.response?.data || err.message, null, 2) + '</pre>');
+    res.status(500).send(`<pre>${escapeHtml(JSON.stringify(err.response?.data || err.message, null, 2))}</pre>`);
   }
 });
 
-// Panel del servidor (vista básica)
 app.get('/panel/:guildId', async (req, res) => {
   const { guildId } = req.params;
-  const BOT_TOKEN = process.env.BOT_TOKEN;
+  const { userId } = req.query;
+  const sesion = sesiones.get(userId);
+  if (!sesion) return res.redirect('/login');
 
   try {
+    const BOT_TOKEN = process.env.BOT_TOKEN;
     const guildRes = await axios.get(
       `https://discord.com/api/v10/guilds/${guildId}?with_counts=true`,
       { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
@@ -177,35 +146,35 @@ app.get('/panel/:guildId', async (req, res) => {
     const g = guildRes.data;
 
     res.send(`
-      <!doctype html>
-      <html lang="es">
+      <html>
       <head>
-        <meta charset="utf-8">
-        <title>Panel - ${g.name}</title>
+        <title>Panel - ${escapeHtml(g.name)}</title>
         <style>
-          body { font-family: Arial, sans-serif; background-color: #0d1117; color: white; text-align: center; }
-          .card { background: #161b22; border-radius: 10px; padding: 20px; max-width: 500px; margin: 50px auto; }
-          a { color: #5865F2; text-decoration: none; }
+          body { background:#0d1117;color:white;font-family:Arial;text-align:center;padding:20px; }
+          .btn { background:#5865F2;color:white;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;margin:5px; }
+          .btn:hover { background:#4752C4; }
         </style>
       </head>
       <body>
-        <div class="card">
-          <h2>${g.name}</h2>
-          <p>👥 Miembros: ${g.approximate_member_count}</p>
-          <p>💬 Canales: ${g.approximate_presence_count || 'N/A'}</p>
-          <a href="/mis-guilds/${req.query.userId || ''}">⬅️ Volver</a>
-        </div>
+        <h2>${escapeHtml(g.name)}</h2>
+        <p>👥 Miembros: ${g.approximate_member_count}</p>
+        <h3>🛠️ Panel de Moderación</h3>
+        <button class="btn" onclick="alert('Comando /say enviado')">📢 /say</button>
+        <button class="btn" onclick="alert('Comando /warn enviado')">⚠️ /warn</button>
+        <button class="btn" onclick="alert('Comando /kick enviado')">🚪 /kick</button>
+        <br><br>
+        <a href="/mis-guilds/${userId}" style="color:#5865F2;">⬅️ Volver</a>
       </body>
       </html>
     `);
   } catch (err) {
-    console.error('Error al obtener panel:', err.response?.data || err.message);
-    res.status(500).send(`<h2>Error al obtener panel</h2><pre>${JSON.stringify(err.response?.data || err.message, null, 2)}</pre>`);
+    res.status(500).send(`<pre>${escapeHtml(JSON.stringify(err.response?.data || err.message, null, 2))}</pre>`);
   }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Servidor escuchando en puerto ${PORT}`));
+
 
 
 
