@@ -185,7 +185,7 @@ app.get('/mis-guilds/:userId', async (req, res) => {
       li{padding:.85rem;border-radius:10px;background:rgba(255,255,255,0.04);margin-bottom:.6rem}
     </style></head><body>
     <div class="container"><div class="card"><h1>Servidores con Abyssus</h1><ul>${guildListHtml}</ul>
-    <p style="opacity:.9;margin-top:.5rem">Mostrando solo servidores donde eres admin y Abyssus está presente.</p></div></div></body></html>`);
+    <p style="opacity:.9;margin-top:.5rem">Mostrando solo servidores donde eres admin y Abyssus está presente. Esta es una versión beta puede tener errores</p></div></div></body></html>`);
   } catch (err) {
     console.error('mis-guilds err:', err.response?.data || err.message);
     res.status(500).send(`<h2>Error obteniendo servidores</h2><pre>${safeJson(err.response?.data || err.message)}</pre>`);
@@ -500,6 +500,7 @@ app.post('/api/guilds/:guildId/message', requireSession, async (req, res) => {
 // ---------------- start server ----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
