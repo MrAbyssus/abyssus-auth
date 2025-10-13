@@ -477,8 +477,10 @@ app.post('/api/guilds/:guildId/kick', requireSession, async (req, res) => {
   const ses = req.session;
   if (!targetId) return res.status(400).send('Falta targetId');
   try {
+    // require either actual owner OR internal level >= moderator
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner) return res.status(403).send('No autorizado');
+    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('No autorizado (perm panel insuficiente).');
+
     await discordRequest('delete', `/guilds/${guildId}/members/${targetId}`);
     logAction('KICK', { guildId, targetId, by: ses.username });
     return res.status(200).send('✅ Usuario expulsado');
@@ -488,6 +490,7 @@ app.post('/api/guilds/:guildId/kick', requireSession, async (req, res) => {
   }
 });
 
+
 // Ban
 app.post('/api/guilds/:guildId/ban', requireSession, async (req, res) => {
   const { guildId } = req.params;
@@ -496,7 +499,8 @@ app.post('/api/guilds/:guildId/ban', requireSession, async (req, res) => {
   if (!targetId) return res.status(400).send('Falta targetId');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner) return res.status(403).send('No autorizado');
+    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('No autorizado (perm panel insuficiente).');
+
     await discordRequest('put', `/guilds/${guildId}/bans/${targetId}`, { delete_message_seconds: (deleteMessageDays||0)*24*3600, reason });
     logAction('BAN', { guildId, targetId, by: ses.username, reason, deleteMessageDays });
     return res.status(200).send('✅ Usuario baneado');
@@ -505,6 +509,7 @@ app.post('/api/guilds/:guildId/ban', requireSession, async (req, res) => {
     return res.status(500).send(safeJson(e.response?.data || e.message));
   }
 });
+
 
 // Timeout
 app.post('/api/guilds/:guildId/timeout', requireSession, async (req, res) => {
@@ -580,6 +585,44 @@ app.post('/api/guilds/:guildId/delete-role', requireSession, async (req, res) =>
   }
 });
 
+// Create role
+app.post('/api/guilds/:guildId/create-role', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { name } = req.body;
+  const ses = req.session;
+  if (!name) return res.status(400).send('Falta name');
+  try {
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado (perm panel insuficiente).');
+
+    const resp = await discordRequest('post', `/guilds/${guildId}/roles`, { name });
+    logAction('CREATE_ROLE', { guildId, name, by: ses.username });
+    return res.status(200).send('✅ Rol creado');
+  } catch (e) {
+    console.error('create role err:', e.response?.data || e.message);
+    return res.status(500).send(safeJson(e.response?.data || e.message));
+  }
+});
+
+// Delete role
+app.post('/api/guilds/:guildId/delete-role', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { roleId } = req.body;
+  const ses = req.session;
+  if (!roleId) return res.status(400).send('Falta roleId');
+  try {
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado (perm panel insuficiente).');
+
+    await discordRequest('delete', `/guilds/${guildId}/roles/${roleId}`);
+    logAction('DELETE_ROLE', { guildId, roleId, by: ses.username });
+    return res.status(200).send('✅ Rol eliminado');
+  } catch (e) {
+    console.error('delete role err:', e.response?.data || e.message);
+    return res.status(500).send(safeJson(e.response?.data || e.message));
+  }
+});
+
 // Create channel
 app.post('/api/guilds/:guildId/create-channel', requireSession, async (req, res) => {
   const { guildId } = req.params;
@@ -588,8 +631,9 @@ app.post('/api/guilds/:guildId/create-channel', requireSession, async (req, res)
   if (!name) return res.status(400).send('Falta name');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner) return res.status(403).send('No autorizado');
-    const resp = await discordRequest('post', `/guilds/${guildId}/channels`, { name, type: 0 }); // texto
+    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado (perm panel insuficiente).');
+
+    const resp = await discordRequest('post', `/guilds/${guildId}/channels`, { name, type: 0 });
     logAction('CREATE_CHANNEL', { guildId, name, by: ses.username });
     return res.status(200).send('✅ Canal creado');
   } catch (e) {
@@ -606,7 +650,8 @@ app.post('/api/guilds/:guildId/delete-channel', requireSession, async (req, res)
   if (!channelId) return res.status(400).send('Falta channelId');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner) return res.status(403).send('No autorizado');
+    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado (perm panel insuficiente).');
+
     await discordRequest('delete', `/channels/${channelId}`);
     logAction('DELETE_CHANNEL', { guildId, channelId, by: ses.username });
     return res.status(200).send('✅ Canal eliminado');
