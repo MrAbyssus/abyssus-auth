@@ -489,7 +489,6 @@ async function verifyOwner(userId, guildId) {
   }
 }
 
-
 // Kick
 app.post('/api/guilds/:guildId/kick', requireSession, async (req, res) => {
   const { guildId } = req.params;
@@ -570,22 +569,26 @@ app.post('/api/guilds/:guildId/message', requireSession, async (req, res) => {
 });
 
 // Create role
-app.post('/api/guilds/:guildId/create-role', requireSession, async (req, res) => {
+app.post("/api/guilds/:guildId/create-role", async (req, res) => {
   const { guildId } = req.params;
-  const { name } = req.body;
-  const ses = req.session;
-  if (!name) return res.status(400).send('Falta name');
-  try {
-    const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner) return res.status(403).send('No autorizado');
-    const resp = await discordRequest('post', `/guilds/${guildId}/roles`, { name });
-    logAction('CREATE_ROLE', { guildId, name, by: ses.username });
-    return res.status(200).send('✅ Rol creado');
-  } catch (e) {
-    console.error('create role err:', e.response?.data || e.message);
-    return res.status(500).send(safeJson(e.response?.data || e.message));
+  const userId = req.session.user.id;
+
+  const isOwner = await verifyOwner(userId, guildId);
+  let hasPermission = false;
+  let userLevel = "viewer";
+
+  if (isOwner) {
+    hasPermission = true;
+    userLevel = "owner";
   }
+
+  if (!hasPermission) {
+    return res.status(403).json({ error: "No tienes permisos para crear roles." });
+  }
+
+  // ... resto del código para crear el rol ...
 });
+
 
 // Delete role
 app.post('/api/guilds/:guildId/delete-role', requireSession, async (req, res) => {
