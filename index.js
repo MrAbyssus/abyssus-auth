@@ -152,34 +152,50 @@ app.get('/mis-guilds/:userId', async (req, res) => {
   if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
 
   try {
-    const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${ses.accessToken}` }});
+    // 🔹 Obtenemos los servidores del usuario
+    const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bearer ${ses.accessToken}` }
+    });
+
     const allGuilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
-    const ownerGuilds = allGuilds.filter(g => g.owner === true);
+
+    // 🔹 Filtramos servidores donde el usuario es owner o tiene permiso ADMINISTRATOR (0x8)
+    const manageableGuilds = allGuilds.filter(g => {
+      const perms = BigInt(g.permissions || 0);
+      const hasAdmin = (perms & BigInt(0x8)) === BigInt(0x8);
+      return g.owner === true || hasAdmin;
+    });
 
     const botPresent = [];
     const CONCURRENCY = 6;
-    for (let i = 0; i < ownerGuilds.length; i += CONCURRENCY) {
-      const chunk = ownerGuilds.slice(i, i + CONCURRENCY);
+
+    for (let i = 0; i < manageableGuilds.length; i += CONCURRENCY) {
+      const chunk = manageableGuilds.slice(i, i + CONCURRENCY);
       const promises = chunk.map(async g => {
         try {
+          // 🔹 Comprobamos si el bot está en ese servidor
           const info = await axios.get(`https://discord.com/api/v10/guilds/${g.id}?with_counts=true`, {
-            headers: { Authorization: `Bot ${BOT_TOKEN}` }, timeout: 8000
+            headers: { Authorization: `Bot ${BOT_TOKEN}` },
+            timeout: 8000
           });
+
           botPresent.push({
             id: g.id,
             name: g.name,
             icon: g.icon,
             member_count: info.data.approximate_member_count || 'N/A',
-            roles_count: Array.isArray(info.data.roles) ? info.data.roles.length : 'N/A'
+            roles_count: Array.isArray(info.data.roles) ? info.data.roles.length : 'N/A',
+            owner: g.owner,
+            canManage: g.owner || ((BigInt(g.permissions) & BigInt(0x8)) === BigInt(0x8)) // ✅ Owner o Admin
           });
         } catch (e) {
-          // bot not present or no access
+          // Bot no presente o sin acceso
         }
       });
       await Promise.all(promises);
       await sleep(100);
     }
-
+    
     const guildsHtml = botPresent.length ? botPresent.map(g => {
       const icon = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64` : 'https://via.placeholder.com/64/111318/ffffff?text=?';
       return `<li class="card-item">
