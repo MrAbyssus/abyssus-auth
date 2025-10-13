@@ -763,16 +763,6 @@ app.post('/api/guilds/:guildId/delete-channel', requireSession, async (req, res)
 // ----------------- Permissions management endpoint (owner-only) -----------------
 // Set permission for a user in guild (only owner via Discord can call this)
 // --- Permisos internos ---
-app.post('/api/guilds/:guildId/set-perm', requireSession, (req, res) => {
-  const { guildId } = req.params;
-  const { targetId, level } = req.body;
-  if (!hasPermission(req.sessionUserId, guildId, 'owner')) return res.status(403).send('Solo owner puede asignar permisos');
-  if (!PANEL_PERMS.perGuild[guildId]) PANEL_PERMS.perGuild[guildId] = {};
-  PANEL_PERMS.perGuild[guildId][targetId] = level;
-  savePermsFile();
-  logAction('setPerm', { guildId, targetId, level, by: req.sessionUserId });
-  res.send(`Nivel ${level} asignado a ${targetId}`);
-});
 
 // --- Logs ---
 app.get('/logs/:guildId', requireSession, (req, res) => {
