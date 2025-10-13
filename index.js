@@ -1,173 +1,298 @@
-// ===============================
-// Abyssus Panel v2 — Panel web visual y funcional
-// ===============================
-const express = require("express");
-const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
-const bodyParser = require("body-parser");
-require("dotenv").config();
-const { Client, GatewayIntentBits, PermissionsBitField } = require("discord.js");
-
-// ---------- CONFIG ----------
+// index.js
+require('dotenv').config();
+const express = require('express');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 3000;
-const logsFile = path.join(__dirname, "logs.json");
-const permsFile = path.join(__dirname, "panel_perms.json");
 
-// Asegurar existencia de archivos
-if (!fs.existsSync(logsFile)) fs.writeFileSync(logsFile, "[]");
-if (!fs.existsSync(permsFile)) fs.writeFileSync(permsFile, "{}");
+app.use(express.static('public'));
+app.use(express.json());
 
-// ---------- DISCORD CLIENT ----------
-const bot = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
-});
+// ----------------- In-memory stores -----------------
+const usuariosAutenticados = new Map();
+const codigosUsados = new Set();
 
-bot.login(process.env.BOT_TOKEN);
+// ----------------- Permissions store -----------------
+const PERMS_FILE = path.join(__dirname, 'panel_perms.json');
+let PANEL_PERMS = { global: {}, perGuild: {} };
+const LEVEL_ORDER = ['viewer', 'moderator', 'admin', 'owner'];
 
-// ---------- APP ----------
-app.use(bodyParser.json());
-app.use(express.static("public"));
-
-// ========== FUNCIONES AUXILIARES ==========
-function logAction(action) {
-  const logs = JSON.parse(fs.readFileSync(logsFile));
-  logs.push({ time: new Date().toISOString(), ...action });
-  fs.writeFileSync(logsFile, JSON.stringify(logs, null, 2));
-}
-
-function getUserPermLevel(userId, guild) {
-  const perms = JSON.parse(fs.readFileSync(permsFile));
-  if (perms[userId]?.[guild.id]) return perms[userId][guild.id];
-
-  const member = guild.members.cache.get(userId);
-  if (!member) return "viewer";
-  if (guild.ownerId === userId) return "owner";
-  if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return "admin";
-  return "viewer";
-}
-
-// ========== AUTH ==========
-const OAUTH_URL = `https://discord.com/api/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
-
-app.get("/", (req, res) => {
-  res.send(`
-    <html>
-    <head><title>Abyssus Panel</title></head>
-    <body style="background:#111;color:white;font-family:sans-serif;text-align:center;">
-      <h1>⚙️ Abyssus Control Panel</h1>
-      <a href="${OAUTH_URL}" style="color:#7289da;font-size:20px;">Iniciar sesión con Discord</a>
-    </body></html>
-  `);
-});
-
-app.get("/callback", async (req, res) => {
-  const code = req.query.code;
-  if (!code) return res.send("Error: Falta el código de autorización.");
-
+function ensurePermsFile() {
   try {
-    const params = new URLSearchParams();
-    params.append("client_id", process.env.DISCORD_CLIENT_ID);
-    params.append("client_secret", process.env.DISCORD_CLIENT_SECRET);
-    params.append("grant_type", "authorization_code");
-    params.append("redirect_uri", process.env.DISCORD_REDIRECT_URI);
-    params.append("code", code);
+    if (!fs.existsSync(PERMS_FILE)) {
+      fs.writeFileSync(PERMS_FILE, JSON.stringify(PANEL_PERMS, null, 2), 'utf8');
+    } else {
+      const raw = fs.readFileSync(PERMS_FILE, 'utf8');
+      PANEL_PERMS = JSON.parse(raw || '{}');
+      if (!PANEL_PERMS.global) PANEL_PERMS.global = {};
+      if (!PANEL_PERMS.perGuild) PANEL_PERMS.perGuild = {};
+    }
+  } catch (e) {
+    console.error('Error reading/creating perms file:', e);
+  }
+}
+function savePermsFile() {
+  try {
+    fs.writeFileSync(PERMS_FILE, JSON.stringify(PANEL_PERMS, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error saving perms file:', e);
+  }
+}
+ensurePermsFile();
 
-    const tokenResponse = await axios.post("https://discord.com/api/oauth2/token", params, {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+function levelIndex(level) {
+  const i = LEVEL_ORDER.indexOf(level);
+  return i === -1 ? 0 : i;
+}
+function getUserLevel(userId, guildId) {
+  try {
+    if (guildId && PANEL_PERMS.perGuild[guildId] && PANEL_PERMS.perGuild[guildId][userId])
+      return PANEL_PERMS.perGuild[guildId][userId];
+    if (PANEL_PERMS.global[userId]) return PANEL_PERMS.global[userId];
+    return 'viewer';
+  } catch {
+    return 'viewer';
+  }
+}
+function hasPermission(userId, guildId, requiredLevel) {
+  return levelIndex(getUserLevel(userId, guildId)) >= levelIndex(requiredLevel);
+}
+
+// ----------------- Helpers -----------------
+function safeJson(obj) {
+  try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
+}
+function escapeHtml(s = '') {
+  return String(s)
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'",'&#39;');
+}
+function logAction(type, details) {
+  try {
+    const line = `[${new Date().toISOString()}] ${type}: ${JSON.stringify(details)}\n`;
+    fs.appendFileSync(path.join(__dirname, 'acciones.log'), line, 'utf8');
+  } catch (e) {
+    console.error('Error escribiendo log:', e);
+  }
+}
+
+// ----------------- Session cleanup -----------------
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, s] of usuariosAutenticados) {
+    if (now - s.createdAt > 1000 * 60 * 30) usuariosAutenticados.delete(id);
+  }
+}, 1000 * 60 * 5);
+
+// ----------------- OAuth2 login -----------------
+app.get('/login', (req, res) => {
+  const clientId = process.env.CLIENT_ID;
+  const redirect = process.env.REDIRECT_URI;
+  const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=identify%20guilds`;
+  res.redirect(url);
+});
+
+app.get('/callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.redirect('/login');
+  if (codigosUsados.has(code)) return res.send('Código ya usado.');
+  codigosUsados.add(code);
+  try {
+    const tokenResp = await axios.post('https://discord.com/api/oauth2/token', new URLSearchParams({
+      client_id: process.env.CLIENT_ID,
+      client_secret: process.env.CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: process.env.REDIRECT_URI
+    }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    const accessToken = tokenResp.data.access_token;
+    const userRes = await axios.get('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
-
-    const access_token = tokenResponse.data.access_token;
-
-    const user = (await axios.get("https://discord.com/api/users/@me", {
-      headers: { Authorization: `Bearer ${access_token}` },
-    })).data;
-
-    const guilds = (await axios.get("https://discord.com/api/users/@me/guilds", {
-      headers: { Authorization: `Bearer ${access_token}` },
-    })).data;
-
-    const botGuilds = bot.guilds.cache.map(g => ({
-      id: g.id,
-      name: g.name,
-      icon: g.iconURL(),
-      owner: g.ownerId === user.id,
-    }));
-
-    const commonGuilds = guilds
-      .filter(g => botGuilds.some(bg => bg.id === g.id))
-      .filter(g => g.owner); // solo donde es owner
-
-    res.send(`
-      <html>
-      <head><title>Panel Abyssus</title></head>
-      <body style="background:#0d1117;color:white;font-family:sans-serif;">
-        <h2 style="text-align:center;">👑 Bienvenido, ${user.username}</h2>
-        ${commonGuilds.length === 0
-          ? "<p style='text-align:center;'>No eres owner en ningún servidor con Abyssus.</p>"
-          : commonGuilds.map(g => `
-            <div style="background:#1e1e2f;margin:10px;padding:10px;border-radius:10px;">
-              <img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png" width="50" style="border-radius:50%;">
-              <strong>${g.name}</strong><br>
-              <a href="/panel/${g.id}" style="color:#7289da;">⚙️ Entrar al panel</a>
-            </div>
-          `).join("")}
-      </body></html>
-    `);
+    usuariosAutenticados.set(userRes.data.id, {
+      accessToken,
+      username: userRes.data.username,
+      avatar: userRes.data.avatar,
+      createdAt: Date.now()
+    });
+    res.redirect(`/mis-guilds/${userRes.data.id}`);
   } catch (err) {
-    console.error(err);
-    res.send("Error al iniciar sesión con Discord.");
+    res.status(500).send('Error de autenticación: ' + err.message);
   }
 });
 
-// ========== PANEL ==========
-app.get("/panel/:guildId", async (req, res) => {
-  const guild = bot.guilds.cache.get(req.params.guildId);
-  if (!guild) return res.send("El bot no está en ese servidor.");
+// ----------------- Require session -----------------
+function requireSession(req, res, next) {
+  const userId = req.query.userId || req.body.userId;
+  if (!userId) return res.status(400).send('Falta userId');
+  const ses = usuariosAutenticados.get(userId);
+  if (!ses) return res.status(401).send('No autenticado');
+  req.sessionUserId = userId;
+  req.session = ses;
+  next();
+}
 
-  const members = await guild.members.fetch();
-  const roles = guild.roles.cache.map(r => r.name).join(", ");
-  const logs = JSON.parse(fs.readFileSync(logsFile));
+// ----------------- API endpoints -----------------
+async function discordRequest(method, url, body = null) {
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  return axios({
+    method,
+    url: `https://discord.com/api/v10${url}`,
+    headers: { Authorization: `Bot ${BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    data: body
+  });
+}
 
-  res.send(`
-    <html>
-    <head><title>Panel ${guild.name}</title></head>
-    <body style="background:#0d1117;color:white;font-family:sans-serif;">
-      <h2>⚙️ Panel — ${guild.name}</h2>
-      <p><strong>Miembros:</strong> ${members.size}</p>
-      <p><strong>Roles:</strong> ${roles}</p>
-      <h3>🧾 Logs recientes</h3>
-      <div style="background:#1e1e2f;border-radius:10px;padding:10px;max-height:300px;overflow-y:auto;">
-        ${logs.slice(-10).map(l => `
-          <div style="border-bottom:1px solid #333;padding:4px;">
-            [${new Date(l.time).toLocaleTimeString()}] <b>${l.action || "Evento"}</b>: ${l.detail || ""}
-          </div>
-        `).join("")}
-      </div>
-      <br>
-      <button onclick="location.href='/'" style="background:#7289da;color:white;padding:10px;border:none;border-radius:6px;">⬅️ Volver</button>
-    </body></html>
-  `);
+// --- Moderación ---
+app.post('/api/guilds/:guildId/kick', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { targetId } = req.body;
+  if (!hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('Sin permisos');
+  try {
+    await discordRequest('DELETE', `/guilds/${guildId}/members/${targetId}`);
+    logAction('kick', { guildId, targetId, by: req.sessionUserId });
+    res.send('Usuario expulsado');
+  } catch (e) {
+    res.status(500).send('Error al expulsar: ' + e.message);
+  }
 });
 
-// ========== EJEMPLO DE LOG DESDE EL BOT ==========
-bot.on("messageCreate", msg => {
-  if (msg.author.bot) return;
-  logAction({ action: "Mensaje", detail: `${msg.author.tag}: ${msg.content}` });
+app.post('/api/guilds/:guildId/ban', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { targetId, reason, deleteMessageDays } = req.body;
+  if (!hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('Sin permisos');
+  try {
+    await discordRequest('PUT', `/guilds/${guildId}/bans/${targetId}`, { delete_message_days: deleteMessageDays || 0, reason: reason || 'Baneado via panel' });
+    logAction('ban', { guildId, targetId, by: req.sessionUserId, reason });
+    res.send('Usuario baneado');
+  } catch (e) {
+    res.status(500).send('Error al banear: ' + e.message);
+  }
 });
 
-bot.on("guildMemberAdd", member => {
-  logAction({ action: "Nuevo miembro", detail: `${member.user.tag} se unió a ${member.guild.name}` });
+app.post('/api/guilds/:guildId/timeout', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { targetId, minutes } = req.body;
+  if (!hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('Sin permisos');
+  try {
+    const until = new Date(Date.now() + minutes * 60000).toISOString();
+    await discordRequest('PATCH', `/guilds/${guildId}/members/${targetId}`, { communication_disabled_until: until });
+    logAction('timeout', { guildId, targetId, by: req.sessionUserId, minutes });
+    res.send('Timeout aplicado');
+  } catch (e) {
+    res.status(500).send('Error timeout: ' + e.message);
+  }
 });
 
-// ========== SERVER ==========
-app.listen(PORT, () => console.log(`✅ Abyssus panel activo en puerto ${PORT}`));
+// --- Mensajes ---
+app.post('/api/guilds/:guildId/message', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { channelId, content } = req.body;
+  if (!hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('Sin permisos');
+  try {
+    await discordRequest('POST', `/channels/${channelId}/messages`, { content });
+    logAction('message', { guildId, channelId, content, by: req.sessionUserId });
+    res.send('Mensaje enviado');
+  } catch (e) {
+    res.status(500).send('Error enviando mensaje: ' + e.message);
+  }
+});
+
+// --- Roles / Canales ---
+app.post('/api/guilds/:guildId/create-role', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { name } = req.body;
+  if (!hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('Sin permisos');
+  try {
+    await discordRequest('POST', `/guilds/${guildId}/roles`, { name });
+    logAction('createRole', { guildId, name, by: req.sessionUserId });
+    res.send('Rol creado');
+  } catch (e) {
+    res.status(500).send('Error creando rol: ' + e.message);
+  }
+});
+app.post('/api/guilds/:guildId/delete-role', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { roleId } = req.body;
+  if (!hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('Sin permisos');
+  try {
+    await discordRequest('DELETE', `/guilds/${guildId}/roles/${roleId}`);
+    logAction('deleteRole', { guildId, roleId, by: req.sessionUserId });
+    res.send('Rol eliminado');
+  } catch (e) {
+    res.status(500).send('Error eliminando rol: ' + e.message);
+  }
+});
+app.post('/api/guilds/:guildId/create-channel', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { name } = req.body;
+  if (!hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('Sin permisos');
+  try {
+    await discordRequest('POST', `/guilds/${guildId}/channels`, { name, type: 0 });
+    logAction('createChannel', { guildId, name, by: req.sessionUserId });
+    res.send('Canal creado');
+  } catch (e) {
+    res.status(500).send('Error creando canal: ' + e.message);
+  }
+});
+app.post('/api/guilds/:guildId/delete-channel', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { channelId } = req.body;
+  if (!hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('Sin permisos');
+  try {
+    await discordRequest('DELETE', `/channels/${channelId}`);
+    logAction('deleteChannel', { guildId, channelId, by: req.sessionUserId });
+    res.send('Canal eliminado');
+  } catch (e) {
+    res.status(500).send('Error eliminando canal: ' + e.message);
+  }
+});
+
+// --- Permisos internos ---
+app.post('/api/guilds/:guildId/set-perm', requireSession, (req, res) => {
+  const { guildId } = req.params;
+  const { targetId, level } = req.body;
+  if (!hasPermission(req.sessionUserId, guildId, 'owner')) return res.status(403).send('Solo owner puede asignar permisos');
+  if (!PANEL_PERMS.perGuild[guildId]) PANEL_PERMS.perGuild[guildId] = {};
+  PANEL_PERMS.perGuild[guildId][targetId] = level;
+  savePermsFile();
+  logAction('setPerm', { guildId, targetId, level, by: req.sessionUserId });
+  res.send(`Nivel ${level} asignado a ${targetId}`);
+});
+
+// --- Logs ---
+app.get('/logs/:guildId', requireSession, (req, res) => {
+  const { guildId } = req.params;
+  try {
+    const raw = fs.readFileSync(path.join(__dirname, 'acciones.log'), 'utf8');
+    const lines = raw.split('\n').filter(l => l.includes(guildId)).slice(-200).join('\n');
+    res.type('text').send(lines || 'No hay logs');
+  } catch {
+    res.status(500).send('Error leyendo logs');
+  }
+});
+app.post('/logs/:guildId/clear', requireSession, (req, res) => {
+  const { guildId } = req.params;
+  if (!hasPermission(req.sessionUserId, guildId, 'owner')) return res.status(403).send('Sin permisos');
+  try {
+    const file = path.join(__dirname, 'acciones.log');
+    const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n') : [];
+    const filtered = lines.filter(l => !l.includes(guildId));
+    fs.writeFileSync(file, filtered.join('\n'), 'utf8');
+    res.send('Logs del servidor borrados');
+  } catch {
+    res.status(500).send('Error borrando logs');
+  }
+});
+
+// ----------------- Start -----------------
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`✅ Panel Abyssus activo en http://localhost:${PORT}`));
+
 
 
 
