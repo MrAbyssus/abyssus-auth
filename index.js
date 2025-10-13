@@ -59,10 +59,10 @@ function getUserLevel(userId, guildId) {
   }
 }
 // check if user has at least requiredLevel
-//function hasPermission(userId, guildId, requiredLevel) {
-//  const userLevel = getUserLevel(userId, guildId);
-//  return levelIndex(userLevel) >= levelIndex(requiredLevel);
-//}
+function hasPermission(userId, guildId, requiredLevel) {
+  const userLevel = getUserLevel(userId, guildId);
+  return levelIndex(userLevel) >= levelIndex(requiredLevel);
+}
 
 // ----------------- Helpers -----------------
 function safeJson(obj) {
@@ -600,11 +600,11 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 // ----------------- API endpoints for moderation & management (owner-checked) -----------------
 
 // helper to check owner for guild quickly (Discord)
-//async function verifyOwner(userAccessToken, guildId) {
-//  const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${userAccessToken}` }});
-//  const guilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
-//  return guilds.some(g => g.id === guildId && g.owner === true);
-//}
+async function verifyOwner(userAccessToken, guildId) {
+  const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${userAccessToken}` }});
+  const guilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
+  return guilds.some(g => g.id === guildId && g.owner === true);
+}
 
 // Kick
 app.post('/api/guilds/:guildId/kick', requireSession, async (req, res) => {
