@@ -10,40 +10,26 @@ const db = new QuickDB();
 app.use(bodyParser.json());
 app.use(session({ secret: 'supersecret', resave: false, saveUninitialized: false }));
 
-// helper: check if user is owner (tries OAuth first, then bot fallback)
+// ✅ Nueva verificación de owner: usa el bot para comprobar el owner real del servidor
 async function verifyOwner(ses, userId, guildId) {
   const BOT_TOKEN = process.env.BOT_TOKEN;
 
-  // try via OAuth token first
-  try {
-    if (ses && ses.accessToken) {
-      const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
-        headers: { Authorization: `Bearer ${ses.accessToken}` },
-        timeout: 8000,
-      });
-      const guilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
-      if (guilds.some(g => g.id === guildId && g.owner === true)) return true;
-    }
-  } catch {
-    // ignore OAuth errors
-  }
-
-  // fallback: check via bot
   try {
     if (!BOT_TOKEN) return false;
     const guildRes = await axios.get(`https://discord.com/api/v10/guilds/${guildId}`, {
       headers: { Authorization: `Bot ${BOT_TOKEN}` },
       timeout: 8000,
     });
-    if (guildRes.data && guildRes.data.owner_id && String(guildRes.data.owner_id) === String(userId)) return true;
-  } catch {
-    // ignore fallback errors
+    const ownerId = guildRes?.data?.owner_id;
+    if (String(ownerId) === String(userId)) return true;
+  } catch (err) {
+    console.error(`Error verifying owner for guild ${guildId}:`, err.response?.data || err.message);
   }
 
   return false;
 }
 
-// helper to get or set perms
+// === Helpers ===
 async function getPerms(guildId, userId) {
   const guildPerms = await db.get(`PANEL_PERMS_${guildId}`) || {};
   return guildPerms[userId] || [];
@@ -54,12 +40,10 @@ async function hasPermission(guildId, userId, perm) {
   return perms.includes(perm);
 }
 
-// helper to get user session
 function getSession(req) {
   return req.session?.user ? req.session : null;
 }
 
-// helper to send action via bot token
 async function botAction(endpoint, method = 'post', body = {}) {
   const BOT_TOKEN = process.env.BOT_TOKEN;
   return axios({
@@ -73,7 +57,7 @@ async function botAction(endpoint, method = 'post', body = {}) {
   });
 }
 
-// ==== ROUTES ====
+// === Rutas del panel ===
 
 app.post('/api/guilds/:guildId/kick', async (req, res) => {
   const { guildId } = req.params;
@@ -238,8 +222,9 @@ app.post('/logs/:guildId/clear', async (req, res) => {
   res.json({ success: true });
 });
 
-// server listen
-app.listen(3000, () => console.log('Panel backend running on port 3000'));
+// === Servidor ===
+app.listen(3000, () => console.log('✅ Panel backend corriendo en el puerto 3000'));
+
 
 
 
