@@ -59,10 +59,10 @@ function getUserLevel(userId, guildId) {
   }
 }
 // check if user has at least requiredLevel
-function hasPermission(userId, guildId, requiredLevel) {
-  const userLevel = getUserLevel(userId, guildId);
-  return levelIndex(userLevel) >= levelIndex(requiredLevel);
-}
+//function hasPermission(userId, guildId, requiredLevel) {
+//  const userLevel = getUserLevel(userId, guildId);
+//  return levelIndex(userLevel) >= levelIndex(requiredLevel);
+//}
 
 // ----------------- Helpers -----------------
 function safeJson(obj) {
