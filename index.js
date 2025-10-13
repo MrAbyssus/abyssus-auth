@@ -13,57 +13,6 @@ app.use(express.json());
 const usuariosAutenticados = new Map(); // userId -> { accessToken, refreshToken, username, ... , createdAt }
 const codigosUsados = new Set();
 
-// ----------------- Permissions store -----------------
-const PERMS_FILE = path.join(__dirname, 'panel_perms.json');
-let PANEL_PERMS = { global: {}, perGuild: {} }; // structure: { global: { userId: level }, perGuild: { guildId: { userId: level } } }
-const LEVEL_ORDER = ['viewer', 'moderator', 'admin', 'owner']; // ascending
-
-function ensurePermsFile() {
-  try {
-    if (!fs.existsSync(PERMS_FILE)) {
-      fs.writeFileSync(PERMS_FILE, JSON.stringify(PANEL_PERMS, null, 2), 'utf8');
-    } else {
-      const raw = fs.readFileSync(PERMS_FILE, 'utf8');
-      PANEL_PERMS = JSON.parse(raw || '{}');
-      if (!PANEL_PERMS.global) PANEL_PERMS.global = {};
-      if (!PANEL_PERMS.perGuild) PANEL_PERMS.perGuild = {};
-    }
-  } catch (e) {
-    console.error('Error reading/creating perms file:', e);
-  }
-}
-function savePermsFile() {
-  try {
-    fs.writeFileSync(PERMS_FILE, JSON.stringify(PANEL_PERMS, null, 2), 'utf8');
-  } catch (e) {
-    console.error('Error saving perms file:', e);
-  }
-}
-ensurePermsFile();
-
-// helper compare
-function levelIndex(level) {
-  const i = LEVEL_ORDER.indexOf(level);
-  return i === -1 ? 0 : i;
-}
-// get effective level for a user (per-guild override first, then global, else viewer)
-function getUserLevel(userId, guildId) {
-  try {
-    if (guildId && PANEL_PERMS.perGuild && PANEL_PERMS.perGuild[guildId] && PANEL_PERMS.perGuild[guildId][userId]) {
-      return PANEL_PERMS.perGuild[guildId][userId];
-    }
-    if (PANEL_PERMS.global && PANEL_PERMS.global[userId]) return PANEL_PERMS.global[userId];
-    return 'viewer';
-  } catch (e) {
-    return 'viewer';
-  }
-}
-// check if user has at least requiredLevel
-function hasPermission(userId, guildId, requiredLevel) {
-  const userLevel = getUserLevel(userId, guildId);
-  return levelIndex(userLevel) >= levelIndex(requiredLevel);
-}
-
 // ----------------- Helpers -----------------
 function safeJson(obj) {
   try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
@@ -289,7 +238,7 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
   if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
 
   try {
-    // verify owner via Discord API
+    // verify owner
     const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${ses.accessToken}` }});
     const guilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
     const isOwner = guilds.some(g => g.id === guildId && g.owner === true);
@@ -326,15 +275,11 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
     let logsForGuild = '';
     try {
       const raw = fs.existsSync(path.join(__dirname,'acciones.log')) ? fs.readFileSync(path.join(__dirname,'acciones.log'),'utf8') : '';
+      // filter lines containing guildId
       const lines = raw.split('\n').filter(l=>l && l.includes(guildId));
       logsForGuild = lines.reverse().slice(0,150).join('\n') || 'No hay acciones registradas para este servidor.';
     } catch(e){ logsForGuild = 'Error leyendo logs'; }
 
-    // effective panel permission level for this user (from internal file)
-    const myLevel = getUserLevel(userId, guildId);
-
-    // check bot permissions in guild to show status (basic check: GET guild endpoint success already; we can also ask /guilds/{id}/roles included)
-    // Render page and pass myLevel to JS to enable/disable controls.
     return res.send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Abyssus — Panel ${escapeHtml(guild.name)}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
@@ -362,29 +307,22 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
       .footer{display:flex;justify-content:space-between;align-items:center;padding:10px}
       pre.logbox{background:#071018;padding:12px;border-radius:8px;color:#bfe0ff;max-height:220px;overflow:auto}
       a.back{color:inherit;text-decoration:none;opacity:.9}
-      .muted{opacity:.5;pointer-events:none}
-      .perm-badge{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);font-weight:700;margin-left:8px}
-      .small{font-size:.9rem;opacity:.9}
-      .perm-ctrl{display:flex;gap:8px;align-items:center;margin-top:8px}
-      .disabled{opacity:.45;pointer-events:none}
-      .perm-table{width:100%;border-collapse:collapse}
-      .perm-table td, .perm-table th{padding:8px;border-bottom:1px solid rgba(255,255,255,0.02)}
       @media(max-width:900px){ .main{flex-direction:column} }
     </style></head><body>
     <div class="wrap">
-      <div class="top"><img class="icon" src="${iconUrl}" alt="icon"/><div><h1>${escapeHtml(guild.name)} <span class="perm-badge">Nivel: ${escapeHtml(myLevel)}</span></h1><div style="opacity:.85">ID: ${guild.id}</div><div class="stats"><div class="stat">👥 ${guild.approximate_member_count||'N/A'}</div><div class="stat">💬 ${channels.length}</div><div class="stat">🧾 ${roles.length}</div></div></div></div>
+      <div class="top"><img class="icon" src="${iconUrl}" alt="icon"/><div><h1>${escapeHtml(guild.name)}</h1><div style="opacity:.85">ID: ${guild.id}</div><div class="stats"><div class="stat">👥 ${guild.approximate_member_count||'N/A'}</div><div class="stat">💬 ${channels.length}</div><div class="stat">🧾 ${roles.length}</div></div></div></div>
 
       <div class="main">
-        <div class="panel" id="membersPanel">
+        <div class="panel">
           <h2>Miembros (hasta 100)</h2>
           <ul id="members">${membersHtml}</ul>
         </div>
 
-        <div class="panel" id="messagePanel">
+        <div class="panel">
           <h2>Enviar mensaje como Abyssus</h2>
           <div class="form-row"><label>Canal</label><select id="channelSelect">${channelOptions}</select></div>
           <div class="form-row"><label>Mensaje</label><textarea id="messageContent" rows="4"></textarea></div>
-          <div style="display:flex;gap:8px"><button id="sendBtn" class="primary" onclick="sendMessage()">Enviar</button><button onclick="document.getElementById('messageContent').value='/help'">Comando: /help</button></div>
+          <div style="display:flex;gap:8px"><button class="primary" onclick="sendMessage()">Enviar</button><button onclick="document.getElementById('messageContent').value='/help'">Comando: /help</button></div>
           <hr style="margin:12px 0;border-top:1px solid rgba(255,255,255,0.03)"/>
           <h3>Roles</h3><ul>${rolesListHtml}</ul>
           <h3>Canales</h3><ul>${channelsListHtml}</ul>
@@ -392,7 +330,7 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
       </div>
 
       <div class="main">
-        <div class="panel" id="moderationPanel">
+        <div class="panel">
           <h2>Moderación rápida</h2>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div>
@@ -405,47 +343,30 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
             </div>
           </div>
           <div style="display:flex;gap:8px;margin-top:8px">
-            <button id="kickBtn" class="danger" onclick="kickFromInputs()">🚫 Kick</button>
-            <button id="banBtn" class="danger" onclick="banFromInputs()">🔨 Ban</button>
-            <button id="timeoutBtn" class="warn" onclick="timeoutFromInputs()">🔇 Timeout</button>
+            <button class="danger" onclick="kickFromInputs()">🚫 Kick</button>
+            <button class="danger" onclick="banFromInputs()">🔨 Ban</button>
+            <button class="warn" onclick="timeoutFromInputs()">🔇 Timeout</button>
           </div>
         </div>
 
-        <div class="panel" id="managePanel">
+        <div class="panel">
           <h2>Gestionar Roles / Canales</h2>
           <label>Crear rol — nombre</label><input id="newRoleName" placeholder="Nombre del rol"/>
           <div style="display:flex;gap:8px;margin-top:6px">
-            <button id="createRoleBtn" onclick="createRole()" class="primary">Crear rol</button>
+            <button onclick="createRole()" class="primary">Crear rol</button>
           </div>
           <hr style="margin:10px 0;border-top:1px solid rgba(255,255,255,0.03)"/>
           <label>Eliminar rol</label><select id="deleteRoleSelect">${roleOptions}</select>
-          <div style="display:flex;gap:8px;margin-top:6px"><button id="delRoleBtn" class="danger" onclick="deleteRole()">Eliminar rol</button></div>
+          <div style="display:flex;gap:8px;margin-top:6px"><button class="danger" onclick="deleteRole()">Eliminar rol</button></div>
           <hr style="margin:10px 0;border-top:1px solid rgba(255,255,255,0.03)"/>
           <label>Crear canal (texto)</label><input id="newChannelName" placeholder="nombre-del-canal"/>
-          <div style="display:flex;gap:8px;margin-top:6px"><button id="createChanBtn" class="primary" onclick="createChannel()">Crear canal</button></div>
+          <div style="display:flex;gap:8px;margin-top:6px"><button class="primary" onclick="createChannel()">Crear canal</button></div>
           <label style="margin-top:10px">Eliminar canal</label><select id="deleteChannelSelect">${channels.filter(c=>c.type!==4).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}</select>
-          <div style="display:flex;gap:8px;margin-top:6px"><button id="delChanBtn" class="danger" onclick="deleteChannel()">Eliminar canal</button></div>
+          <div style="display:flex;gap:8px;margin-top:6px"><button class="danger" onclick="deleteChannel()">Eliminar canal</button></div>
         </div>
       </div>
 
-      <div class="panel" id="permsPanel">
-        <h2>Permisos del panel (interno)</h2>
-        <div class="small">Tu nivel en este servidor: <strong id="myLevel">${escapeHtml(myLevel)}</strong></div>
-        <div class="perm-ctrl">
-          <label style="min-width:110px">Asignar nivel a usuario</label>
-          <input id="permUserId" placeholder="User ID"/>
-          <select id="permLevel">
-            <option value="viewer">viewer</option>
-            <option value="moderator">moderator</option>
-            <option value="admin">admin</option>
-            <option value="owner">owner</option>
-          </select>
-          <button id="setPermBtn" class="primary" onclick="setPerm()">Asignar</button>
-        </div>
-        <div style="margin-top:8px;color:rgba(255,255,255,0.75);font-size:.92rem">Solo el <strong>owner del servidor</strong> puede asignar permisos internos desde aquí.</div>
-      </div>
-
-      <div class="panel" id="logsPanel">
+      <div class="panel">
         <h2>Logs del servidor</h2>
         <pre class="logbox" id="logsBox">${escapeHtml(logsForGuild)}</pre>
         <div style="display:flex;gap:8px;margin-top:8px">
@@ -460,9 +381,7 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
     <script>
       const userId = '${userId}';
       const guildId = '${guild.id}';
-      const myLevel = '${myLevel}';
 
-      // utility to call API
       async function postApi(path, body) {
         body = {...body, userId};
         const res = await fetch(path, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -471,42 +390,6 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
         return txt;
       }
 
-      // disable controls based on myLevel
-      function setupPermissionUi() {
-        // mapping required minimum for actions
-        const requirements = {
-          sendMessage: 'moderator',
-          kick: 'moderator',
-          ban: 'moderator',
-          timeout: 'moderator',
-          manageRolesChannels: 'admin',
-          setPerm: 'owner'
-        };
-        function allowed(req) {
-          const order = ['viewer','moderator','admin','owner'];
-          return order.indexOf(myLevel) >= order.indexOf(req);
-        }
-        // message
-        if (!allowed(requirements.sendMessage)) document.getElementById('messagePanel').classList.add('disabled');
-        // moderation
-        if (!allowed(requirements.kick)) document.getElementById('kickBtn').classList.add('disabled');
-        if (!allowed(requirements.ban)) document.getElementById('banBtn').classList.add('disabled');
-        if (!allowed(requirements.timeout)) document.getElementById('timeoutBtn').classList.add('disabled');
-        // manage
-        if (!allowed(requirements.manageRolesChannels)) {
-          document.getElementById('createRoleBtn').classList.add('disabled');
-          document.getElementById('delRoleBtn').classList.add('disabled');
-          document.getElementById('createChanBtn').classList.add('disabled');
-          document.getElementById('delChanBtn').classList.add('disabled');
-        }
-        // perms assign
-        if (!allowed(requirements.setPerm)) {
-          document.getElementById('setPermBtn').classList.add('disabled');
-        }
-      }
-      setupPermissionUi();
-
-      // moderation helpers (same as before, now catch permission errors from server)
       async function moderate(guildId, targetId, action) {
         if (!confirm(action + ' a ' + targetId + ' ?')) return;
         try {
@@ -570,25 +453,6 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
           refreshLogs();
         } catch(e){ alert('Error al borrar logs'); }
       }
-
-      // set permission (owner-only)
-      async function setPerm(){
-        const target = document.getElementById('permUserId').value.trim();
-        const level = document.getElementById('permLevel').value;
-        if(!target) return alert('User ID requerido');
-        if(!confirm('Asignar ' + level + ' a ' + target + '? (solo owner puede)')) return;
-        try{
-          const res = await fetch('/api/guilds/'+guildId+'/perms/set', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({ userId, targetId: target, level })
-          });
-          const txt = await res.text();
-          if(!res.ok) throw new Error(txt);
-          alert(txt);
-          location.reload();
-        } catch(e){ alert('Error: '+e.message); }
-      }
     </script>
     </body></html>`);
   } catch (err) {
@@ -599,7 +463,7 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 
 // ----------------- API endpoints for moderation & management (owner-checked) -----------------
 
-// helper to check owner for guild quickly (Discord)
+// helper to check owner for guild quickly
 async function verifyOwner(userAccessToken, guildId) {
   const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${userAccessToken}` }});
   const guilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
@@ -613,10 +477,8 @@ app.post('/api/guilds/:guildId/kick', requireSession, async (req, res) => {
   const ses = req.session;
   if (!targetId) return res.status(400).send('Falta targetId');
   try {
-    // require either actual owner OR internal level >= moderator
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('No autorizado (perm panel insuficiente).');
-
+    if (!isOwner) return res.status(403).send('No autorizado');
     await discordRequest('delete', `/guilds/${guildId}/members/${targetId}`);
     logAction('KICK', { guildId, targetId, by: ses.username });
     return res.status(200).send('✅ Usuario expulsado');
@@ -634,8 +496,7 @@ app.post('/api/guilds/:guildId/ban', requireSession, async (req, res) => {
   if (!targetId) return res.status(400).send('Falta targetId');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('No autorizado (perm panel insuficiente).');
-
+    if (!isOwner) return res.status(403).send('No autorizado');
     await discordRequest('put', `/guilds/${guildId}/bans/${targetId}`, { delete_message_seconds: (deleteMessageDays||0)*24*3600, reason });
     logAction('BAN', { guildId, targetId, by: ses.username, reason, deleteMessageDays });
     return res.status(200).send('✅ Usuario baneado');
@@ -653,8 +514,7 @@ app.post('/api/guilds/:guildId/timeout', requireSession, async (req, res) => {
   if (!targetId) return res.status(400).send('Falta targetId');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('No autorizado (perm panel insuficiente).');
-
+    if (!isOwner) return res.status(403).send('No autorizado');
     const until = new Date(Date.now() + (minutes||10) * 60 * 1000).toISOString();
     await discordRequest('patch', `/guilds/${guildId}/members/${targetId}`, { communication_disabled_until: until });
     logAction('TIMEOUT', { guildId, targetId, by: ses.username, minutes });
@@ -673,8 +533,7 @@ app.post('/api/guilds/:guildId/message', requireSession, async (req, res) => {
   if (!channelId || !content) return res.status(400).send('Falta channelId o content');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('No autorizado (perm panel insuficiente).');
-
+    if (!isOwner) return res.status(403).send('No autorizado');
     const resp = await discordRequest('post', `/channels/${channelId}/messages`, { content });
     logAction('MESSAGE', { guildId, channelId, by: ses.username, content: content.slice(0,4000) });
     return res.status(200).send(safeJson(resp.data));
@@ -692,8 +551,7 @@ app.post('/api/guilds/:guildId/create-role', requireSession, async (req, res) =>
   if (!name) return res.status(400).send('Falta name');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado (perm panel insuficiente).');
-
+    if (!isOwner) return res.status(403).send('No autorizado');
     const resp = await discordRequest('post', `/guilds/${guildId}/roles`, { name });
     logAction('CREATE_ROLE', { guildId, name, by: ses.username });
     return res.status(200).send('✅ Rol creado');
@@ -711,8 +569,7 @@ app.post('/api/guilds/:guildId/delete-role', requireSession, async (req, res) =>
   if (!roleId) return res.status(400).send('Falta roleId');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado (perm panel insuficiente).');
-
+    if (!isOwner) return res.status(403).send('No autorizado');
     await discordRequest('delete', `/guilds/${guildId}/roles/${roleId}`);
     logAction('DELETE_ROLE', { guildId, roleId, by: ses.username });
     return res.status(200).send('✅ Rol eliminado');
@@ -730,9 +587,8 @@ app.post('/api/guilds/:guildId/create-channel', requireSession, async (req, res)
   if (!name) return res.status(400).send('Falta name');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado (perm panel insuficiente).');
-
-    const resp = await discordRequest('post', `/guilds/${guildId}/channels`, { name, type: 0 });
+    if (!isOwner) return res.status(403).send('No autorizado');
+    const resp = await discordRequest('post', `/guilds/${guildId}/channels`, { name, type: 0 }); // texto
     logAction('CREATE_CHANNEL', { guildId, name, by: ses.username });
     return res.status(200).send('✅ Canal creado');
   } catch (e) {
@@ -749,8 +605,7 @@ app.post('/api/guilds/:guildId/delete-channel', requireSession, async (req, res)
   if (!channelId) return res.status(400).send('Falta channelId');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado (perm panel insuficiente).');
-
+    if (!isOwner) return res.status(403).send('No autorizado');
     await discordRequest('delete', `/channels/${channelId}`);
     logAction('DELETE_CHANNEL', { guildId, channelId, by: ses.username });
     return res.status(200).send('✅ Canal eliminado');
@@ -760,43 +615,14 @@ app.post('/api/guilds/:guildId/delete-channel', requireSession, async (req, res)
   }
 });
 
-// ----------------- Permissions management endpoint (owner-only) -----------------
-// Set permission for a user in guild (only owner via Discord can call this)
-// --- Permisos internos ---
-
-// --- Logs ---
-app.get('/logs/:guildId', requireSession, (req, res) => {
-  const { guildId } = req.params;
-  try {
-    const raw = fs.readFileSync(path.join(__dirname, 'acciones.log'), 'utf8');
-    const lines = raw.split('\n').filter(l => l.includes(guildId)).slice(-200).join('\n');
-    res.type('text').send(lines || 'No hay logs');
-  } catch {
-    res.status(500).send('Error leyendo logs');
-  }
-});
-app.post('/logs/:guildId/clear', requireSession, (req, res) => {
-  const { guildId } = req.params;
-  if (!hasPermission(req.sessionUserId, guildId, 'owner')) return res.status(403).send('Sin permisos');
-  try {
-    const file = path.join(__dirname, 'acciones.log');
-    const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n') : [];
-    const filtered = lines.filter(l => !l.includes(guildId));
-    fs.writeFileSync(file, filtered.join('\n'), 'utf8');
-    res.send('Logs del servidor borrados');
-  } catch {
-    res.status(500).send('Error borrando logs');
-  }
-});
-
 // ----------------- Logs endpoints -----------------
+// GET logs for guild (returns only lines that contain guildId)
 app.get('/logs/:guildId', requireSession, async (req, res) => {
   const guildId = req.params.guildId;
   const ses = req.session;
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('No autorizado');
-
+    if (!isOwner) return res.status(403).send('No autorizado');
     const file = path.join(__dirname, 'acciones.log');
     if (!fs.existsSync(file)) return res.send('No hay logs.');
     const raw = fs.readFileSync(file, 'utf8');
@@ -808,13 +634,13 @@ app.get('/logs/:guildId', requireSession, async (req, res) => {
   }
 });
 
+// Clear logs for guild (delete lines containing guildId)
 app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
   const guildId = req.params.guildId;
   const ses = req.session;
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado');
-
+    if (!isOwner) return res.status(403).send('No autorizado');
     const file = path.join(__dirname, 'acciones.log');
     if (!fs.existsSync(file)) return res.send('No hay logs.');
     const raw = fs.readFileSync(file, 'utf8');
@@ -830,7 +656,6 @@ app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
-
 
 
 
