@@ -152,50 +152,34 @@ app.get('/mis-guilds/:userId', async (req, res) => {
   if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
 
   try {
-    // 🔹 Obtenemos los servidores del usuario
-    const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', {
-      headers: { Authorization: `Bearer ${ses.accessToken}` }
-    });
-
+    const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${ses.accessToken}` }});
     const allGuilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
-
-    // 🔹 Filtramos servidores donde el usuario es owner o tiene permiso ADMINISTRATOR (0x8)
-    const manageableGuilds = allGuilds.filter(g => {
-      const perms = BigInt(g.permissions || 0);
-      const hasAdmin = (perms & BigInt(0x8)) === BigInt(0x8);
-      return g.owner === true || hasAdmin;
-    });
+    const ownerGuilds = allGuilds.filter(g => g.owner === true);
 
     const botPresent = [];
     const CONCURRENCY = 6;
-
-    for (let i = 0; i < manageableGuilds.length; i += CONCURRENCY) {
-      const chunk = manageableGuilds.slice(i, i + CONCURRENCY);
+    for (let i = 0; i < ownerGuilds.length; i += CONCURRENCY) {
+      const chunk = ownerGuilds.slice(i, i + CONCURRENCY);
       const promises = chunk.map(async g => {
         try {
-          // 🔹 Comprobamos si el bot está en ese servidor
           const info = await axios.get(`https://discord.com/api/v10/guilds/${g.id}?with_counts=true`, {
-            headers: { Authorization: `Bot ${BOT_TOKEN}` },
-            timeout: 8000
+            headers: { Authorization: `Bot ${BOT_TOKEN}` }, timeout: 8000
           });
-
           botPresent.push({
             id: g.id,
             name: g.name,
             icon: g.icon,
             member_count: info.data.approximate_member_count || 'N/A',
-            roles_count: Array.isArray(info.data.roles) ? info.data.roles.length : 'N/A',
-            owner: g.owner,
-            canManage: g.owner || ((BigInt(g.permissions) & BigInt(0x8)) === BigInt(0x8)) // ✅ Owner o Admin
+            roles_count: Array.isArray(info.data.roles) ? info.data.roles.length : 'N/A'
           });
         } catch (e) {
-          // Bot no presente o sin acceso
+          // bot not present or no access
         }
       });
       await Promise.all(promises);
       await sleep(100);
     }
-    
+
     const guildsHtml = botPresent.length ? botPresent.map(g => {
       const icon = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64` : 'https://via.placeholder.com/64/111318/ffffff?text=?';
       return `<li class="card-item">
@@ -480,29 +464,10 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 // ----------------- API endpoints for moderation & management (owner-checked) -----------------
 
 // helper to check owner for guild quickly
-// ✅ Verifica correctamente si el usuario autenticado es el dueño real del servidor
-async function verifyOwner(userId, guildId) {
-  const BOT_TOKEN = process.env.BOT_TOKEN;
-
-  if (!BOT_TOKEN) {
-    console.error("❌ Falta el BOT_TOKEN en las variables de entorno.");
-    return false;
-  }
-
-  try {
-    // Consulta la API de Discord usando el token del BOT
-    const guildRes = await axios.get(`https://discord.com/api/v10/guilds/${guildId}`, {
-      headers: {
-        Authorization: `Bot ${BOT_TOKEN}`,
-      },
-    });
-
-    const ownerId = guildRes.data.owner_id;
-    return String(ownerId) === String(userId);
-  } catch (err) {
-    console.error("Error verificando owner:", err.response?.data || err.message);
-    return false;
-  }
+async function verifyOwner(userAccessToken, guildId) {
+  const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${userAccessToken}` }});
+  const guilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
+  return guilds.some(g => g.id === guildId && g.owner === true);
 }
 
 // Kick
@@ -585,26 +550,22 @@ app.post('/api/guilds/:guildId/message', requireSession, async (req, res) => {
 });
 
 // Create role
-app.post("/api/guilds/:guildId/create-role", async (req, res) => {
+app.post('/api/guilds/:guildId/create-role', requireSession, async (req, res) => {
   const { guildId } = req.params;
-  const userId = req.session.user.id;
-
-  const isOwner = await verifyOwner(userId, guildId);
-  let hasPermission = false;
-  let userLevel = "viewer";
-
-  if (isOwner) {
-    hasPermission = true;
-    userLevel = "owner";
+  const { name } = req.body;
+  const ses = req.session;
+  if (!name) return res.status(400).send('Falta name');
+  try {
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    if (!isOwner) return res.status(403).send('No autorizado');
+    const resp = await discordRequest('post', `/guilds/${guildId}/roles`, { name });
+    logAction('CREATE_ROLE', { guildId, name, by: ses.username });
+    return res.status(200).send('✅ Rol creado');
+  } catch (e) {
+    console.error('create role err:', e.response?.data || e.message);
+    return res.status(500).send(safeJson(e.response?.data || e.message));
   }
-
-  if (!hasPermission) {
-    return res.status(403).json({ error: "No tienes permisos para crear roles." });
-  }
-
-  // ... resto del código para crear el rol ...
 });
-
 
 // Delete role
 app.post('/api/guilds/:guildId/delete-role', requireSession, async (req, res) => {
@@ -624,43 +585,85 @@ app.post('/api/guilds/:guildId/delete-role', requireSession, async (req, res) =>
   }
 });
 
-// Create role
+// ======================================================
+// 📦 Crear rol en un servidor (owner o admin autorizado)
+// ======================================================
 app.post('/api/guilds/:guildId/create-role', requireSession, async (req, res) => {
   const { guildId } = req.params;
-  const { name } = req.body;
-  const ses = req.session;
-  if (!name) return res.status(400).send('Falta name');
-  try {
-    const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado (perm panel insuficiente).');
+  const { name, color, permissions } = req.body;
+  const userId = req.sessionUserId;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
 
-    const resp = await discordRequest('post', `/guilds/${guildId}/roles`, { name });
-    logAction('CREATE_ROLE', { guildId, name, by: ses.username });
-    return res.status(200).send('✅ Rol creado');
-  } catch (e) {
-    console.error('create role err:', e.response?.data || e.message);
-    return res.status(500).send(safeJson(e.response?.data || e.message));
+  if (!BOT_TOKEN) return res.status(500).json({ error: "Falta BOT_TOKEN en .env" });
+
+  try {
+    // Verificar si el usuario es owner o tiene permiso admin
+    const isOwner = await verifyOwner(userId, guildId);
+    const hasAdminPerms = await hasPermission(userId, guildId, "admin");
+
+    if (!isOwner && !hasAdminPerms) {
+      return res.status(403).json({ error: "No tienes permisos para crear roles en este servidor." });
+    }
+
+    // Crear el rol en Discord
+    const newRole = await axios.post(
+      `https://discord.com/api/v10/guilds/${guildId}/roles`,
+      {
+        name: name || "Nuevo Rol",
+        color: color || null,
+        permissions: permissions || "0",
+      },
+      {
+        headers: {
+          Authorization: `Bot ${BOT_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Rol creado correctamente.",
+      role: newRole.data,
+    });
+  } catch (error) {
+    console.error("Error al crear rol:", error.response?.data || error.message);
+    res.status(500).json({ error: "Error al crear el rol." });
   }
 });
 
-// Delete role
+
+// ======================================================
+// 🗑️ Eliminar rol en un servidor (owner o admin autorizado)
+// ======================================================
 app.post('/api/guilds/:guildId/delete-role', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { roleId } = req.body;
-  const ses = req.session;
-  if (!roleId) return res.status(400).send('Falta roleId');
-  try {
-    const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'admin')) return res.status(403).send('No autorizado (perm panel insuficiente).');
+  const userId = req.sessionUserId;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
 
-    await discordRequest('delete', `/guilds/${guildId}/roles/${roleId}`);
-    logAction('DELETE_ROLE', { guildId, roleId, by: ses.username });
-    return res.status(200).send('✅ Rol eliminado');
-  } catch (e) {
-    console.error('delete role err:', e.response?.data || e.message);
-    return res.status(500).send(safeJson(e.response?.data || e.message));
+  if (!BOT_TOKEN) return res.status(500).json({ error: "Falta BOT_TOKEN en .env" });
+  if (!roleId) return res.status(400).json({ error: "Falta el ID del rol a eliminar." });
+
+  try {
+    const isOwner = await verifyOwner(userId, guildId);
+    const hasAdminPerms = await hasPermission(userId, guildId, "admin");
+
+    if (!isOwner && !hasAdminPerms) {
+      return res.status(403).json({ error: "No tienes permisos para eliminar roles en este servidor." });
+    }
+
+    await axios.delete(`https://discord.com/api/v10/guilds/${guildId}/roles/${roleId}`, {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` },
+    });
+
+    res.status(200).json({ success: true, message: "Rol eliminado correctamente." });
+  } catch (error) {
+    console.error("Error al eliminar rol:", error.response?.data || error.message);
+    res.status(500).json({ error: "Error al eliminar el rol." });
   }
 });
+
 
 // Create channel
 app.post('/api/guilds/:guildId/create-channel', requireSession, async (req, res) => {
@@ -741,7 +744,6 @@ app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
-
 
 
 
