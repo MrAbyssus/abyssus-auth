@@ -762,7 +762,7 @@ app.post('/api/guilds/:guildId/delete-channel', requireSession, async (req, res)
 
 // ----------------- Permissions management endpoint (owner-only) -----------------
 // Set permission for a user in guild (only owner via Discord can call this)
-app.post('/api/guilds/:guildId/perms/set', requireSession, async (req, res) => {
+app.post('/logs/:guildId', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { targetId, level } = req.body;
   const ses = req.session;
