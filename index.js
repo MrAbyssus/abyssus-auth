@@ -533,7 +533,8 @@ app.post('/api/guilds/:guildId/message', requireSession, async (req, res) => {
   if (!channelId || !content) return res.status(400).send('Falta channelId o content');
   try {
     const isOwner = await verifyOwner(ses.accessToken, guildId);
-    if (!isOwner) return res.status(403).send('No autorizado');
+    if (!isOwner && !hasPermission(req.sessionUserId, guildId, 'moderator')) return res.status(403).send('No autorizado (perm panel insuficiente).');
+
     const resp = await discordRequest('post', `/channels/${channelId}/messages`, { content });
     logAction('MESSAGE', { guildId, channelId, by: ses.username, content: content.slice(0,4000) });
     return res.status(200).send(safeJson(resp.data));
