@@ -598,7 +598,7 @@ app.post('/api/guilds/:guildId/kick', requireSession, async (req, res) => {
 
   try {
     // allow owner/admin/moderator
-    const allowed = await hasPermission(userId, guildId, 'moderator');
+     const allowed = await hasPermission(userId, guildId, 'moderator');
     if (!allowed) return res.status(403).send('No autorizado.');
 
     await discordRequest('delete', `/guilds/${guildId}/members/${targetId}`);
@@ -620,7 +620,7 @@ app.post('/api/guilds/:guildId/ban', requireSession, async (req, res) => {
 
   try {
     // require admin or owner
-    const allowed = await hasPermission(userId, guildId, 'admin');
+     const allowed = await hasPermission(userId, guildId, 'moderator');
     if (!allowed) return res.status(403).send('No autorizado.');
 
     await discordRequest('put', `/guilds/${guildId}/bans/${targetId}`, { delete_message_seconds: (deleteMessageDays||0)*24*3600, reason });
