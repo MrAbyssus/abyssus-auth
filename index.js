@@ -13,11 +13,27 @@ app.use(express.json());
 const usuariosAutenticados = new Map(); // userId -> { accessToken, refreshToken, username, ... , createdAt }
 const codigosUsados = new Set();
 
-// ----------------- Constants / Perm bits -----------------
-const PERM_ADMIN = 0x00000008; // ADMINISTRATOR
-const PERM_KICK = 0x00000002; // KICK_MEMBERS
-const PERM_BAN = 0x00000004; // BAN_MEMBERS
-const PERM_MANAGE_MESSAGES = 0x00002000; // MANAGE_MESSAGES
+// perms.json path (persistencia simple)
+const PERMS_FILE = path.join(__dirname, 'perms.json');
+function loadPerms() {
+  try {
+    if (!fs.existsSync(PERMS_FILE)) {
+      fs.writeFileSync(PERMS_FILE, JSON.stringify({}), 'utf8');
+      return {};
+    }
+    return JSON.parse(fs.readFileSync(PERMS_FILE, 'utf8') || '{}');
+  } catch (e) {
+    console.error('Error cargando perms.json', e);
+    return {};
+  }
+}
+function savePerms(obj) {
+  try {
+    fs.writeFileSync(PERMS_FILE, JSON.stringify(obj, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error guardando perms.json', e);
+  }
+}
 
 // ----------------- Helpers -----------------
 function safeJson(obj) {
@@ -50,41 +66,6 @@ async function discordRequest(method, url, body = null) {
   });
 }
 
-// get user's guilds using their access token
-async function getUserGuilds(accessToken) {
-  try {
-    const r = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${accessToken}` }});
-    return Array.isArray(r.data) ? r.data : [];
-  } catch (e) {
-    console.error('getUserGuilds err:', e.response?.data || e.message);
-    return [];
-  }
-}
-
-// check basic permission levels for a user on a guild
-async function hasPermission(userId, guildId, level) {
-  const ses = usuariosAutenticados.get(userId);
-  if (!ses) return false;
-  // get user's guilds (cached briefly by session object)
-  const guilds = await getUserGuilds(ses.accessToken);
-  const g = guilds.find(x => x.id === guildId);
-  if (!g) return false;
-  const perms = parseInt(g.permissions || '0', 10);
-
-  if (level === 'owner') return !!g.owner;
-  if (level === 'admin') return (perms & PERM_ADMIN) !== 0;
-  if (level === 'moderator') {
-    return (perms & (PERM_KICK | PERM_BAN | PERM_MANAGE_MESSAGES)) !== 0 || (perms & PERM_ADMIN) !== 0 || !!g.owner;
-  }
-  return false;
-}
-
-// wrapper that verifies owner specifically using user's guilds (safer than other calls)
-async function verifyOwnerByAccessToken(userAccessToken, guildId) {
-  const guilds = await getUserGuilds(userAccessToken);
-  return guilds.some(g => g.id === guildId && g.owner === true);
-}
-
 // ----------------- Session cleanup -----------------
 setInterval(() => {
   const now = Date.now();
@@ -108,22 +89,12 @@ app.get('/login', (req, res) => {
 
   return res.send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Abyssus — Login</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-    :root{--accent:#5865F2;--accent2:#764ba2}
-    body{font-family:Inter,system-ui,Arial;background:#0b0f14;color:#eaf2ff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{width:100%;max-width:720px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:28px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);display:flex;gap:20px;align-items:center}
-    .logo{width:72px;height:72px;border-radius:12px;background:linear-gradient(135deg,#243b6b,#5b3a86);display:flex;align-items:center;justify-content:center;font-weight:800;color:white;font-size:20px}
-    h1{margin:0;font-size:1.4rem}
-    p{margin:6px 0 14px;color:rgba(234,242,255,0.85)}
-    .btn{background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:700}
-  </style></head><body>
-  <div class="card">
-    <div class="logo">A</div>
-    <div style="flex:1">
+  <style>/* minimal styles omitted for brevity in snippet */</style></head><body>
+  <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0b0f14;color:#eaf2ff">
+    <div style="text-align:center">
       <h1>Abyssus — Panel</h1>
-      <p>Inicia sesión con Discord para ver los servidores donde eres owner/administrator/moderator y Abyssus está instalado.</p>
-      <a class="btn" href="${authorizeUrl}">Iniciar sesión con Discord</a>
+      <p>Inicia sesión con Discord</p>
+      <a href="${authorizeUrl}" style="background:#5865F2;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none">Iniciar sesión con Discord</a>
     </div>
   </div>
   </body></html>`);
@@ -167,23 +138,20 @@ app.get('/callback', async (req, res) => {
       createdAt: Date.now()
     });
 
-    return res.send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Abyssus — Autenticado</title>
-      <style>body{font-family:Inter,Arial;background:#0b0f14;color:#eaf2ff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}.card{background:#071022;padding:28px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);text-align:center}</style>
-      </head><body>
-      <div class="card">
-        <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" alt="" style="width:84px;height:84px;border-radius:12px;margin-bottom:12px" onerror="this.style.display='none'"/>
+    return res.send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Abyssus — Autenticado</title></head><body style="background:#071022;color:#eaf2ff;display:flex;align-items:center;justify-content:center;height:100vh">
+      <div style="text-align:center">
         <h2>¡Autenticación exitosa!</h2>
-        <p style="opacity:.9">${escapeHtml(user.username)}#${escapeHtml(user.discriminator)}</p>
-        <a style="display:inline-block;margin-top:12px;padding:10px 14px;border-radius:10px;background:linear-gradient(90deg,#5865F2,#764ba2);color:#fff;text-decoration:none" href="/mis-guilds/${user.id}">Ver mis servidores</a>
+        <p>${escapeHtml(user.username)}#${escapeHtml(user.discriminator)}</p>
+        <a href="/mis-guilds/${user.id}" style="background:#5865F2;color:#fff;padding:8px 12px;border-radius:8px;text-decoration:none">Ver mis servidores</a>
       </div>
-      </body></html>`);
+    </body></html>`);
   } catch (err) {
     console.error('callback error:', err.response?.data || err.message);
     return res.status(500).send(`<h2>Error OAuth2</h2><pre>${safeJson(err.response?.data || err.message)}</pre>`);
   }
 });
 
-// ----------------- /mis-guilds/:userId (owner OR admin, bot present) -----------------
+// ----------------- /mis-guilds/:userId (owner OR admin) -----------------
 app.get('/mis-guilds/:userId', async (req, res) => {
   const userId = req.params.userId;
   const ses = usuariosAutenticados.get(userId);
@@ -193,14 +161,16 @@ app.get('/mis-guilds/:userId', async (req, res) => {
   if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
 
   try {
-    const allGuilds = await getUserGuilds(ses.accessToken);
-    // include guilds where user is owner OR admin (permissions bit) - also require bot present on guild
-    const manageable = allGuilds.filter(g => (g.owner === true) || ((parseInt(g.permissions || '0', 10) & PERM_ADMIN) !== 0));
+    const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${ses.accessToken}` }});
+    const allGuilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
+
+    // Mostrar servidores donde eres owner o tienes el bit ADMINISTRATOR
+    const visibleGuilds = allGuilds.filter(g => g.owner === true || (g.permissions && (BigInt(g.permissions) & BigInt(0x8)) !== BigInt(0)));
 
     const botPresent = [];
     const CONCURRENCY = 6;
-    for (let i = 0; i < manageable.length; i += CONCURRENCY) {
-      const chunk = manageable.slice(i, i + CONCURRENCY);
+    for (let i = 0; i < visibleGuilds.length; i += CONCURRENCY) {
+      const chunk = visibleGuilds.slice(i, i + CONCURRENCY);
       const promises = chunk.map(async g => {
         try {
           const info = await axios.get(`https://discord.com/api/v10/guilds/${g.id}?with_counts=true`, {
@@ -214,7 +184,7 @@ app.get('/mis-guilds/:userId', async (req, res) => {
             roles_count: Array.isArray(info.data.roles) ? info.data.roles.length : 'N/A'
           });
         } catch (e) {
-          // bot not present or no access -> ignore
+          // bot not present or no access
         }
       });
       await Promise.all(promises);
@@ -223,36 +193,23 @@ app.get('/mis-guilds/:userId', async (req, res) => {
 
     const guildsHtml = botPresent.length ? botPresent.map(g => {
       const icon = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64` : 'https://via.placeholder.com/64/111318/ffffff?text=?';
-      return `<li class="card-item">
-        <img src="${icon}" class="gicon" onerror="this.src='https://via.placeholder.com/64/111318/ffffff?text=?'"/>
-        <div class="meta"><div class="name">${escapeHtml(g.name)}</div><div class="sub">👥 ${g.member_count} • 🧾 ${g.roles_count}</div></div>
-        <div class="actions"><a class="btn" href="/panel/${g.id}?userId=${userId}">Abrir panel</a></div>
+      return `<li style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;background:#071022;margin-bottom:8px">
+        <img src="${icon}" style="width:56px;height:56px;border-radius:8px;object-fit:cover"/>
+        <div style="flex:1"><strong>${escapeHtml(g.name)}</strong><div style="opacity:.8">👥 ${g.member_count} • 🧾 ${g.roles_count}</div></div>
+        <div><a href="/panel/${g.id}?userId=${userId}" style="background:#5865F2;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none">Abrir panel</a></div>
       </li>`;
-    }).join('') : `<div class="empty">No eres owner/administrator de servidores donde Abyssus esté presente o el bot no tiene acceso.</div>`;
+    }).join('') : `<div style="padding:18px;border-radius:10px;background:#071022;text-align:center">No eres owner o admin de servidores donde Abyssus esté presente o el bot no tiene acceso.</div>`;
 
-    return res.send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Abyssus — Mis servidores</title>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-      :root{--accent:#5865F2;--accent2:#764ba2}
-      body{font-family:Inter,system-ui,Arial;background:#0a0d12;color:#eaf2ff;margin:0;padding:28px}
-      .wrap{max-width:1100px;margin:0 auto}
-      header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-      h1{margin:0}
-      .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-      .card-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03)}
-      .gicon{width:56px;height:56px;border-radius:10px;object-fit:cover}
-      .meta{flex:1}
-      .name{font-weight:600}
-      .sub{opacity:.85;font-size:.92rem;margin-top:6px}
-      .btn{background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;padding:8px 12px;border-radius:8px;text-decoration:none;font-weight:700}
-      .empty{padding:18px;border-radius:10px;background:#071022;text-align:center}
-    </style></head><body>
-    <div class="wrap">
-      <header><div><h2>Dashboard Abyssus</h2><div style="opacity:.8">Accede al panel para moderación, comandos y logs</div></div><div><a class="btn" href="/login">Cambiar cuenta</a></div></header>
-      <section class="grid">${guildsHtml}</section>
-      <p style="opacity:.8;margin-top:14px">Si no ves un servidor, verifica que Abyssus esté invitado y que tu cuenta sea owner o administrator del servidor.</p>
-    </div></body></html>`);
+    return res.send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Abyssus — Mis servidores</title></head><body style="background:#0a0d12;color:#eaf2ff;font-family:Inter,Arial;padding:28px">
+      <div style="max-width:1100px;margin:0 auto">
+        <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+          <div><h2>Dashboard Abyssus</h2><div style="opacity:.8">Accede al panel para moderación, comandos y logs</div></div>
+          <div><a href="/login" style="background:#5865F2;color:#fff;padding:8px 12px;border-radius:8px;text-decoration:none">Cambiar cuenta</a></div>
+        </header>
+        <section>${guildsHtml}</section>
+        <p style="opacity:.8;margin-top:14px">Si no ves un servidor, verifica que Abyssus esté invitado con permisos y que tu cuenta sea owner o admin.</p>
+      </div>
+    </body></html>`);
   } catch (err) {
     console.error('mis-guilds err:', err.response?.data || err.message);
     return res.status(500).send(`<h2>Error obteniendo servidores</h2><pre>${safeJson(err.response?.data || err.message)}</pre>`);
@@ -270,7 +227,75 @@ function requireSession(req, res, next) {
   next();
 }
 
-// ----------------- /panel/:guildId (OWNER / ADMIN / MODERATOR) -----------------
+// ----------------- Perms helpers -----------------
+/**
+ * hasPermission(userId, guildId, perm)
+ * perm: 'admin' | 'moderator'
+ */
+async function hasPermission(userId, guildId, perm) {
+  // Owner check
+  try {
+    const ses = usuariosAutenticados.get(userId);
+    if (ses) {
+      // get user's guilds and check owner/admin bit
+      const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${ses.accessToken}` }});
+      const guilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
+      const found = guilds.find(g => g.id === guildId);
+      if (found) {
+        if (found.owner === true) return true;
+        // permissions bit: ADMINISTRATOR = 0x8
+        const permsBig = BigInt(found.permissions || '0');
+        if ((permsBig & BigInt(0x8)) !== BigInt(0)) {
+          if (perm === 'admin' || perm === 'moderator') return true;
+        }
+      }
+    }
+  } catch (e) {
+    console.error('hasPermission - error checking guilds perms:', e.response?.data || e.message);
+    // continue to internal perms fallback
+  }
+
+  // Internal perms.json check
+  try {
+    const perms = loadPerms();
+    const guildPerm = perms[guildId] || {};
+    if (perm === 'moderator') {
+      const mods = Array.isArray(guildPerm.moderators) ? guildPerm.moderators : [];
+      if (mods.includes(userId)) return true;
+    }
+    if (perm === 'admin') {
+      const admins = Array.isArray(guildPerm.admins) ? guildPerm.admins : [];
+      if (admins.includes(userId)) return true;
+    }
+  } catch (e) {
+    console.error('hasPermission - perms.json error', e);
+  }
+
+  return false;
+}
+
+// ----------------- helper verifyOwner (accepts accessToken or userId) -----------------
+async function verifyOwner(tokenOrUserId, guildId) {
+  try {
+    // if tokenOrUserId looks like an access token (contains '.' typical of JWT-like tokens) - but safer: if usuariosAutenticados has it, then it's a userId
+    if (usuariosAutenticados.has(tokenOrUserId)) {
+      const ses = usuariosAutenticados.get(tokenOrUserId);
+      const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${ses.accessToken}` }});
+      const guilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
+      return guilds.some(g => g.id === guildId && g.owner === true);
+    } else {
+      // treat tokenOrUserId as access token
+      const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${tokenOrUserId}` }});
+      const guilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
+      return guilds.some(g => g.id === guildId && g.owner === true);
+    }
+  } catch (e) {
+    console.error('verifyOwner error', e.response?.data || e.message);
+    return false;
+  }
+}
+
+// ----------------- /panel/:guildId (owner OR admin/moderator depending on action) -----------------
 app.get('/panel/:guildId', requireSession, async (req, res) => {
   const guildId = req.params.guildId;
   const userId = req.sessionUserId;
@@ -279,16 +304,17 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
   if (!BOT_TOKEN) return res.status(500).send('Falta BOT_TOKEN en .env');
 
   try {
-    // determine permission level for the user on this guild
-    const guilds = await getUserGuilds(ses.accessToken);
-    const guildEntry = guilds.find(g => g.id === guildId);
-    const isOwner = guildEntry?.owner === true;
-    const isAdmin = (parseInt(guildEntry?.permissions || '0', 10) & PERM_ADMIN) !== 0;
-    const isModerator = (parseInt(guildEntry?.permissions || '0', 10) & (PERM_KICK | PERM_BAN | PERM_MANAGE_MESSAGES)) !== 0 || isAdmin || isOwner;
+    // verify visibility: owner OR admin
+    const guildsRes = await axios.get('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${ses.accessToken}` }});
+    const guilds = Array.isArray(guildsRes.data) ? guildsRes.data : [];
+    const found = guilds.find(g => g.id === guildId);
+    const isOwner = !!(found && found.owner === true);
+    const isAdminBit = !!(found && (BigInt(found.permissions || '0') & BigInt(0x8)) !== BigInt(0));
+    if (!isOwner && !isAdminBit && !(await hasPermission(userId, guildId, 'moderator'))) {
+      return res.status(403).send('No tienes permiso para abrir este panel.');
+    }
 
-    if (!isOwner && !isAdmin && !isModerator) return res.status(403).send('No tienes permisos en este servidor.');
-
-    // fetch guild info using bot token
+    // get guild info, roles, channels, members (limit 100)
     const [guildInfoRes, rolesRes, channelsRes, membersRes] = await Promise.all([
       axios.get(`https://discord.com/api/v10/guilds/${guildId}?with_counts=true`, { headers: { Authorization: `Bot ${BOT_TOKEN}` } }),
       axios.get(`https://discord.com/api/v10/guilds/${guildId}/roles`, { headers: { Authorization: `Bot ${BOT_TOKEN}` } }),
@@ -312,7 +338,15 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
       const tag = m.user ? `${escapeHtml(m.user.username)}#${escapeHtml(m.user.discriminator)}` : escapeHtml(m.nick || 'Unknown');
       const avatar = m.user?.avatar ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(parseInt(m.user?.discriminator||'0')%5)}.png`;
       const rolesForUser = Array.isArray(m.roles) ? m.roles.map(rid=>escapeHtml(rid)).join(', ') : '';
-      return `<li class="member"><img src="${avatar}" class="mav"/><div class="md"><div class="mn"><strong>${tag}</strong> <small style="opacity:.75">(${m.user?.id||'N/A'})</small></div><div class="mr" style="opacity:.8">Roles: ${rolesForUser||'—'}</div></div><div class="ma"><button onclick="moderate('${guildId}','${m.user?.id}','kick')" class="danger">🚫 Kick</button><button onclick="moderate('${guildId}','${m.user?.id}','ban')" class="danger">🔨 Ban</button><button onclick="moderateTimeout('${guildId}','${m.user?.id}')" class="warn">🔇 Timeout</button></div></li>`;
+      return `<li style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;margin-bottom:8px;background:rgba(0,0,0,0.25)">
+        <img src="${avatar}" style="width:44px;height:44px;border-radius:8px;object-fit:cover"/>
+        <div style="flex:1"><strong>${tag}</strong> <small style="opacity:.7">(${m.user?.id||'N/A'})</small><div style="opacity:.8">Roles: ${rolesForUser||'—'}</div></div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button onclick="moderate('${guildId}','${m.user?.id}','kick')" style="padding:6px;border-radius:8px;border:0;background:#ff7b7b">🚫 Kick</button>
+          <button onclick="moderate('${guildId}','${m.user?.id}','ban')" style="padding:6px;border-radius:8px;border:0;background:#ff7b7b">🔨 Ban</button>
+          <button onclick="moderateTimeout('${guildId}','${m.user?.id}')" style="padding:6px;border-radius:8px;border:0;background:#ffd88c">🔇 Timeout</button>
+        </div>
+      </li>`;
     }).join('');
 
     // read recent logs for this guild
@@ -323,108 +357,38 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
       logsForGuild = lines.reverse().slice(0,150).join('\n') || 'No hay acciones registradas para este servidor.';
     } catch(e){ logsForGuild = 'Error leyendo logs'; }
 
-    // control what actions UI shows depending on role:
-    const canManageRolesChannels = isOwner || isAdmin;
-    const canModerate = isOwner || isAdmin || isModerator;
-    const canSendMessagesAsBot = isOwner || isAdmin || isModerator;
+    // Simple HTML panel (kept concise)
+    return res.send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Abyssus — Panel ${escapeHtml(guild.name)}</title></head><body style="background:#090b0f;color:#eaf2ff;font-family:Inter,Arial;padding:18px">
+    <div style="max-width:1100px;margin:0 auto">
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+        <img src="${iconUrl}" style="width:96px;height:96px;border-radius:12px;object-fit:cover"/>
+        <div><h1 style="margin:0">${escapeHtml(guild.name)}</h1><div style="opacity:.85">ID: ${guild.id}</div><div style="display:flex;gap:8px;margin-top:8px"><div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:8px">👥 ${guild.approximate_member_count||'N/A'}</div><div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:8px">💬 ${channels.length}</div><div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:8px">🧾 ${roles.length}</div></div></div>
+      </div>
 
-    return res.send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Abyssus — Panel ${escapeHtml(guild.name)}</title>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-      :root{--accent:#5865F2;--accent2:#764ba2}
-      body{font-family:Inter,system-ui,Arial;margin:0;background:#090b0f;color:#eaf2ff;padding:18px}
-      .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
-      .top{display:flex;gap:12px;align-items:center}
-      .icon{width:96px;height:96px;border-radius:12px;object-fit:cover}
-      h1{margin:0}
-      .stats{display:flex;gap:8px;margin-top:8px}
-      .stat{background:rgba(255,255,255,0.02);padding:8px 10px;border-radius:8px;font-weight:600}
-      .main{display:flex;gap:12px;flex-wrap:wrap}
-      .panel{flex:1 1 420px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);max-height:720px;overflow:auto}
-      ul{list-style:none;padding:0;margin:0}
-      .member{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;margin-bottom:8px;background:rgba(0,0,0,0.25)}
-      .mav{width:44px;height:44px;border-radius:8px;object-fit:cover}
-      .md{flex:1}
-      .ma{display:flex;flex-direction:column;gap:6px}
-      button{border:0;padding:6px 8px;border-radius:8px;cursor:pointer}
-      .danger{background:#ff7b7b;color:#2b0505}
-      .warn{background:#ffd88c;color:#2b1500}
-      .primary{background:linear-gradient(90deg,var(--accent),var(--accent2));color:white}
-      input,select,textarea{width:100%;padding:8px;border-radius:8px;border:0;outline:none;background:#0f1216;color:#eaf2ff;margin-bottom:8px}
-      .form-row{margin-bottom:10px}
-      .footer{display:flex;justify-content:space-between;align-items:center;padding:10px}
-      pre.logbox{background:#071018;padding:12px;border-radius:8px;color:#bfe0ff;max-height:220px;overflow:auto}
-      a.back{color:inherit;text-decoration:none;opacity:.9}
-      @media(max-width:900px){ .main{flex-direction:column} }
-      .muted { opacity: .5; pointer-events: none; }
-    </style></head><body>
-    <div class="wrap">
-      <div class="top"><img class="icon" src="${iconUrl}" alt="icon"/><div><h1>${escapeHtml(guild.name)}</h1><div style="opacity:.85">ID: ${guild.id}</div><div class="stats"><div class="stat">👥 ${guild.approximate_member_count||'N/A'}</div><div class="stat">💬 ${channels.length}</div><div class="stat">🧾 ${roles.length}</div></div></div></div>
-
-      <div class="main">
-        <div class="panel">
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div style="flex:1 1 420px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);max-height:520px;overflow:auto">
           <h2>Miembros (hasta 100)</h2>
-          <ul id="members">${membersHtml}</ul>
+          <ul style="list-style:none;padding:0;margin:0">${membersHtml}</ul>
         </div>
 
-        <div class="panel ${canSendMessagesAsBot ? '' : 'muted'}">
+        <div style="flex:1 1 420px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);max-height:520px;overflow:auto">
           <h2>Enviar mensaje como Abyssus</h2>
-          <div class="form-row"><label>Canal</label><select id="channelSelect">${channelOptions}</select></div>
-          <div class="form-row"><label>Mensaje</label><textarea id="messageContent" rows="4"></textarea></div>
-          <div style="display:flex;gap:8px"><button class="primary" onclick="sendMessage()">Enviar</button><button onclick="document.getElementById('messageContent').value='/help'">Comando: /help</button></div>
-          <hr style="margin:12px 0;border-top:1px solid rgba(255,255,255,0.03)"/>
+          <div><label>Canal</label><select id="channelSelect">${channelOptions}</select></div>
+          <div><label>Mensaje</label><textarea id="messageContent" rows="4" style="width:100%"></textarea></div>
+          <div style="display:flex;gap:8px;margin-top:8px"><button onclick="sendMessage()" style="background:#5865F2;color:#fff;padding:8px;border-radius:8px;border:0">Enviar</button></div>
+          <hr/>
           <h3>Roles</h3><ul>${rolesListHtml}</ul>
           <h3>Canales</h3><ul>${channelsListHtml}</ul>
         </div>
       </div>
 
-      <div class="main">
-        <div class="panel ${canModerate ? '' : 'muted'}">
-          <h2>Moderación rápida</h2>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div>
-              <label>ID usuario</label><input id="modUserId" placeholder="ID del usuario"/>
-              <label>Motivo</label><input id="modReason" placeholder="Motivo (opcional)"/>
-            </div>
-            <div>
-              <label>Días de mensajes a eliminar (ban)</label><input id="modDays" type="number" min="0" max="7" value="0"/>
-              <label>Timeout min</label><input id="modTimeout" type="number" min="1" max="1440" value="10"/>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="danger" onclick="kickFromInputs()">🚫 Kick</button>
-            <button class="danger" onclick="banFromInputs()">🔨 Ban</button>
-            <button class="warn" onclick="timeoutFromInputs()">🔇 Timeout</button>
-          </div>
-        </div>
-
-        <div class="panel ${canManageRolesChannels ? '' : 'muted'}">
-          <h2>Gestionar Roles / Canales</h2>
-          <label>Crear rol — nombre</label><input id="newRoleName" placeholder="Nombre del rol"/>
-          <div style="display:flex;gap:8px;margin-top:6px">
-            <button onclick="createRole()" class="primary">Crear rol</button>
-          </div>
-          <hr style="margin:10px 0;border-top:1px solid rgba(255,255,255,0.03)"/>
-          <label>Eliminar rol</label><select id="deleteRoleSelect">${roleOptions}</select>
-          <div style="display:flex;gap:8px;margin-top:6px"><button class="danger" onclick="deleteRole()">Eliminar rol</button></div>
-          <hr style="margin:10px 0;border-top:1px solid rgba(255,255,255,0.03)"/>
-          <label>Crear canal (texto)</label><input id="newChannelName" placeholder="nombre-del-canal"/>
-          <div style="display:flex;gap:8px;margin-top:6px"><button class="primary" onclick="createChannel()">Crear canal</button></div>
-          <label style="margin-top:10px">Eliminar canal</label><select id="deleteChannelSelect">${channels.filter(c=>c.type!==4).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}</select>
-          <div style="display:flex;gap:8px;margin-top:6px"><button class="danger" onclick="deleteChannel()">Eliminar canal</button></div>
-        </div>
-      </div>
-
-      <div class="panel">
+      <div style="margin-top:12px;background:#071018;padding:12px;border-radius:8px">
         <h2>Logs del servidor</h2>
-        <pre class="logbox" id="logsBox">${escapeHtml(logsForGuild)}</pre>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button onclick="refreshLogs()">Actualizar logs</button>
-          <button class="danger" onclick="clearLogs()">Borrar logs de este servidor</button>
-        </div>
+        <pre style="max-height:220px;overflow:auto;color:#bfe0ff;padding:8px;border-radius:6px;background:#071018" id="logsBox">${escapeHtml(logsForGuild)}</pre>
+        <div style="display:flex;gap:8px;margin-top:8px"><button onclick="refreshLogs()">Actualizar logs</button><button onclick="clearLogs()" style="background:#ff7b7b">Borrar logs</button></div>
       </div>
 
-      <div class="footer"><a class="back" href="/mis-guilds/${userId}">← Volver</a><div><a class="primary" href="https://discord.com/channels/${guild.id}" target="_blank">Abrir en Discord</a></div></div>
+      <div style="margin-top:12px"><a href="/mis-guilds/${userId}" style="color:inherit;text-decoration:none;opacity:.9">← Volver</a></div>
     </div>
 
     <script>
@@ -448,9 +412,9 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
         } catch(e){ alert('Error: '+e.message); }
       }
 
-      function kickFromInputs(){ const id=document.getElementById('modUserId').value.trim(); if(!id) return alert('ID requerido'); if(!confirm('Kick '+id+'?')) return; postApi('/api/guilds/'+guildId+'/kick',{ targetId:id }).then(a=>{alert(a);location.reload()}).catch(e=>alert('Error:'+e.message)); }
-      function banFromInputs(){ const id=document.getElementById('modUserId').value.trim(); const reason=document.getElementById('modReason').value||'Banned via panel'; const days=parseInt(document.getElementById('modDays').value||'0',10); if(!id) return alert('ID requerido'); if(!confirm('Ban '+id+'?')) return; postApi('/api/guilds/'+guildId+'/ban',{ targetId:id, reason, deleteMessageDays:days }).then(a=>{alert(a);location.reload()}).catch(e=>alert('Error:'+e.message)); }
-      function timeoutFromInputs(){ const id=document.getElementById('modUserId').value.trim(); const mins=parseInt(document.getElementById('modTimeout').value||'10',10); if(!id) return alert('ID requerido'); if(!confirm('Timeout '+id+' por '+mins+' min?')) return; postApi('/api/guilds/'+guildId+'/timeout',{ targetId:id, minutes:mins }).then(a=>{alert(a);location.reload()}).catch(e=>alert('Error:'+e.message)); }
+      function kickFromInputs(){ const id=document.getElementById('modUserId')?.value?.trim(); if(!id) return alert('ID requerido'); if(!confirm('Kick '+id+'?')) return; postApi('/api/guilds/'+guildId+'/kick',{ targetId:id }).then(a=>{alert(a);location.reload()}).catch(e=>alert('Error:'+e.message)); }
+      function banFromInputs(){ const id=document.getElementById('modUserId')?.value?.trim(); const reason=document.getElementById('modReason')?.value||'Banned via panel'; const days=parseInt(document.getElementById('modDays')?.value||'0',10); if(!id) return alert('ID requerido'); if(!confirm('Ban '+id+'?')) return; postApi('/api/guilds/'+guildId+'/ban',{ targetId:id, reason, deleteMessageDays:days }).then(a=>{alert(a);location.reload()}).catch(e=>alert('Error:'+e.message)); }
+      function timeoutFromInputs(){ const id=document.getElementById('modUserId')?.value?.trim(); const mins=parseInt(document.getElementById('modTimeout')?.value||'10',10); if(!id) return alert('ID requerido'); if(!confirm('Timeout '+id+' por '+mins+' min?')) return; postApi('/api/guilds/'+guildId+'/timeout',{ targetId:id, minutes:mins }).then(a=>{alert(a);location.reload()}).catch(e=>alert('Error:'+e.message)); }
 
       async function sendMessage(){
         const channelId = document.getElementById('channelSelect').value;
@@ -461,29 +425,6 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
           alert('Mensaje enviado');
           document.getElementById('messageContent').value='';
         } catch(e){ alert('Error: '+e.message); }
-      }
-
-      async function createRole(){
-        const name = document.getElementById('newRoleName').value.trim();
-        if(!name) return alert('Nombre requerido');
-        if(!confirm('Crear rol '+name+'?')) return;
-        try{ const r = await postApi('/api/guilds/'+guildId+'/create-role',{ name }); alert(r); location.reload(); } catch(e){ alert('Error:'+e.message); }
-      }
-      async function deleteRole(){
-        const roleId = document.getElementById('deleteRoleSelect').value;
-        if(!roleId) return alert('Selecciona rol'); if(!confirm('Eliminar rol '+roleId+'?')) return;
-        try{ const r = await postApi('/api/guilds/'+guildId+'/delete-role',{ roleId }); alert(r); location.reload(); } catch(e){ alert('Error:'+e.message); }
-      }
-      async function createChannel(){
-        const name = document.getElementById('newChannelName').value.trim();
-        if(!name) return alert('Nombre requerido');
-        if(!confirm('Crear canal '+name+'?')) return;
-        try{ const r = await postApi('/api/guilds/'+guildId+'/create-channel',{ name }); alert(r); location.reload(); } catch(e){ alert('Error:'+e.message); }
-      }
-      async function deleteChannel(){
-        const channelId = document.getElementById('deleteChannelSelect').value;
-        if(!channelId) return alert('Selecciona canal'); if(!confirm('Eliminar canal '+channelId+'?')) return;
-        try{ const r = await postApi('/api/guilds/'+guildId+'/delete-channel',{ channelId }); alert(r); location.reload(); } catch(e){ alert('Error:'+e.message); }
       }
 
       async function refreshLogs(){
@@ -503,6 +444,7 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
         } catch(e){ alert('Error al borrar logs'); }
       }
     </script>
+
     </body></html>`);
   } catch (err) {
     console.error('panel err:', err.response?.data || err.message);
@@ -510,20 +452,19 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
   }
 });
 
-// ----------------- API endpoints -----------------
-// NOTE: All endpoints use requireSession and then check permissions via hasPermission or verifyOwnerByAccessToken as appropriate
+// ----------------- API endpoints for moderation & management -----------------
 
 // Kick
 app.post('/api/guilds/:guildId/kick', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { targetId } = req.body;
   const ses = req.session;
-  const userId = req.sessionUserId;
   if (!targetId) return res.status(400).send('Falta targetId');
   try {
-    const isOwner = await verifyOwnerByAccessToken(ses.accessToken, guildId);
-    const allowed = isOwner || await hasPermission(userId, guildId, 'moderator');
-    if (!allowed) return res.status(403).send('No autorizado (perm panel insuficiente).');
+    // require either actual owner OR internal level >= moderator
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    const isModerator = await hasPermission(req.sessionUserId, guildId, 'moderator');
+    if (!isOwner && !isModerator) return res.status(403).send('No autorizado (perm panel insuficiente).');
 
     await discordRequest('delete', `/guilds/${guildId}/members/${targetId}`);
     logAction('KICK', { guildId, targetId, by: ses.username });
@@ -539,13 +480,11 @@ app.post('/api/guilds/:guildId/ban', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { targetId, reason = 'Banned via panel', deleteMessageDays = 0 } = req.body;
   const ses = req.session;
-  const userId = req.sessionUserId;
   if (!targetId) return res.status(400).send('Falta targetId');
   try {
-    const isOwner = await verifyOwnerByAccessToken(ses.accessToken, guildId);
-    // allow moderator ban? here we require moderator bit OR owner OR admin
-    const allowed = isOwner || await hasPermission(userId, guildId, 'moderator');
-    if (!allowed) return res.status(403).send('No autorizado (perm panel insuficiente).');
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    const isModerator = await hasPermission(req.sessionUserId, guildId, 'moderator');
+    if (!isOwner && !isModerator) return res.status(403).send('No autorizado (perm panel insuficiente).');
 
     await discordRequest('put', `/guilds/${guildId}/bans/${targetId}`, { delete_message_seconds: (deleteMessageDays||0)*24*3600, reason });
     logAction('BAN', { guildId, targetId, by: ses.username, reason, deleteMessageDays });
@@ -556,17 +495,17 @@ app.post('/api/guilds/:guildId/ban', requireSession, async (req, res) => {
   }
 });
 
-// Timeout (communication_disabled_until)
+// Timeout
 app.post('/api/guilds/:guildId/timeout', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { targetId, minutes = 10 } = req.body;
   const ses = req.session;
-  const userId = req.sessionUserId;
   if (!targetId) return res.status(400).send('Falta targetId');
   try {
-    const isOwner = await verifyOwnerByAccessToken(ses.accessToken, guildId);
-    const allowed = isOwner || await hasPermission(userId, guildId, 'moderator');
-    if (!allowed) return res.status(403).send('No autorizado');
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    const isModerator = await hasPermission(req.sessionUserId, guildId, 'moderator');
+    if (!isOwner && !isModerator) return res.status(403).send('No autorizado');
+
     const until = new Date(Date.now() + (minutes||10) * 60 * 1000).toISOString();
     await discordRequest('patch', `/guilds/${guildId}/members/${targetId}`, { communication_disabled_until: until });
     logAction('TIMEOUT', { guildId, targetId, by: ses.username, minutes });
@@ -577,17 +516,16 @@ app.post('/api/guilds/:guildId/timeout', requireSession, async (req, res) => {
   }
 });
 
-// Send message as bot to a channel
+// Send message (owner or moderator)
 app.post('/api/guilds/:guildId/message', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { channelId, content } = req.body;
   const ses = req.session;
-  const userId = req.sessionUserId;
   if (!channelId || !content) return res.status(400).send('Falta channelId o content');
   try {
-    const isOwner = await verifyOwnerByAccessToken(ses.accessToken, guildId);
-    const allowed = isOwner || await hasPermission(userId, guildId, 'moderator');
-    if (!allowed) return res.status(403).send('No autorizado (perm panel insuficiente).');
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    const isModerator = await hasPermission(req.sessionUserId, guildId, 'moderator');
+    if (!isOwner && !isModerator) return res.status(403).send('No autorizado (perm panel insuficiente).');
 
     const resp = await discordRequest('post', `/channels/${channelId}/messages`, { content });
     logAction('MESSAGE', { guildId, channelId, by: ses.username, content: content.slice(0,4000) });
@@ -598,85 +536,64 @@ app.post('/api/guilds/:guildId/message', requireSession, async (req, res) => {
   }
 });
 
-// Create role (owner OR admin)
+// Create role (owner or admin only)
 app.post('/api/guilds/:guildId/create-role', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { name, color, permissions } = req.body;
   const ses = req.session;
-  const userId = req.sessionUserId;
   const BOT_TOKEN = process.env.BOT_TOKEN;
-
-  if (!name) return res.status(400).json({ error: "Falta name" });
+  if (!name) return res.status(400).send('Falta name');
 
   try {
-    const isOwner = await verifyOwnerByAccessToken(ses.accessToken, guildId);
-    const isAdmin = await hasPermission(userId, guildId, 'admin');
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    const isAdmin = await hasPermission(req.sessionUserId, guildId, 'admin');
+    if (!isOwner && !isAdmin) return res.status(403).send('No autorizado');
 
-    if (!isOwner && !isAdmin) return res.status(403).json({ error: "No autorizado (solo owner/admin)." });
-
-    const newRole = await axios.post(
+    const resp = await axios.post(
       `https://discord.com/api/v10/guilds/${guildId}/roles`,
-      {
-        name: name || "Nuevo Rol",
-        color: color || null,
-        permissions: permissions || "0",
-      },
-      {
-        headers: {
-          Authorization: `Bot ${BOT_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
+      { name, color: color || null, permissions: permissions || '0' },
+      { headers: { Authorization: `Bot ${BOT_TOKEN}`, 'Content-Type': 'application/json' } }
     );
-
     logAction('CREATE_ROLE', { guildId, name, by: ses.username });
-    return res.status(200).json({ success: true, role: newRole.data });
-  } catch (error) {
-    console.error("Error al crear rol:", error.response?.data || error.message);
-    return res.status(500).json({ error: "Error al crear el rol." });
+    return res.status(200).send('✅ Rol creado');
+  } catch (e) {
+    console.error('create role err:', e.response?.data || e.message);
+    return res.status(500).send(safeJson(e.response?.data || e.message));
   }
 });
 
-// Delete role (owner OR admin)
+// Delete role (owner or admin only)
 app.post('/api/guilds/:guildId/delete-role', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { roleId } = req.body;
   const ses = req.session;
-  const userId = req.sessionUserId;
   const BOT_TOKEN = process.env.BOT_TOKEN;
-
-  if (!roleId) return res.status(400).json({ error: "Falta roleId" });
+  if (!roleId) return res.status(400).send('Falta roleId');
 
   try {
-    const isOwner = await verifyOwnerByAccessToken(ses.accessToken, guildId);
-    const isAdmin = await hasPermission(userId, guildId, 'admin');
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    const isAdmin = await hasPermission(req.sessionUserId, guildId, 'admin');
+    if (!isOwner && !isAdmin) return res.status(403).send('No autorizado');
 
-    if (!isOwner && !isAdmin) return res.status(403).json({ error: "No autorizado (solo owner/admin)." });
-
-    await axios.delete(`https://discord.com/api/v10/guilds/${guildId}/roles/${roleId}`, {
-      headers: { Authorization: `Bot ${BOT_TOKEN}` },
-    });
-
+    await axios.delete(`https://discord.com/api/v10/guilds/${guildId}/roles/${roleId}`, { headers: { Authorization: `Bot ${BOT_TOKEN}` }});
     logAction('DELETE_ROLE', { guildId, roleId, by: ses.username });
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    console.error("Error al eliminar rol:", error.response?.data || error.message);
-    return res.status(500).json({ error: "Error al eliminar el rol." });
+    return res.status(200).send('✅ Rol eliminado');
+  } catch (e) {
+    console.error('delete role err:', e.response?.data || e.message);
+    return res.status(500).send(safeJson(e.response?.data || e.message));
   }
 });
 
-// Create channel (owner OR admin)
+// Create channel (owner or admin only)
 app.post('/api/guilds/:guildId/create-channel', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { name } = req.body;
   const ses = req.session;
-  const userId = req.sessionUserId;
-  const BOT_TOKEN = process.env.BOT_TOKEN;
   if (!name) return res.status(400).send('Falta name');
   try {
-    const isOwner = await verifyOwnerByAccessToken(ses.accessToken, guildId);
-    const isAdmin = await hasPermission(userId, guildId, 'admin');
-    if (!isOwner && !isAdmin) return res.status(403).send('No autorizado (solo owner/admin).');
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    const isAdmin = await hasPermission(req.sessionUserId, guildId, 'admin');
+    if (!isOwner && !isAdmin) return res.status(403).send('No autorizado (perm panel insuficiente).');
 
     const resp = await discordRequest('post', `/guilds/${guildId}/channels`, { name, type: 0 });
     logAction('CREATE_CHANNEL', { guildId, name, by: ses.username });
@@ -687,17 +604,16 @@ app.post('/api/guilds/:guildId/create-channel', requireSession, async (req, res)
   }
 });
 
-// Delete channel (owner OR admin)
+// Delete channel (owner or admin only)
 app.post('/api/guilds/:guildId/delete-channel', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { channelId } = req.body;
   const ses = req.session;
-  const userId = req.sessionUserId;
   if (!channelId) return res.status(400).send('Falta channelId');
   try {
-    const isOwner = await verifyOwnerByAccessToken(ses.accessToken, guildId);
-    const isAdmin = await hasPermission(userId, guildId, 'admin');
-    if (!isOwner && !isAdmin) return res.status(403).send('No autorizado (solo owner/admin).');
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    const isAdmin = await hasPermission(req.sessionUserId, guildId, 'admin');
+    if (!isOwner && !isAdmin) return res.status(403).send('No autorizado (perm panel insuficiente).');
 
     await discordRequest('delete', `/channels/${channelId}`);
     logAction('DELETE_CHANNEL', { guildId, channelId, by: ses.username });
@@ -708,15 +624,54 @@ app.post('/api/guilds/:guildId/delete-channel', requireSession, async (req, res)
   }
 });
 
+// ----------------- Perms management endpoints (owner only) -----------------
+// Add moderator (owner or admin can add)
+app.post('/api/guilds/:guildId/add-moderator', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { targetUserId } = req.body;
+  const userId = req.sessionUserId;
+  if (!targetUserId) return res.status(400).send('Falta targetUserId');
+
+  const isOwner = await verifyOwner(userId, guildId);
+  const isAdmin = await hasPermission(userId, guildId, 'admin');
+  if (!isOwner && !isAdmin) return res.status(403).send('No autorizado');
+
+  const perms = loadPerms();
+  perms[guildId] = perms[guildId] || {};
+  perms[guildId].moderators = Array.from(new Set([...(perms[guildId].moderators||[]), targetUserId]));
+  savePerms(perms);
+  logAction('ADD_MODERATOR', { guildId, targetUserId, by: userId });
+  return res.status(200).send('✅ Moderador agregado');
+});
+
+// Remove moderator
+app.post('/api/guilds/:guildId/remove-moderator', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { targetUserId } = req.body;
+  const userId = req.sessionUserId;
+  if (!targetUserId) return res.status(400).send('Falta targetUserId');
+
+  const isOwner = await verifyOwner(userId, guildId);
+  const isAdmin = await hasPermission(userId, guildId, 'admin');
+  if (!isOwner && !isAdmin) return res.status(403).send('No autorizado');
+
+  const perms = loadPerms();
+  perms[guildId] = perms[guildId] || {};
+  perms[guildId].moderators = (perms[guildId].moderators || []).filter(x => x !== targetUserId);
+  savePerms(perms);
+  logAction('REMOVE_MODERATOR', { guildId, targetUserId, by: userId });
+  return res.status(200).send('✅ Moderador removido');
+});
+
 // ----------------- Logs endpoints -----------------
 // GET logs for guild (returns only lines that contain guildId)
 app.get('/logs/:guildId', requireSession, async (req, res) => {
   const guildId = req.params.guildId;
   const ses = req.session;
   try {
-    const isOwner = await verifyOwnerByAccessToken(ses.accessToken, guildId);
-    const allowed = isOwner || await hasPermission(req.sessionUserId, guildId, 'moderator');
-    if (!allowed) return res.status(403).send('No autorizado');
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    const isModerator = await hasPermission(req.sessionUserId, guildId, 'moderator');
+    if (!isOwner && !isModerator) return res.status(403).send('No autorizado');
     const file = path.join(__dirname, 'acciones.log');
     if (!fs.existsSync(file)) return res.send('No hay logs.');
     const raw = fs.readFileSync(file, 'utf8');
@@ -728,13 +683,13 @@ app.get('/logs/:guildId', requireSession, async (req, res) => {
   }
 });
 
-// Clear logs for guild (delete lines containing guildId)
+// Clear logs for guild (delete lines containing guildId) - owner only
 app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
   const guildId = req.params.guildId;
   const ses = req.session;
   try {
-    const isOwner = await verifyOwnerByAccessToken(ses.accessToken, guildId);
-    if (!isOwner) return res.status(403).send('No autorizado (solo owner).');
+    const isOwner = await verifyOwner(ses.accessToken, guildId);
+    if (!isOwner) return res.status(403).send('No autorizado');
     const file = path.join(__dirname, 'acciones.log');
     if (!fs.existsSync(file)) return res.send('No hay logs.');
     const raw = fs.readFileSync(file, 'utf8');
