@@ -336,8 +336,8 @@ app.get('/mis-guilds/:userId', async (req, res) => {
       <section class="grid">${guildsHtml}</section>
      <p style="opacity: 0.85; margin-top: 14px;">
 
-<div style="background: #f9f9f9; border-left: 4px solid #f38020; padding: 12px 16px; margin-top: 14px; font-size: 14px; line-height: 1.6; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-  <strong style="color: #333;">Versión Beta & Seguridad activa</strong><br>
+<div style="background: linear-gradient(to right, #fdfdfd, #f7f7f7); border-left: 4px solid #f38020; padding: 16px 20px; margin-top: 16px; font-size: 15px; line-height: 1.6; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); color: #333;">
+  <strong style="font-size: 15.5px;">🔒 Versión Beta & Seguridad activa</strong><br>
   Este sistema está protegido por <span style="color: #f38020; font-weight: bold;">Cloudflare</span>. Todas las conexiones están cifradas y el entorno cuenta con defensa contra bots, reescritura automática HTTPS y mitigación de amenazas.<br><br>
   <span style="color: #555;">Si no ves el servidor en la lista, verifica que tengas los permisos adecuados.</span><br>
   ¿Problemas o errores? <a href="mailto:soporte@abyssusbot.info" style="color: #4ea1f3; text-decoration: none;">Contáctanos en soporte@abyssusbot.info</a>
