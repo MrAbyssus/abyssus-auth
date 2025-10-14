@@ -334,7 +334,10 @@ app.get('/mis-guilds/:userId', async (req, res) => {
     <div class="wrap">
       <header><div><h2>Dashboard Abyssus</h2><div style="opacity:.8">Accede al panel para moderación, comandos y logs</div></div><div><a class="btn" href="/login">Cambiar cuenta</a></div></header>
       <section class="grid">${guildsHtml}</section>
-      <p style="opacity:.8;margin-top:14px">Verifica permisos, **Versión Beta, Si tienes algún problema contáctanos en soporte@abyssusbot.info**</p>
+     <p style="opacity: 0.85; margin-top: 14px;">
+  <strong>Versión Beta:</strong> Verifica que tengas los permisos adecuados si no vez el servidor en la lista.<br>
+  ¿Problemas o errores? Contactanos en <a href="mailto:soporte@abyssusbot.info">soporte@abyssusbot.info</a>
+</p>
     </div></body></html>`);
   } catch (err) {
     console.error('mis-guilds err:', err.response?.data || err.message);
@@ -911,7 +914,6 @@ app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
-
 
 
 
