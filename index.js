@@ -974,7 +974,6 @@ app.get('/api/bot-status', async (req, res) => {
 app.get('/api/bot-status', async (req, res) => {
   try {
     const start = Date.now();
-    // Intentamos contactar la API de Discord
     const discordResp = await axios.get('https://discord.com/api/v10/gateway');
     const latency = Date.now() - start;
     res.json({
