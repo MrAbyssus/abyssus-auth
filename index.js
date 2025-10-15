@@ -4,7 +4,6 @@
 // npm install express axios dotenv
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
