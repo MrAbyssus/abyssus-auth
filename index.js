@@ -549,6 +549,7 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
   <div id="bot-log" style="margin-top:6px; max-height:160px; overflow-y:auto; font-size:0.9em;">
     [${new Date().toLocaleTimeString()}] Panel cargado correctamente.
   </div>
+</div>
 
       <div class="footer"><a class="back" href="/mis-guilds/${userId}">← Volver</a><div><a class="primary" href="https://discord.com/channels/${guild.id}" target="_blank">Abrir en Discord</a><a class="invite-btn" href="https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&scope=bot%20applications.commands&permissions=8&guild_id=${guild.id}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}" target="_blank">Invitar Abyssus</a></div></div>
     </div>
@@ -643,28 +644,22 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
       }
 
 <script>
-// --- Indicador de estado del bot ---
 async function checkBotStatus() {
-  const el = document.querySelector('#bot-status strong');
-  if (!el) return;
   try {
     const res = await fetch('/');
     if (res.ok) {
-      el.textContent = '🟢 Abyssus está online';
-      el.style.color = '#5ff592';
+      document.querySelector('#bot-status strong').textContent = '🟢 Abyssus está online';
     } else {
-      el.textContent = '🔴 Abyssus parece offline';
-      el.style.color = '#ff7b7b';
+      document.querySelector('#bot-status strong').textContent = '🔴 Abyssus parece offline';
     }
   } catch {
-    el.textContent = '🔴 Abyssus no responde';
-    el.style.color = '#ff7b7b';
+    document.querySelector('#bot-status strong').textContent = '🔴 Abyssus no responde';
   }
 }
 setInterval(checkBotStatus, 10000);
 checkBotStatus();
 
-// Ejemplo de uso:
+// Ejemplo inicial
 logActionVisual('Sistema de logs activo');
 </script>
     </body></html>`);
@@ -950,7 +945,6 @@ app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
-
 
 
 
