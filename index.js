@@ -545,7 +545,8 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
       </div>
 
 <div id="bot-status" style="margin-top:14px; background:#0d0d0d; padding:10px; border-radius:8px; font-family:monospace; color:#9cf; border:1px solid #222;">
-  🟢 <strong>Abyssus</strong> está online
+  <strong>🟡 Cargando estado...</strong>
+  <div id="bot-info" style="margin-top:4px; color:#8a8a8a; font-size:0.9em;"></div>
   <div id="bot-log" style="margin-top:6px; max-height:160px; overflow-y:auto; font-size:0.9em;">
     [${new Date().toLocaleTimeString()}] Panel cargado correctamente.
   </div>
@@ -946,25 +947,33 @@ app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
 // ----------------- Bot status endpoint -----------------
 app.get('/api/bot-status', async (req, res) => {
   const BOT_TOKEN = process.env.BOT_TOKEN;
+  const PANEL_VERSION = process.env.PANEL_VERSION || 'v3.5';
   try {
     const r = await axios.get('https://discord.com/api/v10/users/@me', {
       headers: { Authorization: `Bot ${BOT_TOKEN}` }
     });
-    if (r.status === 200) {
-      return res.json({ online: true, user: r.data });
+
+    if (r.status === 200 && r.data) {
+      return res.json({
+        online: true,
+        username: r.data.username,
+        discriminator: r.data.discriminator,
+        id: r.data.id,
+        version: PANEL_VERSION
+      });
     } else {
-      return res.json({ online: false });
+      return res.json({ online: false, version: PANEL_VERSION });
     }
   } catch (err) {
     console.error('Error obteniendo estado del bot:', err.message);
-    return res.json({ online: false });
+    return res.json({ online: false, version: PANEL_VERSION });
   }
 });
-
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
