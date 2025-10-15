@@ -544,6 +544,14 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
         </div>
       </div>
 
+<div id="bot-status" style="margin-top:14px; background:#0d0d0d; padding:10px; border-radius:8px; font-family:monospace; color:#9cf; border:1px solid #222;">
+  🟢 <strong>Abyssus</strong> está online
+  <div id="bot-log" style="margin-top:6px; max-height:160px; overflow-y:auto; font-size:0.9em;">
+    [${new Date().toLocaleTimeString()}] Panel cargado correctamente.
+  </div>
+</div>
+
+
       <div class="footer"><a class="back" href="/mis-guilds/${userId}">← Volver</a><div><a class="primary" href="https://discord.com/channels/${guild.id}" target="_blank">Abrir en Discord</a><a class="invite-btn" href="https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&scope=bot%20applications.commands&permissions=8&guild_id=${guild.id}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}" target="_blank">Invitar Abyssus</a></div></div>
     </div>
 
@@ -635,6 +643,33 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
         fetch('/api/guilds/'+guildId+'/set-mod-roles', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId, roleIds: [] })})
           .then(r=>r.text()).then(t=>{ alert(t); location.reload(); }).catch(e=>alert('Error: '+e.message));
       }
+
+       // --- Indicador de estado del bot y log visual local ---
+      async function checkBotStatus() {
+        try {
+          const res = await fetch('/');
+          if (res.ok) {
+            document.querySelector("#bot-status strong").textContent = "🟢 Abyssus está online";
+          } else {
+            document.querySelector("#bot-status strong").textContent = "🔴 Abyssus parece offline";
+          }
+        } catch {
+          document.querySelector("#bot-status strong").textContent = "🔴 Abyssus no responde";
+        }
+      }
+      setInterval(checkBotStatus, 10000);
+      checkBotStatus();
+
+      function logActionVisual(message) {
+        const box = document.getElementById("bot-log");
+        if (!box) return;
+        const time = new Date().toLocaleTimeString();
+        box.innerHTML += "<br>[" + time + "] " + message;
+        box.scrollTop = box.scrollHeight;
+      }
+
+      logActionVisual("Sistema de logs activo");
+                 
     </script>
     </body></html>`);
   } catch (err) {
@@ -919,6 +954,7 @@ app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
