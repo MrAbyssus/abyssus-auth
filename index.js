@@ -897,38 +897,6 @@ app.get('/logs/:guildId', requireSession, async (req, res) => {
   }
 });
 
-// Configuración de niveles
-app.post('/api/guilds/:guildId/levels/config', requireSession, async (req, res) => {
-  const { guildId } = req.params;
-  const { enabled, channel, message, multiplier } = req.body;
-  const ses = req.session;
-  const userId = req.sessionUserId;
-
-  try {
-    const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
-    const isMod = await isConfiguredModerator(userId, guildId);
-    if (!isOwner && !isMod) return res.status(403).send('No autorizado');
-
-    const data = readLevelsFile();
-    if (!data[guildId]) data[guildId] = {};
-    if (!data[guildId].config) data[guildId].config = {};
-
-    data[guildId].config = {
-      enabled: enabled ?? true,
-      channel: channel || null,
-      message: message || "🎉 {usuario} alcanzó el nivel {nivel}!",
-      multiplier: multiplier || 1.0
-    };
-
-    writeLevelsFile(data);
-    logAction('CONFIG_LEVELS', { guildId, by: ses.username });
-    return res.send('✅ Configuración actualizada correctamente');
-  } catch (e) {
-    console.error('config levels err:', e);
-    return res.status(500).send('Error guardando configuración');
-  }
-});
-
 // Clear logs for guild (delete lines containing guildId) — owner only
 app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
   const guildId = req.params.guildId;
