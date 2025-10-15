@@ -544,11 +544,26 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
         </div>
       </div>
 
-<div id="bot-status" style="margin-top:14px; background:#0d0d0d; padding:10px; border-radius:8px; font-family:monospace; color:#9cf; border:1px solid #222;">
-  🟢 <strong>Abyssus</strong> está online
-  <div id="bot-log" style="margin-top:6px; max-height:160px; overflow-y:auto; font-size:0.9em;">
-    [${new Date().toLocaleTimeString()}] Panel cargado correctamente.
-  </div>
+async function checkBotStatus() {
+  const el = document.querySelector('#bot-status strong');
+  if (!el) return;
+  try {
+    const res = await fetch('/');
+    if (res.ok) {
+      el.textContent = '🟢 Abyssus está online';
+      el.style.color = '#5ff592';
+    } else {
+      el.textContent = '🔴 Abyssus parece offline';
+      el.style.color = '#ff7b7b';
+    }
+  } catch {
+    el.textContent = '🔴 Abyssus no responde';
+    el.style.color = '#ff7b7b';
+  }
+}
+setInterval(checkBotStatus, 10000);
+checkBotStatus();
+
 </div>
 
 
@@ -949,6 +964,7 @@ app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 
