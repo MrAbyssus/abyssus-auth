@@ -970,14 +970,27 @@ app.get('/api/bot-status', async (req, res) => {
   }
 });
 
+// --- CORS para permitir conexión desde el panel web ---
+const cors = require('cors');
+app.use(cors({
+  origin: '*', // Puedes poner "https://abyssusbot.info" para mayor seguridad
+  methods: ['GET', 'POST'],
+}));
+
 // ----------------- /api/bot-status -----------------
 app.get('/api/bot-status', async (req, res) => {
   try {
     const start = Date.now();
     const discordResp = await axios.get('https://discord.com/api/v10/gateway');
     const latency = Date.now() - start;
+
     res.json({
       ok: true,
+      online: true,
+      username: 'Abyssus ✔',
+      discriminator: '7376',
+      id: '680897280433324081',
+      version: 'v3.5',
       latency,
       discord_status: discordResp.status,
       timestamp: new Date().toISOString()
@@ -985,11 +998,17 @@ app.get('/api/bot-status', async (req, res) => {
   } catch (err) {
     res.json({
       ok: false,
+      online: false,
       error: err.message || 'Error de conexión',
       timestamp: new Date().toISOString()
     });
   }
 });
+
+// ----------------- Start server -----------------
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+
 
 
 // ----------------- Start server -----------------
