@@ -645,24 +645,40 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
       }
 
 <script>
-async function checkBotStatus() {
+async function checkDiscordLatency() {
   try {
     const res = await fetch('/api/bot-status');
     const data = await res.json();
-    if (data.online) {
-      document.querySelector('#bot-status strong').textContent = '🟢 Abyssus está online';
+    const statusEl = document.querySelector('#bot-status strong');
+    const logBox = document.getElementById('bot-log');
+    const time = new Date().toLocaleTimeString();
+
+    if (data.ok) {
+      const latency = data.latency;
+      let color = '🟢';
+      if (latency > 300) color = '🟡';
+      if (latency > 800) color = '🔴';
+      statusEl.textContent = `${color} Abyssus responde en ${latency} ms`;
+
+      // log visual
+      if (logBox) {
+        logBox.innerHTML += `<br>[${time}] Ping Discord: ${latency} ms`;
+        logBox.scrollTop = logBox.scrollHeight;
+      }
     } else {
-      document.querySelector('#bot-status strong').textContent = '🔴 Abyssus está offline';
+      statusEl.textContent = '🔴 Error al contactar Discord';
     }
   } catch {
-    document.querySelector('#bot-status strong').textContent = '🔴 Error al verificar estado';
+    const statusEl = document.querySelector('#bot-status strong');
+    statusEl.textContent = '🔴 Conexión fallida';
   }
 }
-setInterval(checkBotStatus, 10000);
-checkBotStatus();
 
-logActionVisual('Sistema de logs activo');
+// Revisar cada 15 segundos
+setInterval(checkDiscordLatency, 15000);
+checkDiscordLatency();
 </script>
+
 
     </body></html>`);
   } catch (err) {
@@ -967,6 +983,28 @@ app.get('/api/bot-status', async (req, res) => {
   } catch (err) {
     console.error('Error obteniendo estado del bot:', err.message);
     return res.json({ online: false, version: PANEL_VERSION });
+  }
+});
+
+// ----------------- /api/bot-status -----------------
+app.get('/api/bot-status', async (req, res) => {
+  try {
+    const start = Date.now();
+    // Intentamos contactar la API de Discord
+    const discordResp = await axios.get('https://discord.com/api/v10/gateway');
+    const latency = Date.now() - start;
+    res.json({
+      ok: true,
+      latency,
+      discord_status: discordResp.status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.json({
+      ok: false,
+      error: err.message || 'Error de conexión',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
