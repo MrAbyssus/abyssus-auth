@@ -11,12 +11,6 @@ const app = express();
 
 app.use(express.static('public'));
 app.use(express.json());
-// 🟢 permitir acceso desde tu dominio
-app.use(cors({
-  origin: ['https://abyssusbot.info', 'https://www.abyssusbot.info'],
-  methods: ['GET', 'POST'],
-  credentials: false
-}));
 
 // ----------------- In-memory stores -----------------
 const usuariosAutenticados = new Map(); // userId -> { accessToken, refreshToken, username, ... , createdAt }
