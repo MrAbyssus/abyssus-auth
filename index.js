@@ -645,40 +645,24 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
       }
 
 <script>
-async function checkDiscordLatency() {
+async function checkBotStatus() {
   try {
     const res = await fetch('/api/bot-status');
     const data = await res.json();
-    const statusEl = document.querySelector('#bot-status strong');
-    const logBox = document.getElementById('bot-log');
-    const time = new Date().toLocaleTimeString();
-
-    if (data.ok) {
-      const latency = data.latency;
-      let color = '🟢';
-      if (latency > 300) color = '🟡';
-      if (latency > 800) color = '🔴';
-      statusEl.textContent = `${color} Abyssus responde en ${latency} ms`;
-
-      // log visual
-      if (logBox) {
-        logBox.innerHTML += `<br>[${time}] Ping Discord: ${latency} ms`;
-        logBox.scrollTop = logBox.scrollHeight;
-      }
+    if (data.online) {
+      document.querySelector('#bot-status strong').textContent = '🟢 Abyssus está online';
     } else {
-      statusEl.textContent = '🔴 Error al contactar Discord';
+      document.querySelector('#bot-status strong').textContent = '🔴 Abyssus está offline';
     }
   } catch {
-    const statusEl = document.querySelector('#bot-status strong');
-    statusEl.textContent = '🔴 Conexión fallida';
+    document.querySelector('#bot-status strong').textContent = '🔴 Error al verificar estado';
   }
 }
+setInterval(checkBotStatus, 10000);
+checkBotStatus();
 
-// Revisar cada 15 segundos
-setInterval(checkDiscordLatency, 15000);
-checkDiscordLatency();
+logActionVisual('Sistema de logs activo');
 </script>
-
 
     </body></html>`);
   } catch (err) {
