@@ -4,16 +4,20 @@
 // npm install express axios dotenv
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const app = express();
 
-
-
-
 app.use(express.static('public'));
 app.use(express.json());
+// 🟢 permitir acceso desde tu dominio
+app.use(cors({
+  origin: ['https://abyssusbot.info', 'https://www.abyssusbot.info'],
+  methods: ['GET', 'POST'],
+  credentials: false
+}));
 
 // ----------------- In-memory stores -----------------
 const usuariosAutenticados = new Map(); // userId -> { accessToken, refreshToken, username, ... , createdAt }
