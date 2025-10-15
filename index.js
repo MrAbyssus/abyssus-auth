@@ -644,31 +644,26 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
           .then(r=>r.text()).then(t=>{ alert(t); location.reload(); }).catch(e=>alert('Error: '+e.message));
       }
 
-       // --- Indicador de estado del bot y log visual local ---
-      async function checkBotStatus() {
-        try {
-          const res = await fetch('/');
-          if (res.ok) {
-            document.querySelector("#bot-status strong").textContent = "🟢 Abyssus está online";
-          } else {
-            document.querySelector("#bot-status strong").textContent = "🔴 Abyssus parece offline";
-          }
-        } catch {
-          document.querySelector("#bot-status strong").textContent = "🔴 Abyssus no responde";
-        }
-      }
-      setInterval(checkBotStatus, 10000);
-      checkBotStatus();
+ async function checkBotStatus() {
+  const statusEl = document.querySelector('#bot-status strong');
+  if (!statusEl) return;
 
-      function logActionVisual(message) {
-        const box = document.getElementById("bot-log");
-        if (!box) return;
-        const time = new Date().toLocaleTimeString();
-        box.innerHTML += "<br>[" + time + "] " + message;
-        box.scrollTop = box.scrollHeight;
-      }
-
-      logActionVisual("Sistema de logs activo");
+  try {
+    const res = await fetch('/');
+    if (res.ok) {
+      statusEl.textContent = '🟢 Abyssus está online';
+      statusEl.style.color = '#5ff592';
+    } else {
+      statusEl.textContent = '🔴 Abyssus parece offline';
+      statusEl.style.color = '#ff7b7b';
+    }
+  } catch {
+    statusEl.textContent = '🔴 Abyssus no responde';
+    statusEl.style.color = '#ff7b7b';
+  }
+}
+setInterval(checkBotStatus, 10000);
+checkBotStatus();
                  
     </script>
     </body></html>`);
