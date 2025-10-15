@@ -544,28 +544,11 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
         </div>
       </div>
 
-async function checkBotStatus() {
-  const el = document.querySelector('#bot-status strong');
-  if (!el) return;
-  try {
-    const res = await fetch('/');
-    if (res.ok) {
-      el.textContent = '🟢 Abyssus está online';
-      el.style.color = '#5ff592';
-    } else {
-      el.textContent = '🔴 Abyssus parece offline';
-      el.style.color = '#ff7b7b';
-    }
-  } catch {
-    el.textContent = '🔴 Abyssus no responde';
-    el.style.color = '#ff7b7b';
-  }
-}
-setInterval(checkBotStatus, 10000);
-checkBotStatus();
-
-</div>
-
+<div id="bot-status" style="margin-top:14px; background:#0d0d0d; padding:10px; border-radius:8px; font-family:monospace; color:#9cf; border:1px solid #222;">
+  🟢 <strong>Abyssus</strong> está online
+  <div id="bot-log" style="margin-top:6px; max-height:160px; overflow-y:auto; font-size:0.9em;">
+    [${new Date().toLocaleTimeString()}] Panel cargado correctamente.
+  </div>
 
       <div class="footer"><a class="back" href="/mis-guilds/${userId}">← Volver</a><div><a class="primary" href="https://discord.com/channels/${guild.id}" target="_blank">Abrir en Discord</a><a class="invite-btn" href="https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&scope=bot%20applications.commands&permissions=8&guild_id=${guild.id}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}" target="_blank">Invitar Abyssus</a></div></div>
     </div>
@@ -659,28 +642,31 @@ checkBotStatus();
           .then(r=>r.text()).then(t=>{ alert(t); location.reload(); }).catch(e=>alert('Error: '+e.message));
       }
 
- async function checkBotStatus() {
-  const statusEl = document.querySelector('#bot-status strong');
-  if (!statusEl) return;
-
+<script>
+// --- Indicador de estado del bot ---
+async function checkBotStatus() {
+  const el = document.querySelector('#bot-status strong');
+  if (!el) return;
   try {
     const res = await fetch('/');
     if (res.ok) {
-      statusEl.textContent = '🟢 Abyssus está online';
-      statusEl.style.color = '#5ff592';
+      el.textContent = '🟢 Abyssus está online';
+      el.style.color = '#5ff592';
     } else {
-      statusEl.textContent = '🔴 Abyssus parece offline';
-      statusEl.style.color = '#ff7b7b';
+      el.textContent = '🔴 Abyssus parece offline';
+      el.style.color = '#ff7b7b';
     }
   } catch {
-    statusEl.textContent = '🔴 Abyssus no responde';
-    statusEl.style.color = '#ff7b7b';
+    el.textContent = '🔴 Abyssus no responde';
+    el.style.color = '#ff7b7b';
   }
 }
 setInterval(checkBotStatus, 10000);
 checkBotStatus();
-                 
-    </script>
+
+// Ejemplo de uso:
+logActionVisual('Sistema de logs activo');
+</script>
     </body></html>`);
   } catch (err) {
     console.error('panel err:', err.response?.data || err.message);
