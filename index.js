@@ -646,22 +646,23 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 <script>
 async function checkBotStatus() {
   try {
-    const res = await fetch('/');
-    if (res.ok) {
+    const res = await fetch('/api/bot-status');
+    const data = await res.json();
+    if (data.online) {
       document.querySelector('#bot-status strong').textContent = '🟢 Abyssus está online';
     } else {
-      document.querySelector('#bot-status strong').textContent = '🔴 Abyssus parece offline';
+      document.querySelector('#bot-status strong').textContent = '🔴 Abyssus está offline';
     }
   } catch {
-    document.querySelector('#bot-status strong').textContent = '🔴 Abyssus no responde';
+    document.querySelector('#bot-status strong').textContent = '🔴 Error al verificar estado';
   }
 }
 setInterval(checkBotStatus, 10000);
 checkBotStatus();
 
-// Ejemplo inicial
 logActionVisual('Sistema de logs activo');
 </script>
+
     </body></html>`);
   } catch (err) {
     console.error('panel err:', err.response?.data || err.message);
@@ -941,6 +942,25 @@ app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
     return res.status(500).send('Error al borrar logs');
   }
 });
+
+// ----------------- Bot status endpoint -----------------
+app.get('/api/bot-status', async (req, res) => {
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  try {
+    const r = await axios.get('https://discord.com/api/v10/users/@me', {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` }
+    });
+    if (r.status === 200) {
+      return res.json({ online: true, user: r.data });
+    } else {
+      return res.json({ online: false });
+    }
+  } catch (err) {
+    console.error('Error obteniendo estado del bot:', err.message);
+    return res.json({ online: false });
+  }
+});
+
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
