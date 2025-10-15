@@ -674,6 +674,55 @@ app.post('/api/guilds/:guildId/set-mod-roles', requireSession, async (req, res) 
   }
 });
 
+
+
+
+
+
+
+
+
+<div id="bot-log" class="log-box"></div>
+
+<script>
+function logAction(message) {
+  const logBox = document.getElementById('bot-log');
+  const entry = document.createElement('div');
+  entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+  logBox.appendChild(entry);
+  logBox.scrollTop = logBox.scrollHeight; // autoscroll
+}
+
+// Ejemplo de uso
+logAction('Comando /ban ejecutado');
+logAction('Canal #general modificado');
+</script>
+
+<style>
+.log-box {
+  background: #0d0d0d;
+  color: #9cf;
+  font-family: monospace;
+  font-size: 0.9em;
+  padding: 10px;
+  border-radius: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #222;
+}
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
 // Helper: check if a user is a configured moderator via role
 async function isConfiguredModerator(userId, guildId) {
   const cfg = readModeratorsFile();
