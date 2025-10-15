@@ -897,32 +897,12 @@ app.get('/logs/:guildId', requireSession, async (req, res) => {
   }
 });
 
-// Obtener niveles de un servidor
-app.get('/api/guilds/:guildId/levels', requireSession, async (req, res) => {
+// Configuración de niveles
+app.post('/api/guilds/:guildId/levels/config', requireSession, async (req, res) => {
   const { guildId } = req.params;
+  const { enabled, channel, message, multiplier } = req.body;
   const ses = req.session;
   const userId = req.sessionUserId;
-
-  try {
-    const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
-    const isMod = await isConfiguredModerator(userId, guildId);
-    if (!isOwner && !isMod) return res.status(403).send('No autorizado');
-
-    const data = readLevelsFile();
-    return res.send(data[guildId] || {});
-  } catch (e) {
-    console.error('levels get err:', e);
-    return res.status(500).send('Error leyendo niveles');
-  }
-});
-
-// Modificar niveles (dar XP manualmente)
-app.post('/api/guilds/:guildId/levels/add', requireSession, async (req, res) => {
-  const { guildId } = req.params;
-  const { targetId, amount } = req.body;
-  const ses = req.session;
-  const userId = req.sessionUserId;
-  if (!targetId || !amount) return res.status(400).send('Faltan datos');
 
   try {
     const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
@@ -931,21 +911,21 @@ app.post('/api/guilds/:guildId/levels/add', requireSession, async (req, res) => 
 
     const data = readLevelsFile();
     if (!data[guildId]) data[guildId] = {};
-    if (!data[guildId][targetId]) data[guildId][targetId] = { xp: 0, level: 1 };
+    if (!data[guildId].config) data[guildId].config = {};
 
-    data[guildId][targetId].xp += parseInt(amount, 10);
-
-    // Calcular nivel según XP (ejemplo simple)
-    const xpNeeded = lvl => 5 * (lvl ** 2) + 50 * lvl + 100;
-    let cur = data[guildId][targetId];
-    while (cur.xp >= xpNeeded(cur.level)) cur.level++;
+    data[guildId].config = {
+      enabled: enabled ?? true,
+      channel: channel || null,
+      message: message || "🎉 {usuario} alcanzó el nivel {nivel}!",
+      multiplier: multiplier || 1.0
+    };
 
     writeLevelsFile(data);
-    logAction('ADD_XP', { guildId, targetId, by: ses.username, amount });
-    return res.send(`✅ ${amount} XP añadidos a ${targetId}. Nivel actual: ${cur.level}`);
+    logAction('CONFIG_LEVELS', { guildId, by: ses.username });
+    return res.send('✅ Configuración actualizada correctamente');
   } catch (e) {
-    console.error('add xp err:', e);
-    return res.status(500).send('Error al modificar XP');
+    console.error('config levels err:', e);
+    return res.status(500).send('Error guardando configuración');
   }
 });
 
