@@ -702,6 +702,7 @@ app.post('/api/guilds/:guildId/set-mod-roles', requireSession, async (req, res) 
   }
 });
 
+
 // Helper: check if a user is a configured moderator via role
 async function isConfiguredModerator(userId, guildId) {
   const cfg = readModeratorsFile();
@@ -880,18 +881,6 @@ app.post('/api/guilds/:guildId/create-channel', requireSession, async (req, res)
     return res.status(500).send(safeJson(e.response?.data || e.message));
   }
 });
-
-app.post('/api/saveModRoles', async (req, res) => {
-  const { roles } = req.body;
-  if (!Array.isArray(roles)) return res.status(400).send('Invalid data');
-
-  // Guardar en tu base de datos o config.json
-  settings.modRoles = roles;
-  await fs.promises.writeFile('settings.json', JSON.stringify(settings, null, 2));
-
-  res.send({ ok: true });
-});
-
 
 // Delete channel (owner or manage_channels/admin)
 app.post('/api/guilds/:guildId/delete-channel', requireSession, async (req, res) => {
