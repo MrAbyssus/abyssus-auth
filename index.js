@@ -632,17 +632,30 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
         } catch(e){ alert('Error al borrar logs'); }
       }
 
-      function saveModRoles(){
-        const checkboxes = Array.from(document.querySelectorAll('#modRolesContainer input[type="checkbox"]'));
-        const selected = checkboxes.filter(c=>c.checked).map(c=>c.value);
-        fetch('/api/guilds/'+guildId+'/set-mod-roles', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId, roleIds: selected })})
-          .then(r=>r.text()).then(t=>{ alert(t); location.reload(); }).catch(e=>alert('Error: '+e.message));
-      }
-      function clearModRoles(){
-        if(!confirm('Quitar todos los roles de moderador configurados?')) return;
-        fetch('/api/guilds/'+guildId+'/set-mod-roles', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId, roleIds: [] })})
-          .then(r=>r.text()).then(t=>{ alert(t); location.reload(); }).catch(e=>alert('Error: '+e.message));
-      }
+      ffunction saveModRoles(){
+    const checkboxes = Array.from(document.querySelectorAll('#modRolesContainer input[type="checkbox"]'));
+    const selected = checkboxes.filter(c=>c.checked).map(c=>c.value);
+    fetch('/api/guilds/'+guildId+'/set-mod-roles', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ userId, roleIds: selected })
+    })
+    .then(r=>r.text())
+    .then(t=>{ alert(t); location.reload(); })
+    .catch(e=>alert('Error: '+e.message));
+  }
+
+  function clearModRoles(){
+    if(!confirm('Quitar todos los roles de moderador configurados?')) return;
+    fetch('/api/guilds/'+guildId+'/set-mod-roles', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ userId, roleIds: [] })
+    })
+    .then(r=>r.text())
+    .then(t=>{ alert(t); location.reload(); })
+    .catch(e=>alert('Error: '+e.message));
+  }
 
 <script>
 async function checkBotStatus() {
