@@ -911,49 +911,6 @@ app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
   }
 });
 
-
-
-
-// ----------------- Clusters API -----------------
-app.get('/api/clusters', async (req, res) => {
-  try {
-    const data = {
-      success: true,
-      clusters: [
-        {
-          id: 1,
-          nombre: 'Cluster Norte',
-          servidores: 12,
-          estado: '🟢 Activo',
-          usoCPU: '32%',
-          usoRAM: '1.2 GB'
-        },
-        {
-          id: 2,
-          nombre: 'Cluster Sur',
-          servidores: 8,
-          estado: '🟢 Activo',
-          usoCPU: '28%',
-          usoRAM: '960 MB'
-        },
-        {
-          id: 3,
-          nombre: 'Cluster Central',
-          servidores: 15,
-          estado: '🟠 Mantenimiento',
-          usoCPU: '46%',
-          usoRAM: '1.6 GB'
-        }
-      ]
-    };
-    res.json(data);
-  } catch (error) {
-    console.error('Error al cargar clusters:', error);
-    res.status(500).json({ success: false, message: 'Error al cargar clusters' });
-  }
-});
-
-
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
