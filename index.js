@@ -946,19 +946,12 @@ app.get('/api/clusters', async (req, res) => {
         }
       ]
     };
-
     res.json(data);
   } catch (error) {
     console.error('Error al cargar clusters:', error);
     res.status(500).json({ success: false, message: 'Error al cargar clusters' });
   }
 });
-
-
-
-
-
-
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
