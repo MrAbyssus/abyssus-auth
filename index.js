@@ -12,43 +12,6 @@ const app = express();
 app.use(express.static('public'));
 app.use(express.json());
 
-// --- Ruta de clusters ---
-app.get('/api/clusters', (req, res) => {
-  const data = {
-    success: true,
-    clusters: [
-      {
-        id: 1,
-        nombre: 'Cluster Norte',
-        servidores: 12,
-        estado: '🟢 Activo',
-        usoCPU: '32%',
-        usoRAM: '1.2 GB'
-      },
-      {
-        id: 2,
-        nombre: 'Cluster Sur',
-        servidores: 8,
-        estado: '🟢 Activo',
-        usoCPU: '28%',
-        usoRAM: '960 MB'
-      },
-      {
-        id: 3,
-        nombre: 'Cluster Central',
-        servidores: 15,
-        estado: '🟠 Mantenimiento',
-        usoCPU: '46%',
-        usoRAM: '1.6 GB'
-      }
-    ]
-  };
-
-  res.json(data);
-});
-
-
-
 // ----------------- In-memory stores -----------------
 const usuariosAutenticados = new Map(); // userId -> { accessToken, refreshToken, username, ... , createdAt }
 const codigosUsados = new Set();
@@ -947,6 +910,55 @@ app.post('/logs/:guildId/clear', requireSession, async (req, res) => {
     return res.status(500).send('Error al borrar logs');
   }
 });
+
+
+
+
+// ----------------- Clusters API -----------------
+app.get('/api/clusters', async (req, res) => {
+  try {
+    const data = {
+      success: true,
+      clusters: [
+        {
+          id: 1,
+          nombre: 'Cluster Norte',
+          servidores: 12,
+          estado: '🟢 Activo',
+          usoCPU: '32%',
+          usoRAM: '1.2 GB'
+        },
+        {
+          id: 2,
+          nombre: 'Cluster Sur',
+          servidores: 8,
+          estado: '🟢 Activo',
+          usoCPU: '28%',
+          usoRAM: '960 MB'
+        },
+        {
+          id: 3,
+          nombre: 'Cluster Central',
+          servidores: 15,
+          estado: '🟠 Mantenimiento',
+          usoCPU: '46%',
+          usoRAM: '1.6 GB'
+        }
+      ]
+    };
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error al cargar clusters:', error);
+    res.status(500).json({ success: false, message: 'Error al cargar clusters' });
+  }
+});
+
+
+
+
+
+
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
