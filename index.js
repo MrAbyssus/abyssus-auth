@@ -12,6 +12,46 @@ const app = express();
 app.use(express.static('public'));
 app.use(express.json());
 
+// ----------------- Cluster info endpoint -----------------
+app.get('/api/clusters', (req, res) => {
+  try {
+    // Ejemplo de estructura: puedes reemplazar esto con datos reales
+    const clusters = [
+      {
+        id: 1,
+        nombre: 'Cluster Norte',
+        servidores: 12,
+        estado: '🟢 Activo',
+        usoCPU: '32%',
+        usoRAM: '1.2 GB'
+      },
+      {
+        id: 2,
+        nombre: 'Cluster Sur',
+        servidores: 8,
+        estado: '🟢 Activo',
+        usoCPU: '28%',
+        usoRAM: '960 MB'
+      },
+      {
+        id: 3,
+        nombre: 'Cluster Central',
+        servidores: 15,
+        estado: '🟡 Mantenimiento',
+        usoCPU: '46%',
+        usoRAM: '1.6 GB'
+      }
+    ];
+
+    res.json({ success: true, clusters });
+  } catch (err) {
+    console.error('Error al obtener clusters:', err);
+    res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
+
+
 // ----------------- In-memory stores -----------------
 const usuariosAutenticados = new Map(); // userId -> { accessToken, refreshToken, username, ... , createdAt }
 const codigosUsados = new Set();
