@@ -500,6 +500,36 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
           </div>
         </div>
 
+        <div class="panel-section">
+  <h2>🎭 Crear panel de Reaction Roles</h2>
+  <p>Permite a tus usuarios autoasignarse roles con botones o menús interactivos.</p>
+
+  <label>📢 Canal</label>
+  <select id="rr-channel" class="input"></select>
+
+  <label>🎚️ Modo</label>
+  <select id="rr-mode" class="input">
+    <option value="botones">Botones</option>
+    <option value="menu">Menú desplegable</option>
+  </select>
+
+  <label>🏷️ IDs de roles (separados por coma)</label>
+  <input id="rr-roles" class="input" placeholder="1234567890,9876543210" />
+
+  <label>😃 Emojis (opcional, mismo orden)</label>
+  <input id="rr-emojis" class="input" placeholder="😀,🔥,💎" />
+
+  <label>🧾 Título del panel</label>
+  <input id="rr-title" class="input" placeholder="📘 Roles autoasignables" />
+
+  <label>📝 Descripción</label>
+  <textarea id="rr-description" class="input" placeholder="Selecciona tus roles:"></textarea>
+
+  <button id="rr-create" class="btn-primary">🚀 Crear Panel</button>
+  <p id="rr-status" class="status"></p>
+</div>
+
+
         <div class="panel">
           <h2>Gestionar Roles / Canales</h2>
           <div class="panel-forms">
@@ -972,7 +1002,7 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
 
 
 
-// Crear panel de ReactionRole desde el Dashboard
+// 📦 Crear panel de Reaction Role desde el Dashboard
 app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { channelId, modo = 'botones', roles = [], emojis = [], titulo, descripcion } = req.body;
@@ -983,14 +1013,14 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
     return res.status(400).send('Debe proporcionar al menos un rol válido.');
 
   try {
-    // Verificar permisos
+    // ✅ Verificar permisos
     const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
     const allowedPerm = await hasPermission(userId, guildId, 'MANAGE_ROLES') ||
                         await hasPermission(userId, guildId, 'ADMINISTRATOR');
     const allowed = isOwner || allowedPerm;
     if (!allowed) return res.status(403).send('No autorizado.');
 
-    // Preparar estructura básica
+    // 🎨 Crear embed
     const embed = {
       title: titulo || '📘 Roles autoasignables',
       description: descripcion || 'Selecciona tus roles:',
@@ -1000,7 +1030,7 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
 
     const components = [];
 
-    // ---- BOTONES ----
+    // 🎭 Botones
     if (modo === 'botones') {
       const filas = [];
       let filaActual = { type: 1, components: [] };
@@ -1021,11 +1051,10 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
           filaActual = { type: 1, components: [] };
         }
       }
-
       components.push(...filas);
     }
 
-    // ---- MENÚ ----
+    // 📜 Menú
     else if (modo === 'menu') {
       const opciones = roles.map((r, i) => ({
         label: `Rol ${i + 1}`,
@@ -1047,8 +1076,8 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
       });
     }
 
-    // Enviar el mensaje al canal
-    const resp = await discordRequest('post', `/channels/${channelId}/messages`, {
+    // 🚀 Enviar mensaje
+    await discordRequest('post', `/channels/${channelId}/messages`, {
       embeds: [embed],
       components,
     });
@@ -1058,15 +1087,9 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
     return res.status(200).send('✅ Panel de Reaction Role creado correctamente.');
   } catch (e) {
     console.error('reactionrole err:', e.response?.data || e.message);
-    return res.status(500).send('Error al crear el panel de Reaction Role.');
+    return res.status(500).send('❌ Error al crear el panel de Reaction Role.');
   }
 });
-
-
-
-
-
-
 
 
 
