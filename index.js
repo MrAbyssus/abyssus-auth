@@ -870,6 +870,212 @@ app.post('/api/guilds/:guildId/delete-channel', requireSession, async (req, res)
   }
 });
 
+
+
+
+
+
+
+
+
+// Crear panel de ReactionRole desde el Dashboard
+app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { channelId, modo = 'botones', roles = [], emojis = [], titulo, descripcion } = req.body;
+  const ses = req.session;
+  const userId = req.sessionUserId;
+
+  if (!Array.isArray(roles) || roles.length === 0)
+    return res.status(400).send('Debe proporcionar al menos un rol válido.');
+
+  try {
+    // Verificar permisos
+    const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
+    const allowedPerm = await hasPermission(userId, guildId, 'MANAGE_ROLES') ||
+                        await hasPermission(userId, guildId, 'ADMINISTRATOR');
+    const allowed = isOwner || allowedPerm;
+    if (!allowed) return res.status(403).send('No autorizado.');
+
+    // Preparar estructura básica
+    const embed = {
+      title: titulo || '📘 Roles autoasignables',
+      description: descripcion || 'Selecciona tus roles:',
+      color: 0x5865F2,
+      footer: { text: 'Sistema de roles autoasignables' },
+    };
+
+    const components = [];
+
+    // ---- BOTONES ----
+    if (modo === 'botones') {
+      const filas = [];
+      let filaActual = { type: 1, components: [] };
+
+      for (let i = 0; i < roles.length; i++) {
+        const emoji = emojis[i] || '🎭';
+        const role = roles[i];
+
+        filaActual.components.push({
+          type: 2,
+          style: 1,
+          custom_id: `rr_${role}`,
+          label: `${emoji} Rol ${i + 1}`,
+        });
+
+        if ((i + 1) % 5 === 0 || i === roles.length - 1) {
+          filas.push(filaActual);
+          filaActual = { type: 1, components: [] };
+        }
+      }
+
+      components.push(...filas);
+    }
+
+    // ---- MENÚ ----
+    else if (modo === 'menu') {
+      const opciones = roles.map((r, i) => ({
+        label: `Rol ${i + 1}`,
+        value: r,
+        emoji: emojis[i] || '🎭',
+        description: `ID: ${r}`,
+      }));
+
+      components.push({
+        type: 1,
+        components: [{
+          type: 3,
+          custom_id: 'rr_menu',
+          placeholder: 'Selecciona tus roles',
+          min_values: 0,
+          max_values: opciones.length,
+          options: opciones,
+        }],
+      });
+    }
+
+    // Enviar el mensaje al canal
+    const resp = await discordRequest('post', `/channels/${channelId}/messages`, {
+      embeds: [embed],
+      components,
+    });
+
+    logAction('REACTION_ROLE_CREATE', { guildId, by: ses.username, channelId, roles });
+
+    return res.status(200).send('✅ Panel de Reaction Role creado correctamente.');
+  } catch (e) {
+    console.error('reactionrole err:', e.response?.data || e.message);
+    return res.status(500).send('Error al crear el panel de Reaction Role.');
+  }
+});
+
+
+
+
+
+// Crear panel de ReactionRole desde el Dashboard
+app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { channelId, modo = 'botones', roles = [], emojis = [], titulo, descripcion } = req.body;
+  const ses = req.session;
+  const userId = req.sessionUserId;
+
+  if (!Array.isArray(roles) || roles.length === 0)
+    return res.status(400).send('Debe proporcionar al menos un rol válido.');
+
+  try {
+    // Verificar permisos
+    const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
+    const allowedPerm = await hasPermission(userId, guildId, 'MANAGE_ROLES') ||
+                        await hasPermission(userId, guildId, 'ADMINISTRATOR');
+    const allowed = isOwner || allowedPerm;
+    if (!allowed) return res.status(403).send('No autorizado.');
+
+    // Preparar estructura básica
+    const embed = {
+      title: titulo || '📘 Roles autoasignables',
+      description: descripcion || 'Selecciona tus roles:',
+      color: 0x5865F2,
+      footer: { text: 'Sistema de roles autoasignables' },
+    };
+
+    const components = [];
+
+    // ---- BOTONES ----
+    if (modo === 'botones') {
+      const filas = [];
+      let filaActual = { type: 1, components: [] };
+
+      for (let i = 0; i < roles.length; i++) {
+        const emoji = emojis[i] || '🎭';
+        const role = roles[i];
+
+        filaActual.components.push({
+          type: 2,
+          style: 1,
+          custom_id: `rr_${role}`,
+          label: `${emoji} Rol ${i + 1}`,
+        });
+
+        if ((i + 1) % 5 === 0 || i === roles.length - 1) {
+          filas.push(filaActual);
+          filaActual = { type: 1, components: [] };
+        }
+      }
+
+      components.push(...filas);
+    }
+
+    // ---- MENÚ ----
+    else if (modo === 'menu') {
+      const opciones = roles.map((r, i) => ({
+        label: `Rol ${i + 1}`,
+        value: r,
+        emoji: emojis[i] || '🎭',
+        description: `ID: ${r}`,
+      }));
+
+      components.push({
+        type: 1,
+        components: [{
+          type: 3,
+          custom_id: 'rr_menu',
+          placeholder: 'Selecciona tus roles',
+          min_values: 0,
+          max_values: opciones.length,
+          options: opciones,
+        }],
+      });
+    }
+
+    // Enviar el mensaje al canal
+    const resp = await discordRequest('post', `/channels/${channelId}/messages`, {
+      embeds: [embed],
+      components,
+    });
+
+    logAction('REACTION_ROLE_CREATE', { guildId, by: ses.username, channelId, roles });
+
+    return res.status(200).send('✅ Panel de Reaction Role creado correctamente.');
+  } catch (e) {
+    console.error('reactionrole err:', e.response?.data || e.message);
+    return res.status(500).send('Error al crear el panel de Reaction Role.');
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ----------------- Logs endpoints -----------------
 // GET logs for guild (returns only lines that contain guildId)
 app.get('/logs/:guildId', requireSession, async (req, res) => {
