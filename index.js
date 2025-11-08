@@ -169,6 +169,100 @@ app.get('/callback', async (req, res) => {
   }
 });
 
+
+// =========================================
+// 🧩 BLOQUE HTML DEL DASHBOARD
+// =========================================
+app.get('/dashboard/reactionrole', requireSession, async (req, res) => {
+  const html = `
+  <div class="card mt-3">
+    <div class="card-header bg-primary text-white">
+      <i class="fa-solid fa-masks-theater"></i> Sistema de Roles Autoasignables
+    </div>
+    <div class="card-body">
+      <p class="text-muted mb-2">
+        Crea un panel de roles autoasignables en tu servidor. Los usuarios podrán obtener o quitar roles con solo pulsar un botón o usar un menú desplegable.
+      </p>
+
+      <form id="reactionRoleForm">
+        <div class="row mb-2">
+          <div class="col-md-6">
+            <label for="channelId" class="form-label">📢 Canal destino</label>
+            <input type="text" id="channelId" class="form-control" placeholder="ID del canal o selecciona por nombre" required>
+          </div>
+          <div class="col-md-6">
+            <label for="modo" class="form-label">⚙️ Tipo de panel</label>
+            <select id="modo" class="form-select">
+              <option value="botones">Botones</option>
+              <option value="menu">Menú desplegable</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <label for="roles" class="form-label">🧩 Roles</label>
+          <input type="text" id="roles" class="form-control" placeholder="IDs separados por coma. Ejemplo: 123,456,789" required>
+        </div>
+
+        <div class="mb-2">
+          <label for="emojis" class="form-label">😀 Emojis (opcional)</label>
+          <input type="text" id="emojis" class="form-control" placeholder="Emojis separados por coma en el mismo orden que los roles">
+        </div>
+
+        <div class="mb-2">
+          <label for="titulo" class="form-label">📝 Título (opcional)</label>
+          <input type="text" id="titulo" class="form-control" placeholder="Ejemplo: AutoRoles del servidor">
+        </div>
+
+        <div class="mb-2">
+          <label for="descripcion" class="form-label">📄 Descripción (opcional)</label>
+          <textarea id="descripcion" class="form-control" rows="2" placeholder="Ejemplo: Selecciona los roles que quieras obtener."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success w-100">
+          <i class="fa-solid fa-paper-plane"></i> Crear panel de Reaction Role
+        </button>
+      </form>
+
+      <div id="reactionRoleResult" class="mt-3"></div>
+    </div>
+  </div>
+
+  <script>
+  document.getElementById("reactionRoleForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const guildId = window.currentGuildId;
+    const channelId = document.getElementById("channelId").value.trim();
+    const modo = document.getElementById("modo").value;
+    const roles = document.getElementById("roles").value.split(",").map(r => r.trim());
+    const emojis = document.getElementById("emojis").value.split(",").map(e => e.trim());
+    const titulo = document.getElementById("titulo").value.trim();
+    const descripcion = document.getElementById("descripcion").value.trim();
+
+    const resultBox = document.getElementById("reactionRoleResult");
+    resultBox.innerHTML = '<div class="alert alert-info">⏳ Creando panel...</div>';
+
+    try {
+      const res = await fetch('/api/guilds/' + guildId + '/reactionrole', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelId, modo, roles, emojis, titulo, descripcion })
+      });
+      const text = await res.text();
+      resultBox.innerHTML = res.ok
+        ? '<div class="alert alert-success">✅ ' + text + '</div>'
+        : '<div class="alert alert-danger">❌ ' + text + '</div>';
+    } catch (err) {
+      console.error('Error al crear el panel:', err);
+      resultBox.innerHTML = '<div class="alert alert-danger">⚠️ Error interno del servidor.</div>';
+    }
+  });
+  </script>
+  `;
+  res.send(html);
+});
+
+
 // ----------------- requireSession middleware -----------------
 function requireSession(req, res, next) {
   const userId = req.query.userId || req.body.userId;
