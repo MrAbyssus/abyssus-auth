@@ -599,37 +599,74 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 </script>
 
 <hr>
-<h3>📋 Paneles existentes</h3>
-<div id="existingPanels">
-  <div class="alert alert-secondary">Cargando paneles...</div>
+<!-- 📜 Paneles existentes -->
+<div class="mt-4">
+  <h4>📋 Paneles existentes</h4>
+
+  <div id="panelesContainer">
+    <!-- Los paneles se renderizan dinámicamente -->
+  </div>
 </div>
 
 <script>
-async function loadExistingPanels() {
-  try {
-    const res = await fetch('/api/guilds/${guildId}/reactionrole/list?userId=${userId}');
-    const data = await res.json().catch(() => []);
-    const cont = document.getElementById('existingPanels');
+  const guildId = "${guildId}";
+  const userId = "${userId}";
 
-    if (!data.length) {
-      cont.innerHTML = '<div class="alert alert-warning">No hay paneles creados aún.</div>';
-      return;
+  async function cargarPaneles() {
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/reactionroles`);
+      const data = await res.json();
+      const container = document.getElementById('panelesContainer');
+
+      if (!data.length) {
+        container.innerHTML = `
+          <div class="alert alert-dark mt-3">
+            ⚙️ No hay paneles de Reaction Role creados aún.
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = data.map(panel => `
+        <div class="panel-item mb-3 p-3" 
+             style="background:rgba(255,255,255,0.05);border-radius:10px;">
+          <h5 style="color:#8ba4ff;">${panel.titulo || 'Sin título'}</h5>
+          <p>
+            📢 <b>Canal:</b> #${panel.channelName || 'desconocido'}<br>
+            ⚙️ <b>Modo:</b> ${panel.modo}<br>
+            🎭 <b>Roles:</b> ${panel.roles?.join(', ') || 'Ninguno'}
+          </p>
+          <button class="btn btn-danger btn-sm" 
+            onclick="eliminarPanel('${guildId}', '${panel.messageId}')">
+            🗑️ Eliminar
+          </button>
+        </div>
+      `).join('');
+    } catch (err) {
+      console.error('❌ Error cargando paneles:', err);
+      document.getElementById('panelesContainer').innerHTML = `
+        <div class="alert alert-danger">⚠️ No se pudieron cargar los paneles.</div>`;
     }
-
-    cont.innerHTML = data.map(p => (
-      '<div class="alert alert-dark">' +
-        '<b>' + (p.titulo || 'Sin título') + '</b><br>' +
-        '📢 Canal: #' + (p.canal || 'Desconocido') + '<br>' +
-        '⚙️ Modo: ' + (p.modo || 'N/A') + '<br>' +
-        '🎭 Roles: ' + (Array.isArray(p.roles) ? p.roles.join(', ') : 'Ninguno') +
-      '</div>'
-    )).join('');
-  } catch (err) {
-    document.getElementById('existingPanels').innerHTML =
-      '<div class="alert alert-danger">⚠️ Error al cargar los paneles.</div>';
   }
-}
-loadExistingPanels();
+
+  // 🧹 Función para eliminar panel
+  async function eliminarPanel(guildId, messageId) {
+    if (!confirm('¿Seguro que deseas eliminar este panel?')) return;
+
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/reactionrole/${messageId}?userId=${userId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+
+      alert(data.success || data.error);
+      await cargarPaneles(); // recargar la lista tras eliminar
+    } catch (err) {
+      alert('⚠️ Error al eliminar el panel.');
+    }
+  }
+
+  // Inicializar carga al abrir la página
+  cargarPaneles();
 </script>
 
     <div class="footer">
@@ -1394,6 +1431,20 @@ app.get('/api/guilds/:guildId/reactionrole/list', requireSession, async (req, re
   }
 });
 
+// =================== API: obtener paneles existentes ===================
+app.get('/api/guilds/:guildId/reactionroles', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const dataFile = path.join(__dirname, 'reactionroles.json');
+
+  try {
+    if (!fs.existsSync(dataFile)) return res.json([]);
+    const raw = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    return res.json(raw[guildId] || []);
+  } catch (err) {
+    console.error('Error al cargar paneles existentes:', err);
+    res.status(500).json([]);
+  }
+});
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
