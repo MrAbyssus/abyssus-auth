@@ -599,7 +599,6 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 </script>
 
 <hr>
-<!-- 📜 Paneles existentes -->
 <div class="mt-4">
   <h4>📋 Paneles existentes</h4>
 
@@ -614,58 +613,56 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 
   async function cargarPaneles() {
     try {
-      const res = await fetch(`/api/guilds/${guildId}/reactionroles`);
+      const res = await fetch(\`/api/guilds/\${guildId}/reactionroles\`);
       const data = await res.json();
       const container = document.getElementById('panelesContainer');
 
       if (!data.length) {
-        container.innerHTML = `
+        container.innerHTML = \`
           <div class="alert alert-dark mt-3">
             ⚙️ No hay paneles de Reaction Role creados aún.
-          </div>`;
+          </div>\`;
         return;
       }
 
-      container.innerHTML = data.map(panel => `
+      container.innerHTML = data.map(panel => \`
         <div class="panel-item mb-3 p-3" 
              style="background:rgba(255,255,255,0.05);border-radius:10px;">
-          <h5 style="color:#8ba4ff;">${panel.titulo || 'Sin título'}</h5>
+          <h5 style="color:#8ba4ff;">\${panel.titulo || 'Sin título'}</h5>
           <p>
-            📢 <b>Canal:</b> #${panel.channelName || 'desconocido'}<br>
-            ⚙️ <b>Modo:</b> ${panel.modo}<br>
-            🎭 <b>Roles:</b> ${panel.roles?.join(', ') || 'Ninguno'}
+            📢 <b>Canal:</b> #\${panel.channelName || 'desconocido'}<br>
+            ⚙️ <b>Modo:</b> \${panel.modo}<br>
+            🎭 <b>Roles:</b> \${panel.roles?.join(', ') || 'Ninguno'}
           </p>
           <button class="btn btn-danger btn-sm" 
-            onclick="eliminarPanel('${guildId}', '${panel.messageId}')">
+            onclick="eliminarPanel('\${guildId}', '\${panel.messageId}')">
             🗑️ Eliminar
           </button>
         </div>
-      `).join('');
+      \`).join('');
     } catch (err) {
       console.error('❌ Error cargando paneles:', err);
-      document.getElementById('panelesContainer').innerHTML = `
-        <div class="alert alert-danger">⚠️ No se pudieron cargar los paneles.</div>`;
+      document.getElementById('panelesContainer').innerHTML = \`
+        <div class="alert alert-danger">⚠️ No se pudieron cargar los paneles.</div>\`;
     }
   }
 
-  // 🧹 Función para eliminar panel
   async function eliminarPanel(guildId, messageId) {
     if (!confirm('¿Seguro que deseas eliminar este panel?')) return;
 
     try {
-      const res = await fetch(`/api/guilds/${guildId}/reactionrole/${messageId}?userId=${userId}`, {
+      const res = await fetch(\`/api/guilds/\${guildId}/reactionrole/\${messageId}?userId=\${userId}\`, {
         method: 'DELETE'
       });
       const data = await res.json();
 
       alert(data.success || data.error);
-      await cargarPaneles(); // recargar la lista tras eliminar
+      await cargarPaneles();
     } catch (err) {
       alert('⚠️ Error al eliminar el panel.');
     }
   }
 
-  // Inicializar carga al abrir la página
   cargarPaneles();
 </script>
 
