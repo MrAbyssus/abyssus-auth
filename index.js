@@ -965,6 +965,97 @@ app.get('/api/clusters', async (req, res) => {
   }
 });
 
+// =================== 🎭 ReactionRole desde Dashboard ===================
+app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const userId = req.sessionUserId;
+
+  res.send(`
+  <!DOCTYPE html>
+  <html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reaction Role — Abyssus Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <style>
+      body { background-color: #0b0f14; color: #eaf2ff; font-family: 'Inter', sans-serif; padding: 2rem; }
+      .container { max-width: 650px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; }
+      h2 { color: #8ba4ff; }
+      input, textarea, select { background: #111722; color: #eaf2ff; border: none; border-radius: 6px; padding: 10px; width: 100%; margin-bottom: 10px; }
+      button { background: linear-gradient(90deg,#5865F2,#764ba2); border: none; border-radius: 8px; padding: 10px 15px; color: white; width: 100%; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>🎭 Reaction Role — ${guildId}</h2>
+      <p>Configura un panel de roles autoasignables para tu servidor.</p>
+      <form id="rrForm">
+        <label>📢 Canal (ID)</label>
+        <input type="text" id="channelId" required>
+
+        <label>⚙️ Modo</label>
+        <select id="modo">
+          <option value="botones">Botones</option>
+          <option value="menu">Menú desplegable</option>
+        </select>
+
+        <label>🧩 Roles (IDs separados por coma)</label>
+        <input type="text" id="roles" placeholder="123,456,789" required>
+
+        <label>😀 Emojis (opcional)</label>
+        <input type="text" id="emojis" placeholder="😎,🔥,⭐">
+
+        <label>📝 Título</label>
+        <input type="text" id="titulo" placeholder="AutoRoles del servidor">
+
+        <label>📄 Descripción</label>
+        <textarea id="descripcion" rows="2" placeholder="Selecciona tus roles para personalizar tu experiencia."></textarea>
+
+        <button type="submit">Crear Panel</button>
+      </form>
+
+      <div id="result" class="mt-3"></div>
+    </div>
+
+    <script>
+      const form = document.getElementById('rrForm');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const guildId = "${guildId}";
+        const body = {
+          userId: "${userId}",
+          channelId: document.getElementById('channelId').value.trim(),
+          modo: document.getElementById('modo').value,
+          roles: document.getElementById('roles').value.split(',').map(r => r.trim()),
+          emojis: document.getElementById('emojis').value.split(',').map(e => e.trim()),
+          titulo: document.getElementById('titulo').value.trim(),
+          descripcion: document.getElementById('descripcion').value.trim(),
+        };
+
+        const result = document.getElementById('result');
+        result.innerHTML = '<div class="alert alert-info">⏳ Creando panel...</div>';
+
+        try {
+          const res = await fetch('/api/guilds/' + guildId + '/reactionrole', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const text = await res.text();
+          result.innerHTML = res.ok
+            ? '<div class="alert alert-success">✅ ' + text + '</div>'
+            : '<div class="alert alert-danger">❌ ' + text + '</div>';
+        } catch (err) {
+          result.innerHTML = '<div class="alert alert-danger">⚠️ Error al crear el panel.</div>';
+        }
+      });
+    </script>
+  </body>
+  </html>
+  `);
+});
+
 // =================== API para crear panel de ReactionRole ===================
 app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
   const { guildId } = req.params;
@@ -972,12 +1063,10 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
   const ses = req.session;
 
   try {
-    // 🔒 Seguridad
     const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
     const allowed = isOwner || await hasPermission(userId, guildId, 'MANAGE_ROLES');
     if (!allowed) return res.status(403).send('No autorizado.');
 
-    // 🧱 Estructura del mensaje
     const content = `**${titulo || 'AutoRoles'}**\n${descripcion || 'Selecciona tus roles:'}`;
     const components = [
       {
@@ -991,19 +1080,16 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
       }
     ];
 
-    // 🚀 Enviar a Discord
-    await discordRequest('post', `/channels/${channelId}/messages`, {
-      content,
-      components
-    });
+    await discordRequest('post', `/channels/${channelId}/messages`, { content, components });
 
     logAction('REACTIONROLE', { guildId, channelId, by: ses.username, roles });
-    return res.send('✅ Panel de ReactionRole creado correctamente.');
+    return res.send('Panel de ReactionRole creado correctamente.');
   } catch (e) {
     console.error('reactionrole err:', e.response?.data || e.message);
     return res.status(500).send('Error al crear el panel.');
   }
 });
+
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
