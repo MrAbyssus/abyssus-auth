@@ -539,7 +539,7 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
         </div>
       </div>
 
-      <div class="panel">
+    <div class="panel">
   <h2>🎭 Reaction Role</h2>
   <p>Crea y gestiona paneles de roles autoasignables desde el Dashboard.</p>
 
@@ -557,42 +557,46 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 </div>
 
 <script>
-async function cargarPaneles() {
-  try {
-    const res = await fetch('/api/guilds/${guild.id}/reactionroles');
-    const data = await res.json();
+(function() {
+  async function cargarPaneles() {
+    try {
+      const res = await fetch('/api/guilds/${guild.id}/reactionroles');
+      const data = await res.json();
 
-    const cont = document.getElementById('panelList');
-    if (!data.length) {
-      cont.innerHTML = '<p>No hay paneles creados aún.</p>';
-      return;
+      const cont = document.getElementById('panelList');
+      if (!data.length) {
+        cont.innerHTML = '<p>No hay paneles creados aún.</p>';
+        return;
+      }
+
+      cont.innerHTML = data.map(p => {
+        const roles = p.roles.map(r => '<code>' + r + '</code>').join(', ');
+        return (
+          '<div style="margin-bottom:10px;padding:8px;background:#0d1320;border-radius:6px;">' +
+          '<b>🆔</b> <code>' + p.messageId + '</code><br>' +
+          '<b>📢</b> Canal: <code>' + p.channelId + '</code><br>' +
+          '<b>⚙️</b> Modo: ' + p.modo + '<br>' +
+          '<b>🎭</b> Roles: ' + roles + '<br>' +
+          '<button onclick="eliminarPanel(\\'' + p.messageId + '\\')" class="btn btn-danger btn-sm mt-2">🗑️ Eliminar</button>' +
+          '</div>'
+        );
+      }).join('');
+    } catch (err) {
+      document.getElementById('panelList').innerHTML = '<p>⚠️ Error al cargar paneles.</p>';
     }
-
-    cont.innerHTML = data.map(p => `
-      <div style="margin-bottom:10px;padding:8px;background:#0d1320;border-radius:6px;">
-        <b>🆔</b> <code>${p.messageId}</code><br>
-        <b>📢</b> Canal: <code>${p.channelId}</code><br>
-        <b>⚙️</b> Modo: ${p.modo}<br>
-        <b>🎭</b> Roles: ${p.roles.map(r => `<code>${r}</code>`).join(', ')}<br>
-        <button onclick="eliminarPanel('${p.messageId}')" class="btn btn-danger btn-sm mt-2">🗑️ Eliminar</button>
-      </div>
-    `).join('');
-  } catch (err) {
-    document.getElementById('panelList').innerHTML = '<p>⚠️ Error al cargar paneles.</p>';
   }
-}
 
-async function eliminarPanel(id) {
-  if (!confirm('¿Eliminar este panel?')) return;
-  const res = await fetch('/api/guilds/${guild.id}/reactionrole/' + id, { method: 'DELETE' });
-  const msg = await res.text();
-  alert(msg);
+  window.eliminarPanel = async function(id) {
+    if (!confirm('¿Eliminar este panel?')) return;
+    const res = await fetch('/api/guilds/${guild.id}/reactionrole/' + id, { method: 'DELETE' });
+    const msg = await res.text();
+    alert(msg);
+    cargarPaneles();
+  };
+
   cargarPaneles();
-}
-
-cargarPaneles();
+})();
 </script>
-
 
     <div class="footer">
   <a class="back" href="/mis-guilds/${userId}">← Volver</a>
