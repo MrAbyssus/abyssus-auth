@@ -598,6 +598,31 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 })();
 </script>
 
+<hr>
+<h3>📋 Paneles existentes</h3>
+<div id="existingPanels">
+  <div class="alert alert-secondary">Cargando paneles...</div>
+</div>
+
+<script>
+async function loadExistingPanels() {
+  const res = await fetch('/api/guilds/${guildId}/reactionrole/list?userId=${userId}');
+  const data = await res.json().catch(()=>[]);
+  const cont = document.getElementById('existingPanels');
+  if (!data.length) return cont.innerHTML = '<div class="alert alert-warning">No hay paneles creados aún.</div>';
+
+  cont.innerHTML = data.map(p => `
+    <div class="alert alert-dark">
+      <b>${p.titulo}</b><br>
+      Canal: #${p.canal}<br>
+      Modo: ${p.modo}<br>
+      Roles: ${p.roles.join(', ')}
+    </div>
+  `).join('');
+}
+loadExistingPanels();
+</script>
+
     <div class="footer">
   <a class="back" href="/mis-guilds/${userId}">← Volver</a>
   <div>
@@ -1121,13 +1146,6 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
   `);
 });
 
-app.get('/api/guilds/:guildId/reactionroles', async (req, res) => {
-  const guildId = req.params.guildId;
-  // lee los paneles guardados de un JSON o BD
-  res.json([...]);
-});
-
-
 // =================== API para crear panel de ReactionRole ===================
 app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
   const { guildId } = req.params;
@@ -1231,6 +1249,35 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
     return res.status(500).send(`❌ Error al crear el panel: ${e.response?.data?.message || e.message}`);
   }
 });
+
+// 💾 Guardar registro
+const dataFile = path.join(__dirname, 'reactionroles.json');
+let saved = {};
+if (fs.existsSync(dataFile)) saved = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+saved[guildId] = saved[guildId] || [];
+saved[guildId].push({
+  canal: channelInfo.name,
+  modo,
+  roles: roleData.map(r => r.name),
+  titulo: titulo || 'AutoRoles',
+  descripcion: descripcion || ''
+});
+fs.writeFileSync(dataFile, JSON.stringify(saved, null, 2), 'utf8');
+
+// 🗂️ Listar paneles de ReactionRole guardados
+app.get('/api/guilds/:guildId/reactionrole/list', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const dataFile = path.join(__dirname, 'reactionroles.json');
+  try {
+    if (!fs.existsSync(dataFile)) return res.json([]);
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'))[guildId] || [];
+    return res.json(data);
+  } catch (e) {
+    console.error('list reactionrole err:', e);
+    return res.status(500).json([]);
+  }
+});
+
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
