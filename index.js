@@ -539,6 +539,16 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
         </div>
       </div>
 
+      <div class="panel">
+  <h2>🎭 Reaction Role</h2>
+  <p>Crea un panel de roles autoasignables desde el Dashboard.</p>
+  <a class="primary" 
+     href="/dashboard/${guild.id}/reactionrole?userId=${userId}" 
+     style="display:inline-block;margin-top:8px;">
+     ➕ Crear Panel de Reaction Roles
+  </a>
+</div>
+
       <div class="footer"><a class="back" href="/mis-guilds/${userId}">← Volver</a><div><a class="primary" href="https://discord.com/channels/${guild.id}" target="_blank">Abrir en Discord</a><a class="invite-btn" href="https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&scope=bot%20applications.commands&permissions=8&guild_id=${guild.id}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}" target="_blank">Invitar Abyssus</a></div></div>
     </div>
 
@@ -548,16 +558,6 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
     <a class="primary" href="https://discord.com/channels/${guild.id}" target="_blank">Abrir en Discord</a>
     <a class="invite-btn" href="https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&scope=bot%20applications.commands&permissions=8&guild_id=${guild.id}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}" target="_blank">Invitar Abyssus</a>
   </div>
-</div>
-
-<div class="panel">
-  <h2>🎭 Reaction Role</h2>
-  <p>Crea un panel de roles autoasignables desde el Dashboard.</p>
-  <a class="primary" 
-     href="/dashboard/${guild.id}/reactionrole?userId=${userId}" 
-     style="display:inline-block;margin-top:8px;">
-     ➕ Crear Panel de Reaction Roles
-  </a>
 </div>
 
     <script>
