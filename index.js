@@ -1236,25 +1236,17 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
       });
     }
 
-    // ✅ Enviar mensaje al canal
-    await discordRequest('post', `/channels/${channelId}/messages`, {
-      content,
-      components
-    });
-
-    logAction('REACTIONROLE', { guildId, channelId, by: ses.username, roles: roleData.map(r => r.name) });
-    return res.send('✅ Panel de ReactionRole creado correctamente.');
-  } catch (e) {
-    console.error('reactionrole err:', e.response?.data || e.message);
-    return res.status(500).send(`❌ Error al crear el panel: ${e.response?.data?.message || e.message}`);
-  }
+  // ✅ Enviar mensaje al canal
+await discordRequest('post', `/channels/${channelId}/messages`, {
+  content,
+  components
 });
 
-// 💾 Guardar registro
+// 💾 Guardar registro local
 const dataFile = path.join(__dirname, 'reactionroles.json');
 let saved = {};
 if (fs.existsSync(dataFile)) saved = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-saved[guildId] = saved[guildId] || [];
+if (!saved[guildId]) saved[guildId] = [];
 saved[guildId].push({
   canal: channelInfo.name,
   modo,
@@ -1264,17 +1256,9 @@ saved[guildId].push({
 });
 fs.writeFileSync(dataFile, JSON.stringify(saved, null, 2), 'utf8');
 
-// 🗂️ Listar paneles de ReactionRole guardados
-app.get('/api/guilds/:guildId/reactionrole/list', requireSession, async (req, res) => {
-  const { guildId } = req.params;
-  const dataFile = path.join(__dirname, 'reactionroles.json');
-  try {
-    if (!fs.existsSync(dataFile)) return res.json([]);
-    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'))[guildId] || [];
-    return res.json(data);
-  } catch (e) {
-    console.error('list reactionrole err:', e);
-    return res.status(500).json([]);
+logAction('REACTIONROLE', { guildId, channelId, by: ses.username, roles: roleData.map(r => r.name) });
+return res.send('✅ Panel de ReactionRole creado correctamente.');
+
   }
 });
 
