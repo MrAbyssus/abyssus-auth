@@ -1236,6 +1236,29 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
       });
     }
 
+// 📋 Obtener lista de paneles guardados
+app.get('/api/guilds/:guildId/reactionroles', requireSession, (req, res) => {
+  const { guildId } = req.params;
+  const dataFile = path.join(__dirname, 'reactionroles.json');
+  if (!fs.existsSync(dataFile)) return res.json([]);
+  const saved = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+  return res.json(saved[guildId] || []);
+});
+
+// 🗑️ Eliminar un panel por ID de mensaje
+app.delete('/api/guilds/:guildId/reactionrole/:messageId', requireSession, async (req, res) => {
+  const { guildId, messageId } = req.params;
+  const dataFile = path.join(__dirname, 'reactionroles.json');
+  if (!fs.existsSync(dataFile)) return res.status(404).send('No hay registros.');
+
+  const saved = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+  if (!saved[guildId]) return res.status(404).send('No se encontraron paneles en este servidor.');
+
+  saved[guildId] = saved[guildId].filter(p => p.messageId !== messageId);
+  fs.writeFileSync(dataFile, JSON.stringify(saved, null, 2), 'utf8');
+  return res.send('🗑️ Panel eliminado correctamente.');
+});
+    
   // ✅ Enviar mensaje al canal
 await discordRequest('post', `/channels/${channelId}/messages`, {
   content,
