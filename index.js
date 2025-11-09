@@ -965,10 +965,10 @@ app.get('/api/clusters', async (req, res) => {
   }
 });
 
-// =================== 🎭 ReactionRole desde Dashboard ===================
+// =================== 🎭 ReactionRole desde Dashboard (corregido con userId) ===================
 app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => {
   const { guildId } = req.params;
-const userId = "${req.sessionUserId}";
+  const userId = req.sessionUserId; // ✅ obtenemos userId de la sesión
 
   res.send(`
   <!DOCTYPE html>
@@ -1019,19 +1019,20 @@ const userId = "${req.sessionUserId}";
     </div>
 
     <script>
+      const userId = "${userId}"; // ✅ ahora sí lo tenemos
       const form = document.getElementById('rrForm');
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const guildId = "${guildId}";
-      const body = {
-  userId, // ✅ <-- esto es lo que faltaba
-  channelId: document.getElementById('channelId').value.trim(),
-  modo: document.getElementById('modo').value,
-  roles: document.getElementById('roles').value.split(',').map(r => r.trim()),
-  emojis: document.getElementById('emojis').value.split(',').map(e => e.trim()),
-  titulo: document.getElementById('titulo').value.trim(),
-  descripcion: document.getElementById('descripcion').value.trim(),
-};
+        const body = {
+          userId, // ✅ se envía correctamente
+          channelId: document.getElementById('channelId').value.trim(),
+          modo: document.getElementById('modo').value,
+          roles: document.getElementById('roles').value.split(',').map(r => r.trim()),
+          emojis: document.getElementById('emojis').value.split(',').map(e => e.trim()),
+          titulo: document.getElementById('titulo').value.trim(),
+          descripcion: document.getElementById('descripcion').value.trim(),
+        };
 
         const result = document.getElementById('result');
         result.innerHTML = '<div class="alert alert-info">⏳ Creando panel...</div>';
@@ -1054,44 +1055,6 @@ const userId = "${req.sessionUserId}";
   </body>
   </html>
   `);
-});
-
-// =================== API para crear panel de ReactionRole ===================
-app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
-  const { guildId } = req.params;
-  const { channelId, modo, roles, emojis, titulo, descripcion } = req.body;
-  const ses = req.session;
-  const userId = req.sessionUserId;
-
-  try {
-    const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
-    const allowed = isOwner || await hasPermission(userId, guildId, 'MANAGE_ROLES');
-    if (!allowed) return res.status(403).send('No autorizado.');
-
-    const content = `**${titulo || 'AutoRoles'}**\n${descripcion || 'Selecciona tus roles:'}`;
-    const components = [
-      {
-        type: 1,
-        components: roles.map((r, i) => ({
-          type: 2,
-          style: 1,
-          label: `${emojis[i] || '🎭'} ${r}`,
-          custom_id: `rr_${r}`
-        }))
-      }
-    ];
-
-    await discordRequest('post', `/channels/${channelId}/messages`, {
-      content,
-      components
-    });
-
-    logAction('REACTIONROLE', { guildId, channelId, by: ses.username, roles });
-    return res.send('Panel de ReactionRole creado correctamente.');
-  } catch (e) {
-    console.error('reactionrole err:', e.response?.data || e.message);
-    return res.status(500).send('Error al crear el panel.');
-  }
 });
 
 // ----------------- Start server -----------------
