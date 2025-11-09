@@ -969,6 +969,20 @@ app.get('/api/clusters', async (req, res) => {
 app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const userId = req.sessionUserId;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+
+  let channelOptions = '<option value="">Selecciona un canal...</option>';
+  try {
+    const channelsRes = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` }
+    });
+    const textChannels = channelsRes.data.filter(c => c.type === 0); // solo texto
+    channelOptions = textChannels
+      .map(c => `<option value="${c.id}"># ${c.name}</option>`)
+      .join('');
+  } catch (e) {
+    console.error('❌ Error cargando canales:', e.response?.data || e.message);
+  }
 
   res.send(`
   <!DOCTYPE html>
@@ -991,8 +1005,10 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
       <h2>🎭 Reaction Role — ${guildId}</h2>
       <p>Configura un panel de roles autoasignables para tu servidor.</p>
       <form id="rrForm">
-        <label>📢 Canal (ID)</label>
-        <input type="text" id="channelId" required>
+       <label>📢 Canal</label>
+<select id="channelId" required>
+  ${channelOptions}
+</select>
 
         <label>⚙️ Modo</label>
         <select id="modo">
