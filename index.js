@@ -169,13 +169,6 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-app.get('/api/guilds/:guildId/reactionroles', async (req, res) => {
-  const guildId = req.params.guildId;
-  // lee los paneles guardados de un JSON o BD
-  res.json([...]);
-});
-
-
 // ----------------- requireSession middleware -----------------
 function requireSession(req, res, next) {
   const userId = req.query.userId || req.body.userId;
@@ -1127,6 +1120,13 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
   </html>
   `);
 });
+
+app.get('/api/guilds/:guildId/reactionroles', async (req, res) => {
+  const guildId = req.params.guildId;
+  // lee los paneles guardados de un JSON o BD
+  res.json([...]);
+});
+
 
 // =================== API para crear panel de ReactionRole ===================
 app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
