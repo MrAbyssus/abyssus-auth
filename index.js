@@ -549,9 +549,6 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
   </a>
 </div>
 
-      <div class="footer"><a class="back" href="/mis-guilds/${userId}">← Volver</a><div><a class="primary" href="https://discord.com/channels/${guild.id}" target="_blank">Abrir en Discord</a><a class="invite-btn" href="https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&scope=bot%20applications.commands&permissions=8&guild_id=${guild.id}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}" target="_blank">Invitar Abyssus</a></div></div>
-    </div>
-
     <div class="footer">
   <a class="back" href="/mis-guilds/${userId}">← Volver</a>
   <div>
