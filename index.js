@@ -543,10 +543,10 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
   <h2>🎭 Reaction Role</h2>
   <p>Crea un panel de roles autoasignables desde el Dashboard.</p>
   <a class="primary" 
-     href="/dashboard/${guild.id}/reactionrole?userId=${userId}" 
-     style="display:inline-block;margin-top:8px;">
-     ➕ Crear Panel de Reaction Roles
-  </a>
+   href="/dashboard/${guild.id}/reactionrole?userId=${userId}" 
+   style="display:inline-block;margin-top:8px;">
+   ➕ Crear Panel de Reaction Roles
+</a>
 </div>
 
     <div class="footer">
@@ -968,6 +968,7 @@ app.get('/api/clusters', async (req, res) => {
 // =================== 🎭 ReactionRole desde Dashboard ===================
 app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => {
   const { guildId } = req.params;
+const userId = "${req.sessionUserId}";
 
   res.send(`
   <!DOCTYPE html>
@@ -1022,14 +1023,15 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const guildId = "${guildId}";
-        const body = {
-          channelId: document.getElementById('channelId').value.trim(),
-          modo: document.getElementById('modo').value,
-          roles: document.getElementById('roles').value.split(',').map(r => r.trim()),
-          emojis: document.getElementById('emojis').value.split(',').map(e => e.trim()),
-          titulo: document.getElementById('titulo').value.trim(),
-          descripcion: document.getElementById('descripcion').value.trim(),
-        };
+      const body = {
+  userId, // ✅ <-- esto es lo que faltaba
+  channelId: document.getElementById('channelId').value.trim(),
+  modo: document.getElementById('modo').value,
+  roles: document.getElementById('roles').value.split(',').map(r => r.trim()),
+  emojis: document.getElementById('emojis').value.split(',').map(e => e.trim()),
+  titulo: document.getElementById('titulo').value.trim(),
+  descripcion: document.getElementById('descripcion').value.trim(),
+};
 
         const result = document.getElementById('result');
         result.innerHTML = '<div class="alert alert-info">⏳ Creando panel...</div>';
