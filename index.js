@@ -169,6 +169,13 @@ app.get('/callback', async (req, res) => {
   }
 });
 
+app.get('/api/guilds/:guildId/reactionroles', async (req, res) => {
+  const guildId = req.params.guildId;
+  // lee los paneles guardados de un JSON o BD
+  res.json([...]);
+});
+
+
 // ----------------- requireSession middleware -----------------
 function requireSession(req, res, next) {
   const userId = req.query.userId || req.body.userId;
