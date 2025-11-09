@@ -169,6 +169,105 @@ app.get('/callback', async (req, res) => {
   }
 });
 
+// =========================================
+// 🎭 Ruta del Dashboard ReactionRole
+// =========================================
+app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const ses = req.session;
+
+  // Renderiza el panel como HTML directo
+  res.send(`
+  <html>
+  <head>
+    <title>Reaction Role — Abyssus Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <script src="https://kit.fontawesome.com/a2e0ad8c3c.js" crossorigin="anonymous"></script>
+  </head>
+  <body class="bg-dark text-light p-3">
+    <div class="container mt-4">
+      <h3>🎭 Reaction Roles — ${guildId}</h3>
+      <p class="text-muted">Crea un panel para que los usuarios se asignen roles automáticamente.</p>
+      
+      <form id="rrForm" class="mt-3">
+        <div class="mb-3">
+          <label class="form-label">📢 Canal (ID)</label>
+          <input type="text" id="channelId" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">⚙️ Modo</label>
+          <select id="modo" class="form-select">
+            <option value="botones">Botones</option>
+            <option value="menu">Menú desplegable</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">🧩 Roles (IDs separados por coma)</label>
+          <input type="text" id="roles" class="form-control" placeholder="123,456,789" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">😀 Emojis (opcional)</label>
+          <input type="text" id="emojis" class="form-control" placeholder="😎,🔥,⭐">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">📝 Título (opcional)</label>
+          <input type="text" id="titulo" class="form-control" placeholder="AutoRoles del servidor">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">📄 Descripción (opcional)</label>
+          <textarea id="descripcion" class="form-control" rows="2" placeholder="Selecciona tus roles para personalizar tu experiencia."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-success w-100">
+          <i class="fa-solid fa-paper-plane"></i> Crear Panel
+        </button>
+      </form>
+
+      <div id="result" class="mt-3"></div>
+    </div>
+
+    <script>
+      const form = document.getElementById('rrForm');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const guildId = "${guildId}";
+        const channelId = document.getElementById('channelId').value.trim();
+        const modo = document.getElementById('modo').value;
+        const roles = document.getElementById('roles').value.split(',').map(r => r.trim());
+        const emojis = document.getElementById('emojis').value.split(',').map(e => e.trim());
+        const titulo = document.getElementById('titulo').value.trim();
+        const descripcion = document.getElementById('descripcion').value.trim();
+
+        const resultBox = document.getElementById('result');
+        resultBox.innerHTML = '<div class="alert alert-info">⏳ Creando panel...</div>';
+
+        try {
+          const res = await fetch('/api/guilds/' + guildId + '/reactionrole', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channelId, modo, roles, emojis, titulo, descripcion })
+          });
+          const text = await res.text();
+          resultBox.innerHTML = res.ok
+            ? '<div class="alert alert-success">✅ ' + text + '</div>'
+            : '<div class="alert alert-danger">❌ ' + text + '</div>';
+        } catch (err) {
+          console.error(err);
+          resultBox.innerHTML = '<div class="alert alert-danger">⚠️ Error interno.</div>';
+        }
+      });
+    </script>
+  </body>
+  </html>
+  `);
+});
+
+
 // ----------------- requireSession middleware -----------------
 function requireSession(req, res, next) {
   const userId = req.query.userId || req.body.userId;
