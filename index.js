@@ -541,13 +541,58 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 
       <div class="panel">
   <h2>🎭 Reaction Role</h2>
-  <p>Crea un panel de roles autoasignables desde el Dashboard.</p>
+  <p>Crea y gestiona paneles de roles autoasignables desde el Dashboard.</p>
+
   <a class="primary" 
-   href="/dashboard/${guild.id}/reactionrole?userId=${userId}" 
-   style="display:inline-block;margin-top:8px;">
-   ➕ Crear Panel de Reaction Roles
-</a>
+     href="/dashboard/${guild.id}/reactionrole?userId=${userId}" 
+     style="display:inline-block;margin-top:8px;">
+     ➕ Crear nuevo Panel de Reaction Roles
+  </a>
+
+  <hr style="border-color:#333;margin:12px 0;">
+
+  <div id="panelList" style="background:#111722;padding:10px;border-radius:8px;">
+    <p>Cargando paneles...</p>
+  </div>
 </div>
+
+<script>
+async function cargarPaneles() {
+  try {
+    const res = await fetch('/api/guilds/${guild.id}/reactionroles');
+    const data = await res.json();
+
+    const cont = document.getElementById('panelList');
+    if (!data.length) {
+      cont.innerHTML = '<p>No hay paneles creados aún.</p>';
+      return;
+    }
+
+    cont.innerHTML = data.map(p => `
+      <div style="margin-bottom:10px;padding:8px;background:#0d1320;border-radius:6px;">
+        <b>🆔</b> <code>${p.messageId}</code><br>
+        <b>📢</b> Canal: <code>${p.channelId}</code><br>
+        <b>⚙️</b> Modo: ${p.modo}<br>
+        <b>🎭</b> Roles: ${p.roles.map(r => `<code>${r}</code>`).join(', ')}<br>
+        <button onclick="eliminarPanel('${p.messageId}')" class="btn btn-danger btn-sm mt-2">🗑️ Eliminar</button>
+      </div>
+    `).join('');
+  } catch (err) {
+    document.getElementById('panelList').innerHTML = '<p>⚠️ Error al cargar paneles.</p>';
+  }
+}
+
+async function eliminarPanel(id) {
+  if (!confirm('¿Eliminar este panel?')) return;
+  const res = await fetch('/api/guilds/${guild.id}/reactionrole/' + id, { method: 'DELETE' });
+  const msg = await res.text();
+  alert(msg);
+  cargarPaneles();
+}
+
+cargarPaneles();
+</script>
+
 
     <div class="footer">
   <a class="back" href="/mis-guilds/${userId}">← Volver</a>
