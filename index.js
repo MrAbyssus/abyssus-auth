@@ -1063,30 +1063,82 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
   const ses = req.session;
 
   try {
+    // Verificar permisos del usuario
     const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
     const allowed = isOwner || await hasPermission(userId, guildId, 'MANAGE_ROLES');
-    if (!allowed) return res.status(403).send('No autorizado.');
+    if (!allowed) return res.status(403).send('No autorizado para crear paneles.');
 
+    // 1️⃣ Verificar que el canal exista y el bot pueda escribir
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    let channelInfo;
+    try {
+      const resp = await axios.get(`https://discord.com/api/v10/channels/${channelId}`, {
+        headers: { Authorization: `Bot ${BOT_TOKEN}` }
+      });
+      channelInfo = resp.data;
+      if (!channelInfo || channelInfo.guild_id !== guildId)
+        return res.status(400).send('❌ El canal no pertenece a este servidor.');
+    } catch (err) {
+      console.error('Canal inválido o inaccesible:', err.response?.data || err.message);
+      return res.status(404).send('❌ El bot no puede acceder a ese canal. Verifica los permisos.');
+    }
+
+    // 2️⃣ Construir mensaje de panel
     const content = `**${titulo || 'AutoRoles'}**\n${descripcion || 'Selecciona tus roles:'}`;
-    const components = [
-      {
-        type: 1,
-        components: roles.map((r, i) => ({
+    const components = [];
+
+    if (modo === 'botones') {
+      const filas = [];
+      let fila = { type: 1, components: [] };
+
+      for (let i = 0; i < roles.length; i++) {
+        const emoji = emojis[i] || '🎭';
+        const roleId = roles[i];
+        fila.components.push({
           type: 2,
           style: 1,
-          label: `${emojis[i] || '🎭'} ${r}`,
-          custom_id: `rr_${r}`
-        }))
-      }
-    ];
+          label: `${emoji} ${roleId}`,
+          custom_id: `rr_${roleId}`
+        });
 
+        if (fila.components.length === 5 || i === roles.length - 1) {
+          filas.push(fila);
+          fila = { type: 1, components: [] };
+        }
+      }
+
+      components.push(...filas);
+    } else if (modo === 'menu') {
+      const options = roles.map((r, i) => ({
+        label: r,
+        value: r,
+        emoji: emojis[i] || '🎭',
+        description: `Rol: ${r}`
+      }));
+
+      components.push({
+        type: 1,
+        components: [
+          {
+            type: 3,
+            custom_id: 'rr_menu',
+            placeholder: 'Selecciona tus roles',
+            min_values: 0,
+            max_values: options.length,
+            options
+          }
+        ]
+      });
+    }
+
+    // 3️⃣ Enviar mensaje
     await discordRequest('post', `/channels/${channelId}/messages`, { content, components });
 
     logAction('REACTIONROLE', { guildId, channelId, by: ses.username, roles });
-    return res.send('Panel de ReactionRole creado correctamente.');
+    return res.send('✅ Panel de ReactionRole creado correctamente.');
   } catch (e) {
     console.error('reactionrole err:', e.response?.data || e.message);
-    return res.status(500).send('Error al crear el panel.');
+    return res.status(500).send(`❌ Error al crear el panel: ${e.response?.data?.message || e.message}`);
   }
 });
 
