@@ -966,9 +966,7 @@ app.get('/api/clusters', async (req, res) => {
 });
 
 // =================== 🎭 ReactionRole desde Dashboard ===================
-const path = require('path');
 const rrFile = path.join(__dirname, 'data/reactionroles.json');
-const fs = require('fs');
 
 // ✅ Crear archivo si no existe
 if (!fs.existsSync(rrFile)) {
