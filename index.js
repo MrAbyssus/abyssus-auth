@@ -606,19 +606,28 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 
 <script>
 async function loadExistingPanels() {
-  const res = await fetch('/api/guilds/${guildId}/reactionrole/list?userId=${userId}');
-  const data = await res.json().catch(()=>[]);
-  const cont = document.getElementById('existingPanels');
-  if (!data.length) return cont.innerHTML = '<div class="alert alert-warning">No hay paneles creados aún.</div>';
+  try {
+    const res = await fetch('/api/guilds/${guildId}/reactionrole/list?userId=${userId}');
+    const data = await res.json().catch(() => []);
+    const cont = document.getElementById('existingPanels');
 
-  cont.innerHTML = data.map(p => `
-    <div class="alert alert-dark">
-      <b>${p.titulo}</b><br>
-      Canal: #${p.canal}<br>
-      Modo: ${p.modo}<br>
-      Roles: ${p.roles.join(', ')}
-    </div>
-  `).join('');
+    if (!data.length) {
+      cont.innerHTML = '<div class="alert alert-warning">No hay paneles creados aún.</div>';
+      return;
+    }
+
+    cont.innerHTML = data.map(p => (
+      '<div class="alert alert-dark">' +
+        '<b>' + (p.titulo || 'Sin título') + '</b><br>' +
+        '📢 Canal: #' + (p.canal || 'Desconocido') + '<br>' +
+        '⚙️ Modo: ' + (p.modo || 'N/A') + '<br>' +
+        '🎭 Roles: ' + (Array.isArray(p.roles) ? p.roles.join(', ') : 'Ninguno') +
+      '</div>'
+    )).join('');
+  } catch (err) {
+    document.getElementById('existingPanels').innerHTML =
+      '<div class="alert alert-danger">⚠️ Error al cargar los paneles.</div>';
+  }
 }
 loadExistingPanels();
 </script>
