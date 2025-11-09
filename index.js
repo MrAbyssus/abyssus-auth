@@ -969,12 +969,10 @@ app.get('/api/clusters', async (req, res) => {
 
 const rrFile = path.join(__dirname, 'reactionroles.json');
 
-// ✅ Asegurar que exista el archivo reactionroles.json
-if (!fs.existsSync(rrFile)) {
-  fs.writeFileSync(rrFile, JSON.stringify({}, null, 2));
-}
+// ✅ Asegurar que el archivo exista
+if (!fs.existsSync(rrFile)) fs.writeFileSync(rrFile, JSON.stringify({}, null, 2));
 
-// 🟣 Página del Dashboard para crear/ver paneles
+// 🟣 Página del Dashboard
 app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const userId = req.sessionUserId;
@@ -984,7 +982,7 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
   let panelsHTML = '<p>No hay paneles creados aún.</p>';
 
   try {
-    // ✅ Cargar canales
+    // ✅ Cargar canales del servidor
     const channelsRes = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
       headers: { Authorization: `Bot ${BOT_TOKEN}` }
     });
@@ -992,7 +990,7 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
     const textChannels = channelsRes.data.filter(c => c.type === 0);
     channelOptions = textChannels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join('');
 
-    // ✅ Cargar paneles guardados
+    // ✅ Leer paneles guardados
     const data = JSON.parse(fs.readFileSync(rrFile, 'utf8'));
     const panels = data[guildId] || [];
 
@@ -1114,7 +1112,104 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
   `);
 });
 
-// =================== 🗑️ API: Eliminar Panel ===================
+// =================== API: Crear panel de ReactionRole ===================
+app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { userId, channelId, modo, roles, emojis, titulo, descripcion } = req.body;
+  const ses = req.session;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+
+  try {
+    // ✅ Verificar permisos
+    const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
+    const allowed = isOwner || await hasPermission(userId, guildId, 'MANAGE_ROLES');
+    if (!allowed) return res.status(403).send('🚫 No autorizado para crear paneles.');
+
+    // ✅ Obtener canal
+    const chRes = await axios.get(`https://discord.com/api/v10/channels/${channelId}`, {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` }
+    });
+    const channel = chRes.data;
+
+    // ✅ Obtener roles válidos
+    const rolesRes = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` }
+    });
+    const allRoles = rolesRes.data;
+    const roleData = roles.map(id => allRoles.find(r => r.id === id)).filter(Boolean);
+
+    if (roleData.length === 0) return res.status(400).send('⚠️ Ninguno de los roles es válido.');
+
+    // ✅ Crear mensaje del panel
+    const content = `**${titulo || 'AutoRoles'}**\n${descripcion || 'Selecciona tus roles:'}`;
+    const components = [];
+
+    if (modo === 'botones') {
+      const filas = [];
+      let fila = { type: 1, components: [] };
+      for (let i = 0; i < roleData.length; i++) {
+        const emoji = emojis[i] || '🎭';
+        const role = roleData[i];
+        fila.components.push({
+          type: 2,
+          style: 1,
+          label: `${emoji} ${role.name}`,
+          custom_id: `rr_${role.id}`
+        });
+        if (fila.components.length === 5 || i === roleData.length - 1) {
+          filas.push(fila);
+          fila = { type: 1, components: [] };
+        }
+      }
+      components.push(...filas);
+    } else {
+      const options = roleData.map((r, i) => ({
+        label: r.name,
+        value: r.id,
+        emoji: emojis[i] || '🎭',
+        description: `Rol: ${r.name}`
+      }));
+      components.push({
+        type: 1,
+        components: [{
+          type: 3,
+          custom_id: 'rr_menu',
+          placeholder: 'Selecciona tus roles',
+          min_values: 0,
+          max_values: options.length,
+          options
+        }]
+      });
+    }
+
+    // ✅ Enviar panel
+    const msg = await discordRequest('post', `/channels/${channelId}/messages`, {
+      content,
+      components
+    });
+
+    // ✅ Guardar localmente
+    const data = JSON.parse(fs.readFileSync(rrFile, 'utf8'));
+    if (!data[guildId]) data[guildId] = [];
+    data[guildId].push({
+      canal: channel.name,
+      messageId: msg.data.id,
+      modo,
+      roles: roleData.map(r => r.name),
+      titulo,
+      descripcion
+    });
+    fs.writeFileSync(rrFile, JSON.stringify(data, null, 2));
+
+    logAction('REACTIONROLE_CREATE', { guildId, channelId, by: ses.username });
+    return res.send('✅ Panel creado correctamente.');
+  } catch (e) {
+    console.error('reactionrole err:', e.response?.data || e.message);
+    return res.status(500).send('❌ Error al crear el panel.');
+  }
+});
+
+// =================== API: Eliminar panel ===================
 app.delete('/api/guilds/:guildId/reactionrole/:index', requireSession, (req, res) => {
   const { guildId, index } = req.params;
   if (!fs.existsSync(rrFile)) return res.status(404).send('⚠️ No hay datos.');
