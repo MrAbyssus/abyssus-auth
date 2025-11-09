@@ -1063,12 +1063,12 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
   const ses = req.session;
 
   try {
-    // Verificar permisos del usuario
+    // ✅ Verificar permisos del usuario
     const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
     const allowed = isOwner || await hasPermission(userId, guildId, 'MANAGE_ROLES');
-    if (!allowed) return res.status(403).send('No autorizado para crear paneles.');
+    if (!allowed) return res.status(403).send('🚫 No autorizado para crear paneles.');
 
-    // 1️⃣ Verificar que el canal exista y el bot pueda escribir
+    // ✅ Obtener info del canal
     const BOT_TOKEN = process.env.BOT_TOKEN;
     let channelInfo;
     try {
@@ -1077,13 +1077,26 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
       });
       channelInfo = resp.data;
       if (!channelInfo || channelInfo.guild_id !== guildId)
-        return res.status(400).send('❌ El canal no pertenece a este servidor.');
+        return res.status(400).send('⚠️ El canal no pertenece a este servidor.');
     } catch (err) {
-      console.error('Canal inválido o inaccesible:', err.response?.data || err.message);
+      console.error('❌ Canal inválido o inaccesible:', err.response?.data || err.message);
       return res.status(404).send('❌ El bot no puede acceder a ese canal. Verifica los permisos.');
     }
 
-    // 2️⃣ Construir mensaje de panel
+    // ✅ Obtener nombres reales de roles
+    const rolesResp = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` }
+    });
+
+    const allRoles = rolesResp.data;
+    const roleData = roles
+      .map(id => allRoles.find(r => r.id === id))
+      .filter(Boolean);
+
+    if (roleData.length === 0)
+      return res.status(400).send('⚠️ Ninguno de los roles proporcionados es válido o visibles para el bot.');
+
+    // 🧱 Construir panel
     const content = `**${titulo || 'AutoRoles'}**\n${descripcion || 'Selecciona tus roles:'}`;
     const components = [];
 
@@ -1091,17 +1104,19 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
       const filas = [];
       let fila = { type: 1, components: [] };
 
-      for (let i = 0; i < roles.length; i++) {
+      for (let i = 0; i < roleData.length; i++) {
         const emoji = emojis[i] || '🎭';
-        const roleId = roles[i];
+        const role = roleData[i];
+        const label = `${emoji} ${role.name}`;
+
         fila.components.push({
           type: 2,
           style: 1,
-          label: `${emoji} ${roleId}`,
-          custom_id: `rr_${roleId}`
+          label,
+          custom_id: `rr_${role.id}`
         });
 
-        if (fila.components.length === 5 || i === roles.length - 1) {
+        if (fila.components.length === 5 || i === roleData.length - 1) {
           filas.push(fila);
           fila = { type: 1, components: [] };
         }
@@ -1109,11 +1124,11 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
 
       components.push(...filas);
     } else if (modo === 'menu') {
-      const options = roles.map((r, i) => ({
-        label: r,
-        value: r,
+      const options = roleData.map((r, i) => ({
+        label: r.name,
+        value: r.id,
         emoji: emojis[i] || '🎭',
-        description: `Rol: ${r}`
+        description: `Rol: ${r.name}`
       }));
 
       components.push({
@@ -1131,10 +1146,13 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
       });
     }
 
-    // 3️⃣ Enviar mensaje
-    await discordRequest('post', `/channels/${channelId}/messages`, { content, components });
+    // ✅ Enviar mensaje al canal
+    await discordRequest('post', `/channels/${channelId}/messages`, {
+      content,
+      components
+    });
 
-    logAction('REACTIONROLE', { guildId, channelId, by: ses.username, roles });
+    logAction('REACTIONROLE', { guildId, channelId, by: ses.username, roles: roleData.map(r => r.name) });
     return res.send('✅ Panel de ReactionRole creado correctamente.');
   } catch (e) {
     console.error('reactionrole err:', e.response?.data || e.message);
