@@ -1001,6 +1001,7 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
           <b>📢 Canal:</b> <code>${p.canal}</code><br>
           <b>⚙️ Modo:</b> ${p.modo}<br>
           <b>🎭 Roles:</b> ${p.roles.join(', ') || 'N/A'}<br>
+          <b>👤 Creado por:</b> <code>${p.userId || 'Desconocido'}</code><br>
           <button class="btn btn-danger btn-sm mt-2" onclick="eliminarPanel(${i})">🗑️ Eliminar</button>
         </div>
         <hr>
@@ -1192,6 +1193,7 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
     const data = JSON.parse(fs.readFileSync(rrFile, 'utf8'));
     if (!data[guildId]) data[guildId] = [];
     data[guildId].push({
+      userId,
       canal: channel.name,
       messageId: msg.data.id,
       modo,
