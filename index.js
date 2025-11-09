@@ -1443,6 +1443,54 @@ app.get('/api/guilds/:guildId/reactionroles', requireSession, async (req, res) =
   }
 });
 
+// =================== 🗑️ Eliminar panel de ReactionRole ===================
+app.delete('/api/guilds/:guildId/reactionrole/:messageId', requireSession, async (req, res) => {
+  const { guildId, messageId } = req.params;
+  const { userId } = req.query;
+  const ses = req.session;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+
+  try {
+    // ✅ Verificar permisos del usuario
+    const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
+    const allowed = isOwner || await hasPermission(userId, guildId, 'MANAGE_ROLES');
+    if (!allowed) return res.status(403).json({ error: '🚫 No autorizado para eliminar paneles.' });
+
+    // ✅ Buscar el panel en el JSON local
+    const dataPath = path.join(__dirname, './data/reactionroles.json');
+    const data = fs.existsSync(dataPath) ? JSON.parse(fs.readFileSync(dataPath, 'utf8')) : {};
+    const panel = data[messageId];
+
+    if (!panel)
+      return res.status(404).json({ error: '⚠️ No se encontró ningún panel con ese ID.' });
+
+    // ✅ Intentar eliminar el mensaje en Discord
+    try {
+      await axios.delete(`https://discord.com/api/v10/channels/${panel.channelId}/messages/${messageId}`, {
+        headers: { Authorization: `Bot ${BOT_TOKEN}` }
+      });
+    } catch (err) {
+      console.warn('⚠️ No se pudo eliminar el mensaje en Discord:', err.response?.data || err.message);
+    }
+
+    // ✅ Eliminar registro local
+    delete data[messageId];
+    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+
+    logAction('REACTIONROLE_DELETE', {
+      guildId,
+      messageId,
+      by: ses.username,
+      channel: panel.channelId
+    });
+
+    res.json({ success: `✅ Panel eliminado correctamente.` });
+  } catch (err) {
+    console.error('reactionrole delete err:', err.response?.data || err.message);
+    res.status(500).json({ error: '❌ Error al eliminar el panel.' });
+  }
+});
+
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
