@@ -1450,13 +1450,11 @@ app.get('/api/guilds/:guildId/reactionroles', requireSession, async (req, res) =
 
   try {
     // 📖 Leer base local
-    const dataPath = path.join(__dirname, './data/reactionroles.json');
+    const dataPath = path.join(__dirname, 'reactionroles.json');
     const data = fs.existsSync(dataPath) ? JSON.parse(fs.readFileSync(dataPath, 'utf8')) : {};
-    const panels = Object.entries(data)
-      .filter(([_, p]) => p.guildId === guildId)
-      .map(([messageId, p]) => ({ messageId, ...p }));
+    const guildPanels = Array.isArray(data[guildId]) ? data[guildId] : [];
 
-    if (panels.length === 0)
+    if (guildPanels.length === 0)
       return res.json([]);
 
     // 🔄 Obtener nombres reales de canal y roles
@@ -1473,26 +1471,26 @@ app.get('/api/guilds/:guildId/reactionroles', requireSession, async (req, res) =
     const roles = rolesRes.data;
 
     // 🧩 Formatear para frontend
-    const formatted = panels.map(p => {
+    const formatted = guildPanels.map(p => {
       const channel = channels.find(c => c.id === p.channelId);
       const roleNames = (p.roles || [])
         .map(rid => roles.find(r => r.id === rid)?.name || 'Desconocido')
         .join(', ') || 'Ninguno';
       return {
-        id: p.messageId,
-        titulo: p.titulo || 'Sin título',
-        canal: channel ? `#${channel.name}` : 'Canal eliminado',
+        messageId: p.messageId,
+        channelId: channel ? `#${channel.name}` : 'Canal eliminado',
         modo: p.modo,
-        roles: roleNames
+        roles: roleNames,
       };
     });
 
-    res.json(formatted);
+    return res.json(formatted);
   } catch (err) {
-    console.error('❌ Error cargando paneles ReactionRole:', err.response?.data || err.message);
-    res.status(500).json({ error: '❌ Error al cargar los paneles.' });
+    console.error('❌ Error al cargar paneles:', err);
+    return res.status(500).json([]);
   }
 });
+
 
 // =================== 🗑️ Eliminar panel de ReactionRole ===================
 app.delete('/api/guilds/:guildId/reactionrole/:messageId', requireSession, async (req, res) => {
