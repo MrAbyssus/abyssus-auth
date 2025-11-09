@@ -1443,6 +1443,57 @@ app.get('/api/guilds/:guildId/reactionroles', requireSession, async (req, res) =
   }
 });
 
+// =================== 📋 Obtener paneles de ReactionRole ===================
+app.get('/api/guilds/:guildId/reactionroles', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+
+  try {
+    // 📖 Leer base local
+    const dataPath = path.join(__dirname, './data/reactionroles.json');
+    const data = fs.existsSync(dataPath) ? JSON.parse(fs.readFileSync(dataPath, 'utf8')) : {};
+    const panels = Object.entries(data)
+      .filter(([_, p]) => p.guildId === guildId)
+      .map(([messageId, p]) => ({ messageId, ...p }));
+
+    if (panels.length === 0)
+      return res.json([]);
+
+    // 🔄 Obtener nombres reales de canal y roles
+    const [channelsRes, rolesRes] = await Promise.all([
+      axios.get(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+        headers: { Authorization: `Bot ${BOT_TOKEN}` }
+      }),
+      axios.get(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+        headers: { Authorization: `Bot ${BOT_TOKEN}` }
+      })
+    ]);
+
+    const channels = channelsRes.data;
+    const roles = rolesRes.data;
+
+    // 🧩 Formatear para frontend
+    const formatted = panels.map(p => {
+      const channel = channels.find(c => c.id === p.channelId);
+      const roleNames = (p.roles || [])
+        .map(rid => roles.find(r => r.id === rid)?.name || 'Desconocido')
+        .join(', ') || 'Ninguno';
+      return {
+        id: p.messageId,
+        titulo: p.titulo || 'Sin título',
+        canal: channel ? `#${channel.name}` : 'Canal eliminado',
+        modo: p.modo,
+        roles: roleNames
+      };
+    });
+
+    res.json(formatted);
+  } catch (err) {
+    console.error('❌ Error cargando paneles ReactionRole:', err.response?.data || err.message);
+    res.status(500).json({ error: '❌ Error al cargar los paneles.' });
+  }
+});
+
 // =================== 🗑️ Eliminar panel de ReactionRole ===================
 app.delete('/api/guilds/:guildId/reactionrole/:messageId', requireSession, async (req, res) => {
   const { guildId, messageId } = req.params;
