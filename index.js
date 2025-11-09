@@ -1369,6 +1369,32 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
   }
 });
 
+// =================== API: listar paneles de ReactionRole ===================
+app.get('/api/guilds/:guildId/reactionrole/list', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const userId = req.query.userId;
+  const ses = req.session;
+
+  try {
+    // Verificar permisos
+    const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
+    const allowed = isOwner || await hasPermission(userId, guildId, 'MANAGE_ROLES');
+    if (!allowed) return res.status(403).json({ error: '🚫 No autorizado para ver los paneles.' });
+
+    const dataFile = path.join(__dirname, 'reactionroles.json');
+    if (!fs.existsSync(dataFile)) return res.json([]);
+
+    const raw = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const panels = Array.isArray(raw[guildId]) ? raw[guildId] : [];
+
+    return res.json(panels);
+  } catch (err) {
+    console.error('reactionrole list err:', err.response?.data || err.message);
+    return res.status(500).json({ error: '❌ Error al cargar los paneles.' });
+  }
+});
+
+
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
