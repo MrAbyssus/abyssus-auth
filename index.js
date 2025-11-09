@@ -1146,6 +1146,110 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
   `);
 });
 
+// =================== 🎭 ReactionRole desde Dashboard ===================
+app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const userId = req.sessionUserId;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+
+  let channelOptions = '<option value="">Selecciona un canal...</option>';
+  try {
+    const channelsRes = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` }
+    });
+    const textChannels = channelsRes.data.filter(c => c.type === 0);
+    channelOptions = textChannels
+      .map(c => `<option value="${c.id}"># ${escapeHtml(c.name)}</option>`)
+      .join('');
+  } catch (e) {
+    console.error('❌ Error cargando canales:', e.response?.data || e.message);
+  }
+
+  res.send(`
+  <!DOCTYPE html>
+  <html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reaction Role — Abyssus Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <style>
+      body { background-color: #0b0f14; color: #eaf2ff; font-family: 'Inter', sans-serif; padding: 2rem; }
+      .container { max-width: 650px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; }
+      h2 { color: #8ba4ff; }
+      input, textarea, select { background: #111722; color: #eaf2ff; border: none; border-radius: 6px; padding: 10px; width: 100%; margin-bottom: 10px; }
+      button { background: linear-gradient(90deg,#5865F2,#764ba2); border: none; border-radius: 8px; padding: 10px 15px; color: white; width: 100%; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>🎭 Reaction Role — ${guildId}</h2>
+      <p>Configura un panel de roles autoasignables para tu servidor.</p>
+      <form id="rrForm">
+        <label>📢 Canal</label>
+        <select id="channelId" required>${channelOptions}</select>
+
+        <label>⚙️ Modo</label>
+        <select id="modo">
+          <option value="botones">Botones</option>
+          <option value="menu">Menú desplegable</option>
+        </select>
+
+        <label>🧩 Roles (IDs separados por coma)</label>
+        <input type="text" id="roles" placeholder="123,456,789" required>
+
+        <label>😀 Emojis (opcional)</label>
+        <input type="text" id="emojis" placeholder="😎,🔥,⭐">
+
+        <label>📝 Título</label>
+        <input type="text" id="titulo" placeholder="AutoRoles del servidor">
+
+        <label>📄 Descripción</label>
+        <textarea id="descripcion" rows="2" placeholder="Selecciona tus roles para personalizar tu experiencia."></textarea>
+
+        <button type="submit">Crear Panel</button>
+      </form>
+
+      <div id="result" class="mt-3"></div>
+    </div>
+
+    <script>
+      const form = document.getElementById('rrForm');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const guildId = "${guildId}";
+        const body = {
+          userId: "${userId}",
+          channelId: document.getElementById('channelId').value.trim(),
+          modo: document.getElementById('modo').value,
+          roles: document.getElementById('roles').value.split(',').map(r => r.trim()).filter(Boolean),
+          emojis: document.getElementById('emojis').value.split(',').map(e => e.trim()).filter(Boolean),
+          titulo: document.getElementById('titulo').value.trim(),
+          descripcion: document.getElementById('descripcion').value.trim(),
+        };
+
+        const result = document.getElementById('result');
+        result.innerHTML = '<div class="alert alert-info">⏳ Creando panel...</div>';
+
+        try {
+          const res = await fetch('/api/guilds/' + guildId + '/reactionrole', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const text = await res.text();
+          result.innerHTML = res.ok
+            ? '<div class="alert alert-success">✅ ' + text + '</div>'
+            : '<div class="alert alert-danger">❌ ' + text + '</div>';
+        } catch (err) {
+          result.innerHTML = '<div class="alert alert-danger">⚠️ Error al crear el panel.</div>';
+        }
+      });
+    </script>
+  </body>
+  </html>`);
+});
+
 // =================== API para crear panel de ReactionRole ===================
 app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
   const { guildId } = req.params;
@@ -1173,118 +1277,88 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
       return res.status(404).send('❌ El bot no puede acceder a ese canal. Verifica los permisos.');
     }
 
-    // ✅ Obtener nombres reales de roles
+    // ✅ Obtener roles válidos
     const rolesResp = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
       headers: { Authorization: `Bot ${BOT_TOKEN}` }
     });
 
     const allRoles = rolesResp.data;
-    const roleData = roles
-      .map(id => allRoles.find(r => r.id === id))
-      .filter(Boolean);
-
-    if (roleData.length === 0)
-      return res.status(400).send('⚠️ Ninguno de los roles proporcionados es válido o visibles para el bot.');
+    const roleData = roles.map(id => allRoles.find(r => r.id === id)).filter(Boolean);
+    if (!roleData.length)
+      return res.status(400).send('⚠️ Ninguno de los roles proporcionados es válido o visible para el bot.');
 
     // 🧱 Construir panel
     const content = `**${titulo || 'AutoRoles'}**\n${descripcion || 'Selecciona tus roles:'}`;
     const components = [];
 
     if (modo === 'botones') {
-      const filas = [];
       let fila = { type: 1, components: [] };
-
       for (let i = 0; i < roleData.length; i++) {
         const emoji = emojis[i] || '🎭';
-        const role = roleData[i];
-        const label = `${emoji} ${role.name}`;
-
         fila.components.push({
           type: 2,
           style: 1,
-          label,
-          custom_id: `rr_${role.id}`
+          label: `${emoji} ${roleData[i].name}`,
+          custom_id: `rr_${roleData[i].id}`
         });
-
         if (fila.components.length === 5 || i === roleData.length - 1) {
-          filas.push(fila);
+          components.push(fila);
           fila = { type: 1, components: [] };
         }
       }
-
-      components.push(...filas);
-    } else if (modo === 'menu') {
+    } else {
       const options = roleData.map((r, i) => ({
         label: r.name,
         value: r.id,
         emoji: emojis[i] || '🎭',
         description: `Rol: ${r.name}`
       }));
-
       components.push({
         type: 1,
-        components: [
-          {
-            type: 3,
-            custom_id: 'rr_menu',
-            placeholder: 'Selecciona tus roles',
-            min_values: 0,
-            max_values: options.length,
-            options
-          }
-        ]
+        components: [{
+          type: 3,
+          custom_id: 'rr_menu',
+          placeholder: 'Selecciona tus roles',
+          min_values: 0,
+          max_values: options.length,
+          options
+        }]
       });
     }
 
-// 📋 Obtener lista de paneles guardados
-app.get('/api/guilds/:guildId/reactionroles', requireSession, (req, res) => {
-  const { guildId } = req.params;
-  const dataFile = path.join(__dirname, 'reactionroles.json');
-  if (!fs.existsSync(dataFile)) return res.json([]);
-  const saved = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-  return res.json(saved[guildId] || []);
-});
+    // ✅ Enviar mensaje al canal
+    const messageResp = await discordRequest('post', `/channels/${channelId}/messages`, {
+      content,
+      components
+    });
 
-// 🗑️ Eliminar un panel por ID de mensaje
-app.delete('/api/guilds/:guildId/reactionrole/:messageId', requireSession, async (req, res) => {
-  const { guildId, messageId } = req.params;
-  const dataFile = path.join(__dirname, 'reactionroles.json');
-  if (!fs.existsSync(dataFile)) return res.status(404).send('No hay registros.');
+    // 💾 Guardar registro local
+    const dataFile = path.join(__dirname, 'reactionroles.json');
+    let saved = {};
+    if (fs.existsSync(dataFile)) {
+      try { saved = JSON.parse(fs.readFileSync(dataFile, 'utf8')); } catch { saved = {}; }
+    }
 
-  const saved = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-  if (!saved[guildId]) return res.status(404).send('No se encontraron paneles en este servidor.');
+    if (!saved[guildId]) saved[guildId] = [];
+    saved[guildId].push({
+      canal: channelInfo.name,
+      channelId,
+      messageId: messageResp.data.id,
+      modo,
+      roles: roleData.map(r => r.name),
+      titulo: titulo || 'AutoRoles',
+      descripcion: descripcion || ''
+    });
 
-  saved[guildId] = saved[guildId].filter(p => p.messageId !== messageId);
-  fs.writeFileSync(dataFile, JSON.stringify(saved, null, 2), 'utf8');
-  return res.send('🗑️ Panel eliminado correctamente.');
-});
-    
-  // ✅ Enviar mensaje al canal
-await discordRequest('post', `/channels/${channelId}/messages`, {
-  content,
-  components
-});
+    fs.writeFileSync(dataFile, JSON.stringify(saved, null, 2), 'utf8');
+    logAction('REACTIONROLE', { guildId, channelId, by: ses.username, roles: roleData.map(r => r.name) });
 
-// 💾 Guardar registro local
-const dataFile = path.join(__dirname, 'reactionroles.json');
-let saved = {};
-if (fs.existsSync(dataFile)) saved = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-if (!saved[guildId]) saved[guildId] = [];
-saved[guildId].push({
-  canal: channelInfo.name,
-  modo,
-  roles: roleData.map(r => r.name),
-  titulo: titulo || 'AutoRoles',
-  descripcion: descripcion || ''
-});
-fs.writeFileSync(dataFile, JSON.stringify(saved, null, 2), 'utf8');
-
-logAction('REACTIONROLE', { guildId, channelId, by: ses.username, roles: roleData.map(r => r.name) });
-return res.send('✅ Panel de ReactionRole creado correctamente.');
-
+    return res.send('✅ Panel de ReactionRole creado correctamente.');
+  } catch (err) {
+    console.error('❌ Error al crear ReactionRole:', err.response?.data || err.message);
+    return res.status(500).send('❌ Error interno al crear el panel.');
   }
 });
-
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
