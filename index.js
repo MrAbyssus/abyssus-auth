@@ -1146,10 +1146,7 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
   const { userId, channelId, modo, roles, emojis, titulo, descripcion } = req.body;
   const ses = req.session;
   const BOT_TOKEN = process.env.BOT_TOKEN;
-  const axios = require('axios');
-  const fs = require('fs');
-  const path = require('path');
-
+  
   try {
     // --- Permisos ---
     const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
