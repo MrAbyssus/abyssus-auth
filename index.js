@@ -965,66 +965,48 @@ app.get('/api/clusters', async (req, res) => {
   }
 });
 
-// =================== 🎭 ReactionRole desde Dashboard (independiente del comando) ===================
-
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-
-const rrFile = path.join(dataDir, 'reactionroles_dashboard.json');
-if (!fs.existsSync(rrFile)) fs.writeFileSync(rrFile, JSON.stringify({}, null, 2));
-
-// --- Página principal ---
+// =================== 🎭 ReactionRole desde Dashboard ===================
 app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const userId = req.sessionUserId;
   const BOT_TOKEN = process.env.BOT_TOKEN;
+  const fs = require('fs');
+  const path = require('path');
 
+  const dataFile = path.join(__dirname, 'data/reactionroles.json');
+  if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, JSON.stringify({}, null, 2));
+  const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+  const guildPanels = Object.entries(data).filter(([_, d]) => d.guildId === guildId);
+
+  // Cargar canales
   let channelOptions = '<option value="">Selecciona un canal...</option>';
-  let panelsHTML = '<p>Aún no hay paneles creados.</p>';
-
   try {
-    // --- Canales de texto ---
     const channelsRes = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
       headers: { Authorization: `Bot ${BOT_TOKEN}` }
     });
     const textChannels = channelsRes.data.filter(c => c.type === 0);
-    channelOptions = textChannels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join('');
-
-    // --- Paneles existentes ---
-    const data = JSON.parse(fs.readFileSync(rrFile, 'utf8'));
-    const panels = data[guildId] || [];
-
-    if (panels.length > 0) {
-      panelsHTML = panels.map((p, i) => `
-        <div class="panel-item">
-          <b>${p.titulo || 'Sin título'}</b><br>
-          📢 <b>Canal:</b> ${p.canal}<br>
-          ⚙️ <b>Modo:</b> ${p.modo}<br>
-          🎭 <b>Roles:</b> ${p.roles.join(', ') || 'N/A'}<br>
-          <button class="btn btn-danger btn-sm mt-2" onclick="eliminarPanel(${i})">🗑️ Eliminar</button>
-        </div>
-        <hr>
-      `).join('');
-    }
-  } catch (err) {
-    console.error('⚠️ Error cargando canales o paneles:', err.message);
+    channelOptions = textChannels
+      .map(c => `<option value="${c.id}"># ${c.name}</option>`)
+      .join('');
+  } catch (e) {
+    console.error('❌ Error cargando canales:', e.response?.data || e.message);
   }
 
+  // HTML del Dashboard
   res.send(`
   <!DOCTYPE html>
   <html lang="es">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reaction Roles — Abyssus Dashboard</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <style>
       body { background-color: #0b0f14; color: #eaf2ff; font-family: 'Inter', sans-serif; padding: 2rem; }
-      .container { max-width: 700px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; }
+      .container { max-width: 650px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; }
       h2 { color: #8ba4ff; }
-      .panel-item { background:#141a24; padding:10px; border-radius:6px; margin-bottom:10px; }
-      input, select, textarea { background:#111722; color:#fff; border:none; border-radius:6px; padding:8px; width:100%; margin-bottom:10px; }
-      button { background:linear-gradient(90deg,#5865F2,#764ba2); border:none; border-radius:6px; padding:10px 15px; color:#fff; font-weight:600; width:100%; }
+      input, textarea, select { background: #111722; color: #eaf2ff; border: none; border-radius: 6px; padding: 10px; width: 100%; margin-bottom: 10px; }
+      button { background: linear-gradient(90deg,#5865F2,#764ba2); border: none; border-radius: 8px; padding: 10px 15px; color: white; width: 100%; font-weight: 600; }
+      .panel { background: #111722; border-radius: 8px; padding: 10px 15px; margin-bottom: 10px; }
     </style>
   </head>
   <body>
@@ -1057,31 +1039,49 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
         <button type="submit">Crear Panel</button>
       </form>
 
+      <div id="result" class="mt-3"></div>
+
       <hr>
       <h4>📋 Paneles Existentes</h4>
-      <div id="panels">${panelsHTML}</div>
-
-      <div id="result" class="mt-3"></div>
+      <div id="paneles">
+        ${
+          guildPanels.length === 0
+            ? '<p>Aún no hay paneles creados.</p>'
+            : guildPanels
+                .map(([msgId, d]) => `
+                  <div class="panel">
+                    <b>${d.titulo || 'Sin título'}</b><br>
+                    📢 Canal: <#${d.channelId}><br>
+                    ⚙️ Modo: ${d.modo}<br>
+                    🎭 Roles: ${d.roles.join(', ')}<br>
+                    <button class="btn btn-danger btn-sm mt-2" onclick="eliminarPanel('${msgId}', '${guildId}', '${userId}')">🗑️ Eliminar</button>
+                  </div>
+                `)
+                .join('')
+        }
+      </div>
     </div>
 
     <script>
-      document.getElementById('rrForm').addEventListener('submit', async (e) => {
+      const form = document.getElementById('rrForm');
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const guildId = "${guildId}";
         const body = {
           userId: "${userId}",
-          channelId: document.getElementById('channelId').value,
+          channelId: document.getElementById('channelId').value.trim(),
           modo: document.getElementById('modo').value,
           roles: document.getElementById('roles').value.split(',').map(r => r.trim()),
           emojis: document.getElementById('emojis').value.split(',').map(e => e.trim()),
-          titulo: document.getElementById('titulo').value,
-          descripcion: document.getElementById('descripcion').value
+          titulo: document.getElementById('titulo').value.trim(),
+          descripcion: document.getElementById('descripcion').value.trim(),
         };
 
         const result = document.getElementById('result');
         result.innerHTML = '<div class="alert alert-info">⏳ Creando panel...</div>';
 
         try {
-          const res = await fetch('/api/guilds/${guildId}/reactionrole-dashboard', {
+          const res = await fetch('/api/guilds/' + guildId + '/reactionrole', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -1090,18 +1090,27 @@ app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => 
           result.innerHTML = res.ok
             ? '<div class="alert alert-success">✅ ' + text + '</div>'
             : '<div class="alert alert-danger">❌ ' + text + '</div>';
-          if (res.ok) location.reload();
-        } catch (err) {
+          if (res.ok) setTimeout(() => location.reload(), 1500);
+        } catch {
           result.innerHTML = '<div class="alert alert-danger">⚠️ Error al crear el panel.</div>';
         }
       });
 
-      async function eliminarPanel(index) {
-        if (!confirm('¿Eliminar este panel?')) return;
-        const res = await fetch('/api/guilds/${guildId}/reactionrole-dashboard/' + index, { method: 'DELETE' });
-        const text = await res.text();
-        alert(text);
-        if (res.ok) location.reload();
+      async function eliminarPanel(msgId, guildId, userId) {
+        if (!userId) return alert('Falta userId');
+        const confirmar = confirm('¿Eliminar este panel?');
+        if (!confirmar) return;
+
+        try {
+          const res = await fetch(\`/api/guilds/\${guildId}/reactionrole/\${msgId}?userId=\${userId}\`, {
+            method: 'DELETE'
+          });
+          const text = await res.text();
+          alert(text);
+          location.reload();
+        } catch {
+          alert('⚠️ Error al eliminar el panel.');
+        }
       }
     </script>
   </body>
