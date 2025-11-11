@@ -1197,24 +1197,37 @@ app.post("/api/guilds/:guildId/reactionrole", requireSession, async (req, res) =
   }
 });
 
-// =================== DELETE: Eliminar Panel ===================
-app.delete("/api/guilds/:guildId/reactionrole/:msgId", requireSession, async (req, res) => {
+// =================== 🗑️ DELETE: Eliminar Panel ===================
+app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (req, res) => {
   const { guildId, msgId } = req.params;
   const { userId } = req.query;
-  if (!userId) return res.status(400).send("⚠️ Falta userId.");
+  if (!userId) return res.status(400).send('⚠️ Falta userId.');
 
   try {
-    const data = JSON.parse(fs.readFileSync(dataFile, "utf8"));
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
     const panel = data[msgId];
-    if (!panel) return res.status(404).send("⚠️ Panel no encontrado.");
-    if (panel.guildId !== guildId) return res.status(403).send("🚫 No pertenece a este servidor.");
+    if (!panel) return res.status(404).send('⚠️ Panel no encontrado.');
+    if (panel.guildId !== guildId) return res.status(403).send('🚫 No pertenece a este servidor.');
 
+    // --- Intentar eliminar el mensaje en Discord ---
+    try {
+      await axios.delete(`https://discord.com/api/v10/channels/${panel.channelId}/messages/${msgId}`, {
+        headers: { Authorization: `Bot ${BOT_TOKEN}` }
+      });
+      console.log(`🗑️ Mensaje del panel ${msgId} eliminado en Discord.`);
+    } catch (err) {
+      console.warn('⚠️ No se pudo eliminar el mensaje en Discord:', err.response?.data || err.message);
+    }
+
+    // --- Eliminar del registro local ---
     delete data[msgId];
     fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
-    res.send("✅ Panel eliminado correctamente.");
+
+    res.send('✅ Panel eliminado correctamente (mensaje y registro).');
   } catch (e) {
-    console.error("Error eliminando panel:", e.message);
-    res.status(500).send("❌ Error al eliminar panel.");
+    console.error('Error eliminando panel:', e.message);
+    res.status(500).send('❌ Error al eliminar panel.');
   }
 });
 
