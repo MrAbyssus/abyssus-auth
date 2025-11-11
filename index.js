@@ -1160,19 +1160,62 @@ app.post('/api/guilds/:guildId/reactionrole-dashboard', requireSession, async (r
   }
 });
 
-// --- API: eliminar panel ---
-app.delete('/api/guilds/:guildId/reactionrole-dashboard/:index', requireSession, async (req, res) => {
-  const { guildId, index } = req.params;
+// =================== 🗑️ Eliminar un panel de ReactionRole ===================
+app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (req, res) => {
   try {
-    const data = JSON.parse(fs.readFileSync(rrFile, 'utf8'));
-    if (!data[guildId] || !data[guildId][index]) return res.status(404).send('Panel no encontrado.');
+    const { guildId, msgId } = req.params;
+    const { userId } = req.query;
 
-    data[guildId].splice(index, 1);
-    fs.writeFileSync(rrFile, JSON.stringify(data, null, 2));
-    res.send('✅ Panel eliminado correctamente.');
-  } catch (err) {
-    console.error('❌ Error al eliminar panel:', err.message);
-    res.status(500).send('❌ Error interno.');
+    if (!userId)
+      return res.status(400).send('⚠️ Falta userId.');
+
+    const fs = require('fs');
+    const path = require('path');
+    const axios = require('axios');
+
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+
+    // --- Ruta de archivo ---
+    const dataDir = path.join(__dirname, 'data');
+    const dataFile = path.join(dataDir, 'reactionroles.json');
+    if (!fs.existsSync(dataFile))
+      return res.status(404).send('⚠️ No hay datos registrados.');
+
+    // --- Leer paneles ---
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const panel = data[msgId];
+
+    if (!panel)
+      return res.status(404).send('⚠️ No se encontró el panel.');
+
+    if (panel.guildId !== guildId)
+      return res.status(403).send('🚫 El panel no pertenece a este servidor.');
+
+    // --- Verificar permisos del usuario ---
+    const ses = req.session;
+    const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
+    const allowed = isOwner || await hasPermission(userId, guildId, 'MANAGE_ROLES');
+    if (!allowed)
+      return res.status(403).send('🚫 No tienes permisos para eliminar paneles.');
+
+    // --- Intentar eliminar mensaje en Discord ---
+    try {
+      await axios.delete(`https://discord.com/api/v10/channels/${panel.channelId}/messages/${msgId}`, {
+        headers: { Authorization: `Bot ${BOT_TOKEN}` }
+      });
+    } catch (err) {
+      console.warn('⚠️ No se pudo eliminar el mensaje en Discord:', err.response?.data || err.message);
+    }
+
+    // --- Eliminar del archivo local ---
+    delete data[msgId];
+    fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+
+    logAction('REACTIONROLE_DELETE', { guildId, msgId, by: userId });
+    return res.send('✅ Panel eliminado correctamente.');
+  } catch (e) {
+    console.error('❌ Error al eliminar panel:', e.response?.data || e.message);
+    return res.status(500).send('⚠️ Error al eliminar el panel.');
   }
 });
 
