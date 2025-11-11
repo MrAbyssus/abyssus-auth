@@ -967,9 +967,6 @@ app.get('/api/clusters', async (req, res) => {
 
 // =================== 🎭 Reaction Roles Dashboard ===================
 
-const path = require("path");
-const axios = require("axios");
-
 // Crear carpeta y archivo de datos si no existen
 const dataDir = path.join(__dirname, "data");
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
