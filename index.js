@@ -1141,85 +1141,85 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 });
 
 // =================== ✅ API para crear panel de ReactionRole ===================
-app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
+app.post("/api/guilds/:guildId/reactionrole", requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { userId, channelId, modo, roles, emojis, titulo, descripcion } = req.body;
   const ses = req.session;
+
   const axios = require("axios");
   const fs = require("fs");
   const path = require("path");
   const BOT_TOKEN = process.env.BOT_TOKEN;
 
   try {
-    // --- Permisos ---
+    // --- Validar permisos del usuario ---
     const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
     const allowed = isOwner || await hasPermission(userId, guildId, "MANAGE_ROLES");
-    if (!allowed) return res.status(403).send("🚫 No autorizado para crear paneles.");
+    if (!allowed)
+      return res.status(403).send("🚫 No tienes permisos para crear paneles.");
 
-    // --- Validar canal ---
-    const ch = await axios.get(`https://discord.com/api/v10/channels/${channelId}`, {
+    // --- Verificar canal ---
+    const canalResp = await axios.get(`https://discord.com/api/v10/channels/${channelId}`, {
       headers: { Authorization: `Bot ${BOT_TOKEN}` }
-    }).then(r => r.data).catch(err => null);
-    if (!ch) return res.status(400).send("⚠️ Canal no válido o inaccesible para el bot.");
+    }).catch(() => null);
+
+    if (!canalResp || !canalResp.data)
+      return res.status(400).send("⚠️ El canal no es válido o el bot no puede acceder.");
 
     // --- Obtener roles válidos ---
     const rolesResp = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
       headers: { Authorization: `Bot ${BOT_TOKEN}` }
     });
-    const allRoles = rolesResp.data;
-    const roleData = roles.map(id => allRoles.find(r => r.id === id)).filter(Boolean);
-    if (roleData.length === 0) return res.status(400).send("⚠️ No se encontró ningún rol válido.");
 
-    // --- Contenido del mensaje ---
+    const roleData = roles
+      .map(id => rolesResp.data.find(r => r.id === id))
+      .filter(Boolean);
+
+    if (roleData.length === 0)
+      return res.status(400).send("⚠️ No se encontraron roles válidos.");
+
+    // --- Construir mensaje ---
     const content = `**${titulo || "AutoRoles"}**\n${descripcion || "Selecciona tus roles:"}`;
-
-    // --- Construir componentes ---
     let components = [];
+
     if (modo === "botones") {
-      const filas = [];
       let fila = { type: 1, components: [] };
-
       for (let i = 0; i < roleData.length; i++) {
-        const emoji = emojis[i] && emojis[i].trim() !== "" ? emojis[i] : "🎭";
+        const emoji = emojis[i] || "🎭";
         const role = roleData[i];
-
         fila.components.push({
           type: 2,
-          style: 2, // Secondary
+          style: 2,
           label: `${emoji} ${role.name}`,
           custom_id: `rr_${role.id}`
         });
 
         if (fila.components.length === 5 || i === roleData.length - 1) {
-          filas.push(fila);
+          components.push(fila);
           fila = { type: 1, components: [] };
         }
       }
-
-      components = filas;
     } else if (modo === "menu") {
       const options = roleData.map((r, i) => ({
         label: r.name,
         value: r.id,
-        emoji: (emojis[i] && emojis[i].trim() !== "") ? emojis[i] : "🎭",
+        emoji: emojis[i] || "🎭",
         description: `Rol: ${r.name}`
       }));
 
-      components = [
-        {
-          type: 1,
-          components: [
-            {
-              type: 3,
-              custom_id: "rr_menu",
-              placeholder: "Selecciona tus roles",
-              min_values: 0,
-              max_values: options.length,
-              options
-            }
-          ]
-        }
-      ];
+      components.push({
+        type: 1,
+        components: [
+          {
+            type: 3,
+            custom_id: "rr_menu",
+            placeholder: "Selecciona tus roles",
+            min_values: 0,
+            max_values: options.length,
+            options
+          }
+        ]
+      });
     }
 
     // --- Enviar mensaje a Discord ---
@@ -1229,11 +1229,12 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
       { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
     );
 
-    // --- Guardar en archivo local ---
+    // --- Guardar localmente ---
     const dataDir = path.join(__dirname, "data");
     const dataFile = path.join(dataDir, "reactionroles.json");
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
-    if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, JSON.stringify({}, null, 2));
+    if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, "{}");
+
     const data = JSON.parse(fs.readFileSync(dataFile, "utf8"));
     data[resp.data.id] = {
       guildId,
@@ -1247,11 +1248,11 @@ app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) =
     };
     fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
 
-    console.log("✅ Panel enviado con componentes:", JSON.stringify(components, null, 2));
-    return res.send("✅ Panel de ReactionRole creado correctamente con botones visibles.");
+    console.log("✅ Panel creado correctamente:", resp.data.id);
+    res.send("✅ Panel de ReactionRole creado con éxito. Verifícalo en el canal de Discord.");
   } catch (err) {
     console.error("❌ Error al crear panel:", err.response?.data || err.message);
-    return res.status(500).send(`❌ Error: ${err.response?.data?.message || err.message}`);
+    res.status(500).send("❌ Error al crear el panel.");
   }
 });
 
