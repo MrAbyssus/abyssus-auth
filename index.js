@@ -965,257 +965,181 @@ app.get('/api/clusters', async (req, res) => {
   }
 });
 
-// =================== 🎭 ReactionRole desde Dashboard ===================
+// =================== 🎭 Reaction Roles Dashboard ===================
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
+
+// Crear carpeta y archivo de datos si no existen
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+const dataFile = path.join(dataDir, 'reactionroles.json');
+if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, '{}');
+
+// =================== GET: Mostrar Dashboard ===================
 app.get('/dashboard/:guildId/reactionrole', requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const userId = req.sessionUserId;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+
+  let data = {};
+  try { data = JSON.parse(fs.readFileSync(dataFile, 'utf8')); } catch {}
+  const guildPanels = Object.entries(data).filter(([_, p]) => p.guildId === guildId);
+
+  // Canales
+  let channelOptions = '<option value="">Selecciona un canal...</option>';
   try {
-    const { guildId } = req.params;
-    const userId = req.sessionUserId;
-    const BOT_TOKEN = process.env.BOT_TOKEN;
-
-    // --- Importar dependencias solo si no existen ---
-    const fs = require('fs');
-    const path = require('path');
-    const axios = require('axios');
-
-    // --- Ruta del archivo de datos ---
-    const dataDir = path.join(__dirname, 'data');
-    const dataFile = path.join(dataDir, 'reactionroles.json');
-    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
-    if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, JSON.stringify({}, null, 2));
-
-    // --- Leer paneles ---
-    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-    const guildPanels = Object.entries(data).filter(([_, d]) => d.guildId === guildId);
-
-    // --- Obtener canales de texto ---
-    let channelOptions = '<option value="">Selecciona un canal...</option>';
-    try {
-      const channelsRes = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
-        headers: { Authorization: `Bot ${BOT_TOKEN}` }
-      });
-      const textChannels = channelsRes.data.filter(c => c.type === 0);
-      channelOptions = textChannels.map(c => `<option value="${c.id}"># ${c.name}</option>`).join('');
-    } catch (e) {
-      console.error('❌ Error cargando canales:', e.response?.data || e.message);
-    }
-
-    // --- Render HTML ---
-    res.send(`
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="UTF-8">
-      <title>Reaction Roles — Abyssus Dashboard</title>
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-      <style>
-        body { background-color: #0b0f14; color: #eaf2ff; font-family: 'Inter', sans-serif; padding: 2rem; }
-        .container { max-width: 700px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; }
-        h2 { color: #8ba4ff; }
-        input, textarea, select { background: #111722; color: #eaf2ff; border: none; border-radius: 6px; padding: 10px; width: 100%; margin-bottom: 10px; }
-        button { background: linear-gradient(90deg,#5865F2,#764ba2); border: none; border-radius: 8px; padding: 10px 15px; color: white; width: 100%; font-weight: 600; }
-        .panel { background: #111722; border-radius: 8px; padding: 10px 15px; margin-bottom: 10px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h2>🎭 Reaction Roles — ${guildId}</h2>
-        <p>Crea y gestiona paneles de roles autoasignables desde el Dashboard.</p>
-
-        <form id="rrForm">
-          <label>📢 Canal</label>
-          <select id="channelId" required>${channelOptions}</select>
-
-          <label>⚙️ Modo</label>
-          <select id="modo">
-            <option value="botones">Botones</option>
-            <option value="menu">Menú desplegable</option>
-          </select>
-
-          <label>🧩 Roles (IDs separados por coma)</label>
-          <input type="text" id="roles" placeholder="123,456,789" required>
-
-          <label>😀 Emojis (opcional)</label>
-          <input type="text" id="emojis" placeholder="😎,🔥,⭐">
-
-          <label>📝 Título</label>
-          <input type="text" id="titulo" placeholder="AutoRoles del servidor">
-
-          <label>📄 Descripción</label>
-          <textarea id="descripcion" rows="2" placeholder="Selecciona tus roles."></textarea>
-
-          <button type="submit">Crear Panel</button>
-        </form>
-
-        <div id="result" class="mt-3"></div>
-        <hr>
-        <h4>📋 Paneles Existentes</h4>
-        <div id="paneles">
-          ${
-            guildPanels.length === 0
-              ? '<p>Aún no hay paneles creados.</p>'
-              : guildPanels.map(([msgId, d]) => `
-                <div class="panel">
-                  <b>${d.titulo || 'Sin título'}</b><br>
-                  📢 Canal: <#${d.channelId}><br>
-                  ⚙️ Modo: ${d.modo}<br>
-                  🎭 Roles: ${d.roles.join(', ')}<br>
-                  <button class="btn btn-danger btn-sm mt-2" onclick="eliminarPanel('${msgId}', '${guildId}', '${userId}')">🗑️ Eliminar</button>
-                </div>`).join('')
-          }
-        </div>
-      </div>
-
-      <script>
-        const form = document.getElementById('rrForm');
-        form.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const guildId = "${guildId}";
-          const body = {
-            userId: "${userId}",
-            channelId: document.getElementById('channelId').value.trim(),
-            modo: document.getElementById('modo').value,
-            roles: document.getElementById('roles').value.split(',').map(r => r.trim()),
-            emojis: document.getElementById('emojis').value.split(',').map(e => e.trim()),
-            titulo: document.getElementById('titulo').value.trim(),
-            descripcion: document.getElementById('descripcion').value.trim(),
-          };
-
-          const result = document.getElementById('result');
-          result.innerHTML = '<div class="alert alert-info">⏳ Creando panel...</div>';
-
-          try {
-            const res = await fetch('/api/guilds/' + guildId + '/reactionrole', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body)
-            });
-            const text = await res.text();
-            result.innerHTML = res.ok
-              ? '<div class="alert alert-success">✅ ' + text + '</div>'
-              : '<div class="alert alert-danger">❌ ' + text + '</div>';
-            if (res.ok) setTimeout(() => location.reload(), 1500);
-          } catch {
-            result.innerHTML = '<div class="alert alert-danger">⚠️ Error al crear el panel.</div>';
-          }
-        });
-
-        async function eliminarPanel(msgId, guildId, userId) {
-          if (!userId) return alert('Falta userId');
-          const confirmar = confirm('¿Eliminar este panel?');
-          if (!confirmar) return;
-
-          try {
-            const res = await fetch(\`/api/guilds/\${guildId}/reactionrole/\${msgId}?userId=\${userId}\`, {
-              method: 'DELETE'
-            });
-            const text = await res.text();
-            alert(text);
-            location.reload();
-          } catch {
-            alert('⚠️ Error al eliminar el panel.');
-          }
-        }
-      </script>
-    </body>
-    </html>
-    `);
-  } catch (err) {
-    console.error('❌ Error general en ReactionRole Dashboard:', err);
-    res.status(500).send('⚠️ Error al cargar la página del Dashboard.');
+    const resp = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` }
+    });
+    const textChannels = resp.data.filter(c => c.type === 0);
+    channelOptions = textChannels.map(c => `<option value="${c.id}">#${c.name}</option>`).join('');
+  } catch (e) {
+    console.error('Error cargando canales:', e.response?.data || e.message);
   }
+
+  // HTML
+  res.send(`
+  <!DOCTYPE html>
+  <html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <title>Reaction Roles — ${guildId}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <style>
+      body { background-color:#0b0f14; color:#eaf2ff; font-family:'Inter',sans-serif; padding:2rem; }
+      .container { max-width:700px; background:rgba(255,255,255,0.05); border-radius:12px; padding:20px; }
+      h2 { color:#8ba4ff; }
+      input,textarea,select { background:#111722; color:#eaf2ff; border:none; border-radius:6px; padding:10px; width:100%; margin-bottom:10px; }
+      button { background:linear-gradient(90deg,#5865F2,#764ba2); border:none; border-radius:8px; padding:10px; color:white; width:100%; font-weight:600; }
+      .panel { background:#111722; border-radius:8px; padding:10px 15px; margin-top:8px; }
+      .del-btn { background:#a62d2d; border:none; border-radius:6px; padding:5px 10px; color:white; width:100%; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>🎭 Reaction Roles — ${guildId}</h2>
+      <form id="rrForm">
+        <label>📢 Canal</label>
+        <select id="channelId" required>${channelOptions}</select>
+
+        <label>⚙️ Modo</label>
+        <select id="modo">
+          <option value="botones">Botones</option>
+          <option value="menu">Menú desplegable</option>
+        </select>
+
+        <label>🧩 Roles (IDs separados por coma)</label>
+        <input type="text" id="roles" placeholder="123,456,789" required>
+
+        <label>😀 Emojis (opcional)</label>
+        <input type="text" id="emojis" placeholder="😎,🔥,⭐">
+
+        <label>📝 Título</label>
+        <input type="text" id="titulo" placeholder="AutoRoles del servidor">
+
+        <label>📄 Descripción</label>
+        <textarea id="descripcion" rows="2" placeholder="Selecciona tus roles."></textarea>
+
+        <button type="submit">Crear Panel</button>
+      </form>
+
+      <h4 class="mt-4">📋 Paneles Existentes</h4>
+      <div id="panelList">
+        ${
+          guildPanels.length === 0
+            ? '<p>Aún no hay paneles creados.</p>'
+            : guildPanels.map(([id, p]) => `
+              <div class="panel">
+                <b>${p.titulo || '(Sin título)'}</b><br>
+                📢 Canal: <#${p.channelId}><br>
+                ⚙️ Modo: ${p.modo}<br>
+                🎭 Roles: ${p.roles.join(', ')}<br>
+                <button class="del-btn" onclick="deletePanel('${id}')">🗑️ Eliminar</button>
+              </div>
+            `).join('')
+        }
+      </div>
+      <div id="result" class="mt-3"></div>
+    </div>
+
+    <script>
+      const guildId = "${guildId}";
+      const userId = "${userId}";
+
+      document.getElementById('rrForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const body = {
+          userId,
+          channelId: document.getElementById('channelId').value,
+          modo: document.getElementById('modo').value,
+          roles: document.getElementById('roles').value.split(',').map(r => r.trim()),
+          emojis: document.getElementById('emojis').value.split(',').map(e => e.trim()),
+          titulo: document.getElementById('titulo').value.trim(),
+          descripcion: document.getElementById('descripcion').value.trim()
+        };
+        const res = await fetch('/api/guilds/' + guildId + '/reactionrole', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        alert(await res.text());
+        location.reload();
+      });
+
+      async function deletePanel(id) {
+        if (!confirm("¿Eliminar este panel?")) return;
+        const res = await fetch('/api/guilds/' + guildId + '/reactionrole/' + id + '?userId=' + userId, { method: 'DELETE' });
+        alert(await res.text());
+        location.reload();
+      }
+    </script>
+  </body>
+  </html>
+  `);
 });
 
-// --- API: crear panel desde dashboard ---
-app.post('/api/guilds/:guildId/reactionrole-dashboard', requireSession, async (req, res) => {
+// =================== POST: Crear Panel ===================
+app.post('/api/guilds/:guildId/reactionrole', requireSession, async (req, res) => {
   const { guildId } = req.params;
   const { userId, channelId, modo, roles, emojis, titulo, descripcion } = req.body;
   const BOT_TOKEN = process.env.BOT_TOKEN;
 
   try {
-    const data = JSON.parse(fs.readFileSync(rrFile, 'utf8'));
-    if (!data[guildId]) data[guildId] = [];
-
-    const panelData = {
-      canal: `<#${channelId}>`,
-      modo,
-      roles,
-      emojis,
-      titulo,
-      descripcion,
-      creadoPor: userId
-    };
-
-    data[guildId].push(panelData);
-    fs.writeFileSync(rrFile, JSON.stringify(data, null, 2));
-
-    // Enviar al canal
-    await axios.post(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-      content: `**${titulo || 'AutoRoles'}**\n${descripcion || 'Selecciona tus roles:'}`
+    const content = `**${titulo || 'AutoRoles'}**\n${descripcion || 'Selecciona tus roles:'}`;
+    const discordRes = await axios.post(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      content
     }, { headers: { Authorization: `Bot ${BOT_TOKEN}` } });
 
-    res.send('Panel creado correctamente y guardado.');
+    const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    data[discordRes.data.id] = { guildId, channelId, modo, roles, emojis, titulo, descripcion };
+    fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+
+    res.send('✅ Panel creado y guardado correctamente.');
   } catch (err) {
-    console.error('❌ Error al crear panel:', err.message);
-    res.status(500).send('❌ No se pudo crear el panel.');
+    console.error('Error creando panel:', err.response?.data || err.message);
+    res.status(500).send('❌ Error al crear panel.');
   }
 });
 
-// =================== 🗑️ Eliminar un panel de ReactionRole ===================
+// =================== DELETE: Eliminar Panel ===================
 app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (req, res) => {
+  const { guildId, msgId } = req.params;
+  const { userId } = req.query;
+  if (!userId) return res.status(400).send('⚠️ Falta userId.');
+
   try {
-    const { guildId, msgId } = req.params;
-    const { userId } = req.query;
-
-    if (!userId)
-      return res.status(400).send('⚠️ Falta userId.');
-
-    const fs = require('fs');
-    const path = require('path');
-    const axios = require('axios');
-
-    const BOT_TOKEN = process.env.BOT_TOKEN;
-
-    // --- Ruta de archivo ---
-    const dataDir = path.join(__dirname, 'data');
-    const dataFile = path.join(dataDir, 'reactionroles.json');
-    if (!fs.existsSync(dataFile))
-      return res.status(404).send('⚠️ No hay datos registrados.');
-
-    // --- Leer paneles ---
     const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
     const panel = data[msgId];
+    if (!panel) return res.status(404).send('⚠️ Panel no encontrado.');
+    if (panel.guildId !== guildId) return res.status(403).send('🚫 No pertenece a este servidor.');
 
-    if (!panel)
-      return res.status(404).send('⚠️ No se encontró el panel.');
-
-    if (panel.guildId !== guildId)
-      return res.status(403).send('🚫 El panel no pertenece a este servidor.');
-
-    // --- Verificar permisos del usuario ---
-    const ses = req.session;
-    const isOwner = await verifyOwnerUsingOAuth(ses.accessToken, guildId);
-    const allowed = isOwner || await hasPermission(userId, guildId, 'MANAGE_ROLES');
-    if (!allowed)
-      return res.status(403).send('🚫 No tienes permisos para eliminar paneles.');
-
-    // --- Intentar eliminar mensaje en Discord ---
-    try {
-      await axios.delete(`https://discord.com/api/v10/channels/${panel.channelId}/messages/${msgId}`, {
-        headers: { Authorization: `Bot ${BOT_TOKEN}` }
-      });
-    } catch (err) {
-      console.warn('⚠️ No se pudo eliminar el mensaje en Discord:', err.response?.data || err.message);
-    }
-
-    // --- Eliminar del archivo local ---
     delete data[msgId];
     fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
-
-    logAction('REACTIONROLE_DELETE', { guildId, msgId, by: userId });
-    return res.send('✅ Panel eliminado correctamente.');
+    res.send('✅ Panel eliminado correctamente.');
   } catch (e) {
-    console.error('❌ Error al eliminar panel:', e.response?.data || e.message);
-    return res.status(500).send('⚠️ Error al eliminar el panel.');
+    console.error('Error eliminando panel:', e.message);
+    res.status(500).send('❌ Error al eliminar panel.');
   }
 });
 
