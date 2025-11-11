@@ -967,7 +967,10 @@ app.get('/api/clusters', async (req, res) => {
 
 // =================== 🎭 ReactionRole Dashboard + Gestión ===================
 
-const rrFile = path.join(__dirname, 'data/reactionroles.json');
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
+const rrFile = path.join(dataDir, 'reactionroles.json');
 if (!fs.existsSync(rrFile)) fs.writeFileSync(rrFile, JSON.stringify({}, null, 2));
 
 // --- Página principal del dashboard ---
