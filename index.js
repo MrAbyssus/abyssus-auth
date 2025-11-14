@@ -549,6 +549,17 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 </a>
 </div>
 
+<div class="panel">
+  <h2>🎬 Notificaciones de YouTube</h2>
+  <p>Agrega y administra canales de YouTube conectados al servidor.</p>
+
+  <a class="primary"
+     href="/dashboard/${guild.id}/youtube?userId=${userId}"
+     style="display:inline-block;margin-top:8px;">
+     📺 Configurar Notificaciones de YouTube
+  </a>
+</div>
+
     <div class="footer">
   <a class="back" href="/mis-guilds/${userId}">← Volver</a>
   <div>
