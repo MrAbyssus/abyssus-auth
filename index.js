@@ -1418,22 +1418,17 @@ app.post("/api/guilds/:guildId/youtube", requireSession, async (req, res) => {
   return res.send("✅ Canal agregado correctamente.");
 });
 
-// =========================================================
-// DELETE — Eliminar canal de YouTube
-// =========================================================
-
-app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => {
-  const { guildId, index } = req.params;
-  let data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
-
-  if (!data[guildId])
-    return res.status(404).send("⚠️ No hay configuraciones.");
-
-  data[guildId].splice(index, 1);
-  fs.writeFileSync(ytDataFile, JSON.stringify(data, null, 2));
-
-  res.send("🗑️ Canal eliminado correctamente.");
-});
+// ================================
+  // ❌ Eliminar canal
+  // ================================
+  async function deleteYT(index) {
+    const r = await fetch("/api/guilds/" + guildId + "/youtube/" + index + "?userId=" + userId, {
+      method: "DELETE"
+    });
+    alert(await r.text());
+    location.reload();
+  }
+</script>
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
