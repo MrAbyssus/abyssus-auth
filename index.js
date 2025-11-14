@@ -551,98 +551,13 @@ app.get('/panel/:guildId', requireSession, async (req, res) => {
 
 <div class="panel">
   <h2>🎬 Notificaciones de YouTube</h2>
-  <p>Administra aquí todos los canales de YouTube conectados al servidor. Puedes agregar, ver o eliminar canales fácilmente.</p>
+  <p>Agrega y administra canales de YouTube conectados al servidor.</p>
 
   <a class="primary"
-      href="/dashboard/${guild.id}/youtube?userId=${userId}">
-      ➕ Agregar Canal de YouTube
+     href="/dashboard/${guild.id}/youtube?userId=${userId}"
+     style="display:inline-block;margin-top:8px;">
+     📺 Configurar Notificaciones de YouTube
   </a>
-</div>
-
-<style>
-  .yt-card {
-    background: #1E1E28;
-    padding: 16px;
-    margin-top: 12px;
-    border-radius: 12px;
-    border: 1px solid #2A2A37;
-  }
-
-  .yt-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-  }
-
-  .yt-text {
-    color: #DDD;
-    font-size: 14px;
-  }
-
-  .yt-label {
-    font-weight: bold;
-    color: #FFF;
-  }
-
-  .yt-del-btn {
-    background: #E74C3C;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 8px;
-    color: #fff;
-    cursor: pointer;
-    font-weight: bold;
-  }
-
-  .yt-del-btn:hover {
-    background: #c0392b;
-  }
-</style>
-
-<div class="panel">
-  <h3>📋 Canales configurados</h3>
-
-  ${canales.length === 0 ? `
-    <p>No hay canales configurados aún.</p>
-  ` : `
-    ${canales.map((c, i) => `
-      <div class="yt-card">
-
-        <div class="yt-row">
-          <span class="yt-label">Canal #${i + 1}</span>
-        </div>
-
-        <div class="yt-row">
-          <span class="yt-label">📺 YouTube ID:</span>
-          <span class="yt-text">${c.youtubeId}</span>
-        </div>
-
-        <div class="yt-row">
-          <span class="yt-label">📢 Publicando en:</span>
-          <span class="yt-text">&lt;#${c.discordChannelId}&gt;</span>
-        </div>
-
-        <div class="yt-row">
-          <span class="yt-label">🏷️ Rol:</span>
-          <span class="yt-text">
-            ${c.mentionRole
-              ? (roleMap[c.mentionRole] 
-                  ? '@' + roleMap[c.mentionRole] 
-                  : 'ID: ' + c.mentionRole)
-              : 'Ninguno'}
-          </span>
-        </div>
-
-        <div style="margin-top: 10px; text-align: right;">
-          <button class="yt-del-btn" onclick="deleteYT('${c.youtubeId}')">
-            🗑️ Eliminar Canal
-          </button>
-        </div>
-        
-      </div>
-    `).join("")}
-  `}
 </div>
 
     <div class="footer">
