@@ -1432,23 +1432,6 @@ app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => 
   data[guildId].splice(index, 1);
   fs.writeFileSync(ytDataFile, JSON.stringify(data, null, 2));
 
-  // Cargar roles del servidor
-let roleOptions = "<option value=''>Ninguno</option>";
-try {
-  const resp = await axios.get(
-    `https://discord.com/api/v10/guilds/${guildId}/roles`,
-    { headers: { Authorization: "Bot " + BOT_TOKEN } }
-  );
-
-  roleOptions += resp.data
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map(r => `<option value="${r.id}">${r.name}</option>`)
-    .join("");
-
-} catch (err) {
-  console.error("Error cargando roles:", err.response?.data || err.message);
-}
-
   res.send("🗑️ Canal eliminado correctamente.");
 });
 
