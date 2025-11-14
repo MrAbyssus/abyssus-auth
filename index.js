@@ -1242,294 +1242,180 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
   }
 });
 
-// ------------------ DASHBOARD & API: YouTube Notifications ------------------
-(function(){
-  const fs = require('fs');
-  const path = require('path');
-  const axios = require('axios');
+// =========================================================
+// 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
+// =========================================================
 
-  // Ajusta esta ruta si tienes otra carpeta de datos
-  const dataDir = path.join(__dirname, 'data');
-  const ytDataFile = path.join(dataDir, 'youtube.json');
+const ytDataFile = path.join(__dirname, "data/youtube.json");
+if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, "{}");
 
-  // Asegurar archivo y carpeta
+app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  const userId = req.sessionUserId;
+
+  let data = {};
+  try { data = JSON.parse(fs.readFileSync(ytDataFile, "utf8")); } catch {}
+
+  const config = data[guildId] || [];
+
+  // Obtener canales de texto del servidor
+  let channelOptions = '<option value="">Selecciona un canal...</option>';
   try {
-    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
-    if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, JSON.stringify({}, null, 2), 'utf8');
+    const resp = await axios.get(
+      `https://discord.com/api/v10/guilds/${guildId}/channels`,
+      { headers: { Authorization: "Bot " + BOT_TOKEN } }
+    );
+    const textChannels = resp.data.filter(c => c.type === 0);
+    channelOptions = textChannels
+      .map(c => `<option value="${c.id}">#${c.name}</option>`)
+      .join("");
   } catch (err) {
-    console.error('Error inicializando data/youtube.json:', err);
+    console.error("Error al cargar canales:", err.response?.data || err.message);
   }
 
-  // Helper para leer/escribir con tolerancia
-  function readYtData(){
-    try { return JSON.parse(fs.readFileSync(ytDataFile,'utf8') || '{}'); }
-    catch(e){ return {}; }
-  }
-  function writeYtData(obj){
-    try { fs.writeFileSync(ytDataFile, JSON.stringify(obj, null, 2), 'utf8'); return true; }
-    catch(e){ console.error('Error escribiendo youtube.json', e); return false; }
-  }
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>YouTube Notifier — Abyssus Dashboard</title>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+      <style>
+        body { background:#0b0f14; color:#eaf2ff; font-family:'Inter', sans-serif; padding:2rem; }
+        .container { max-width:700px; background:rgba(255,255,255,0.05); padding:20px; border-radius:10px; }
+        input,select { background:#111722; color:white; border:none; padding:10px; width:100%; border-radius:6px; margin-bottom:10px; }
+        button { background:linear-gradient(90deg,#ff0000,#cc0000); border:none; padding:10px; width:100%; color:white; border-radius:8px; font-weight:700; }
+        .panel { background:#111722; padding:15px; border-radius:8px; margin-top:12px; }
+      </style>
+    </head>
+    <body>
 
-  // ---------- DASHBOARD PAGE ----------
-  app.get('/dashboard/:guildId/youtube', requireSession, async (req, res) => {
-    try {
-      const { guildId } = req.params;
-      const userId = req.sessionUserId;
-      const BOT_TOKEN = process.env.BOT_TOKEN;
+      <div class="container">
+        <h2>🎬 Notificaciones de YouTube — ${guildId}</h2>
+        <p>Agrega varios canales de YouTube y un canal de Discord donde publicar los videos nuevos.</p>
 
-      // cargar datos guardados
-      const data = readYtData();
-      const guildList = Array.isArray(data[guildId]) ? data[guildId] : [];
+        <h4>➕ Agregar nuevo canal</h4>
+        <form id="ytForm">
+          <label>📺 URL del canal de YouTube</label>
+          <input id="youtubeURL" placeholder="https://www.youtube.com/@usuario">
 
-      // roles del servidor (para seleccionar mención)
-      let roles = [];
-      try {
-        const rolesRes = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
-          headers: { Authorization: `Bot ${BOT_TOKEN}` }
-        });
-        roles = Array.isArray(rolesRes.data) ? rolesRes.data.map(r=>({id:r.id,name:r.name})).sort((a,b)=>a.name.localeCompare(b.name)) : [];
-      } catch (err) {
-        console.error('Error cargando roles para dashboard youtube:', err.response?.data || err.message);
-        roles = [];
-      }
+          <label>📢 Canal de Discord</label>
+          <select id="discordChannel">${channelOptions}</select>
 
-      // canales de texto disponibles
-      let discordChannels = [];
-      try {
-        const chRes = await axios.get(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
-          headers: { Authorization: `Bot ${BOT_TOKEN}` }
-        });
-        discordChannels = Array.isArray(chRes.data) ? chRes.data.filter(c=>c.type===0).map(c=>({id:c.id,name:c.name})) : [];
-      } catch (err) {
-        console.error('Error cargando canales para dashboard youtube:', err.response?.data || err.message);
-        discordChannels = [];
-      }
+          <label>🏷️ Rol a mencionar (opcional)</label>
+          <input id="rolMencion" placeholder="@rol">
 
-      // Render HTML (servidor-side)
-      res.send(`<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <title>YouTube — Dashboard</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-  <style>
-    body{background:#0b0f14;color:#eaf2ff;font-family:Inter,system-ui;padding:20px}
-    .card{background:rgba(255,255,255,0.03);padding:18px;border-radius:10px;max-width:820px;margin:0 auto}
-    input,select,textarea{background:#0f1216;color:#eaf2ff;border:0;padding:8px;border-radius:6px;width:100%;margin-bottom:10px}
-    button{background:linear-gradient(90deg,#ff4d4f,#ff7b7b);border:0;padding:10px 12px;border-radius:8px;color:white;font-weight:700;cursor:pointer}
-    .panel{background:#111722;padding:12px;border-radius:8px;margin-top:8px}
-    .muted{opacity:.8}
-    .smallbtn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:6px 10px;border-radius:6px;color:inherit}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h3>🎬 Notificaciones de YouTube — ${escapeHtml ? '' : ''}${guildId}</h3>
-    <p class="muted">Agrega canales de YouTube y el canal de Discord donde publicar los videos nuevos. Puedes mencionar un rol.</p>
+          <button type="submit">Agregar Canal</button>
+        </form>
 
-    <form id="ytForm">
-      <label>📺 URL del canal de YouTube</label>
-      <input id="ytUrl" placeholder="https://www.youtube.com/@usuario" required />
+        <div id="result" class="mt-3"></div>
 
-      <label>📢 Canal de Discord</label>
-      <select id="discordChannel" required>
-        ${discordChannels.map(c=>`<option value="${c.id}">#${escapeHtml ? escapeHtml(c.name) : c.name}</option>`).join('')}
-      </select>
+        <hr>
 
-      <label>🏷️ Rol a mencionar (opcional)</label>
-      <select id="mentionRole">
-        <option value="">Ninguno</option>
-        ${roles.map(r=>`<option value="${r.id}">${escapeHtml ? escapeHtml(r.name) : r.name}</option>`).join('')}
-      </select>
-
-      <button type="submit">Agregar Canal</button>
-    </form>
-
-    <h5 style="margin-top:18px">📋 Canales configurados</h5>
-    <div id="list">
-      ${guildList.length===0 ? '<p class="muted">No hay canales configurados aún.</p>' : guildList.map((entry,i)=>`
-        <div class="panel">
-          <b>${i+1}. ${escapeHtml?escapeHtml(entry.youtubeId):entry.youtubeId}</b><br>
-          📢 Publicando en: &lt;#${entry.discordChannelId}&gt;<br>
-          🏷️ Rol: ${entry.mentionRole ? `&lt;@&${entry.mentionRole}&gt;` : 'Ninguno'}<br>
-          <div style="margin-top:8px">
-            <button class="smallbtn" onclick="deleteYt('${entry._id}')">Eliminar</button>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-
-    <div id="result" style="margin-top:12px"></div>
-  </div>
-
-<script>
-  const guildId = "${guildId}";
-  const userId = "${userId}";
-
-  document.getElementById('ytForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const body = {
-      userId,
-      youtubeURL: document.getElementById('ytUrl').value.trim(),
-      discordChannelId: document.getElementById('discordChannel').value,
-      mentionRole: document.getElementById('mentionRole').value || null
-    };
-    const res = await fetch('/api/guilds/' + guildId + '/youtube', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(body)
-    });
-    alert(await res.text());
-    location.reload();
-  });
-
-  async function deleteYt(id){
-    if(!confirm('¿Eliminar este canal?')) return;
-    const res = await fetch('/api/guilds/' + guildId + '/youtube/' + encodeURIComponent(id) + '?userId=' + encodeURIComponent(userId), { method: 'DELETE' });
-    alert(await res.text());
-    location.reload();
-  }
-</script>
-</body>
-</html>`);
-    } catch (err) {
-      console.error('panel youtube err:', err);
-      res.status(500).send('Error cargando dashboard YouTube.');
-    }
-  });
-
-  // ---------- API: Agregar canal ----------
-  app.post('/api/guilds/:guildId/youtube', requireSession, async (req, res) => {
-    try {
-      const { guildId } = req.params;
-      const { youtubeURL, discordChannelId, mentionRole, userId } = req.body;
-      const ses = req.session;
-      const BOT_TOKEN = process.env.BOT_TOKEN;
-
-      if (!youtubeURL || !discordChannelId) return res.status(400).send('⚠️ Datos incompletos.');
-
-      // permiso: owner o manage_guild
-      let allowed = false;
-      try {
-        const isOwner = typeof verifyOwnerUsingOAuth === 'function' ? await verifyOwnerUsingOAuth(ses.accessToken, guildId) : false;
-        const hasMgmt = typeof hasPermission === 'function' ? await hasPermission(userId, guildId, 'MANAGE_GUILD') : false;
-        allowed = isOwner || hasMgmt;
-      } catch(e){
-        console.warn('Advertencia: error comprobando permisos', e);
-      }
-      if (!allowed) return res.status(403).send('🚫 No autorizado.');
-
-      // extraer id/handle simple (acepta /channel/ID o /@handle o handle)
-      const m = youtubeURL.match(/(?:channel\/|user\/|@)?([A-Za-z0-9_\\-]+)/i);
-      if (!m) return res.status(400).send('⚠️ URL de canal no válida.');
-      const idOrHandle = m[1];
-
-      // leer datos
-      const all = readYtData();
-      if (!Array.isArray(all[guildId])) all[guildId] = [];
-
-      // construir entrada con _id único (timestamp + random)
-      const entryId = Date.now().toString(36) + Math.random().toString(36).slice(2,8);
-      const entry = {
-        _id: entryId,
-        youtubeId: idOrHandle,
-        discordChannelId,
-        mentionRole: mentionRole || null,
-        ultimoVideo: null,
-        createdAt: new Date().toISOString(),
-        messageId: null
-      };
-
-      // intentar publicar un mensaje de prueba en el canal de Discord
-      let postedMsgId = null;
-      try {
-        const content = `${entry.mentionRole ? `<@&${entry.mentionRole}> ` : ''}🔔 **Prueba de notificaciones de YouTube**\nSe configuró el canal para notificaciones de ${entry.youtubeId}.`;
-        let resp;
-        if (typeof discordRequest === 'function') {
-          resp = await discordRequest('post', `/channels/${discordChannelId}/messages`, { content });
-        } else {
-          resp = await axios.post(`https://discord.com/api/v10/channels/${discordChannelId}/messages`, { content }, { headers: { Authorization: `Bot ${BOT_TOKEN}` } });
-        }
-        postedMsgId = resp.data?.id || null;
-        entry.messageId = postedMsgId;
-      } catch (postErr) {
-        console.warn('No se pudo enviar mensaje de prueba a Discord (pero se guardará la configuración):', postErr.response?.data || postErr.message);
-        // no retornamos error: permitimos que la configuración se guarde aun si el bot no puede escribir
-      }
-
-      all[guildId].push(entry);
-      writeYtData(all);
-
-      // registrar acción si existe logAction
-      try { if (typeof logAction === 'function') logAction('YOUTUBE_ADD', { guildId, by: ses.username || userId, youtubeId: idOrHandle }); } catch{}
-
-      return res.send('✅ Canal agregado correctamente.');
-    } catch (err) {
-      console.error('api youtube add err:', err.response?.data || err.message || err);
-      return res.status(500).send('❌ Error al agregar canal.');
-    }
-  });
-
-  // ---------- API: Eliminar canal ----------
-  app.delete('/api/guilds/:guildId/youtube/:entryId', requireSession, async (req, res) => {
-    try {
-      const { guildId, entryId } = req.params;
-      const { userId } = req.query;
-      const ses = req.session;
-      const BOT_TOKEN = process.env.BOT_TOKEN;
-
-      if (!userId) return res.status(400).send('⚠️ Falta userId.');
-
-      // permiso: owner o manage_guild
-      let allowed = false;
-      try {
-        const isOwner = typeof verifyOwnerUsingOAuth === 'function' ? await verifyOwnerUsingOAuth(ses.accessToken, guildId) : false;
-        const hasMgmt = typeof hasPermission === 'function' ? await hasPermission(userId, guildId, 'MANAGE_GUILD') : false;
-        allowed = isOwner || hasMgmt;
-      } catch(e){
-        console.warn('Advertencia: error comprobando permisos', e);
-      }
-      if (!allowed) return res.status(403).send('🚫 No autorizado.');
-
-      const all = readYtData();
-      if (!Array.isArray(all[guildId])) return res.status(404).send('⚠️ No hay configuraciones.');
-
-      const idx = all[guildId].findIndex(it => String(it._id) === String(entryId));
-      if (idx === -1) return res.status(404).send('⚠️ Entrada no encontrada.');
-
-      const [removed] = all[guildId].splice(idx,1);
-      writeYtData(all);
-
-      // intentar eliminar el mensaje publicado en Discord (si existe messageId)
-      if (removed && removed.messageId) {
-        try {
-          if (typeof discordRequest === 'function') {
-            await discordRequest('delete', `/channels/${removed.discordChannelId}/messages/${removed.messageId}`);
-          } else {
-            await axios.delete(`https://discord.com/api/v10/channels/${removed.discordChannelId}/messages/${removed.messageId}`, {
-              headers: { Authorization: `Bot ${BOT_TOKEN}` }
-            });
+        <h4>📋 Canales configurados</h4>
+        <div id="listaYT">
+          ${
+            config.length === 0 
+            ? "<p>No hay canales configurados.</p>" 
+            : config.map((c, i) => `
+              <div class="panel">
+                <b>${i + 1}. Canal ID:</b> ${c.youtubeId}<br>
+                <b>📢 Publicando en:</b> <#${c.discordChannelId}><br>
+                <b>🏷 Rol:</b> ${c.mentionRole || "Ninguno"}<br>
+                <button class="btn btn-danger mt-2" onclick="deleteYT(${i})">Eliminar</button>
+              </div>
+            `).join("")
           }
-        } catch (e) {
-          console.warn('No se pudo eliminar el mensaje en Discord (puede que haya sido borrado manualmente):', e.response?.data || e.message);
+        </div>
+      </div>
+
+      <script>
+        const guildId = "${guildId}";
+        const userId = "${userId}";
+
+        // Crear canal
+        document.getElementById("ytForm").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const body = {
+            youtubeURL: document.getElementById("youtubeURL").value.trim(),
+            discordChannelId: document.getElementById("discordChannel").value.trim(),
+            mentionRole: document.getElementById("rolMencion").value.trim(),
+            userId
+          };
+
+          const r = await fetch("/api/guilds/" + guildId + "/youtube", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          });
+
+          const t = await r.text();
+          alert(t);
+          location.reload();
+        });
+
+        // Eliminar canal
+        async function deleteYT(index) {
+          const r = await fetch("/api/guilds/" + guildId + "/youtube/" + index + "?userId=" + userId, {
+            method: "DELETE"
+          });
+          alert(await r.text());
+          location.reload();
         }
-      }
+      </script>
 
-      try { if (typeof logAction === 'function') logAction('YOUTUBE_REMOVE', { guildId, by: userId, youtubeId: removed.youtubeId }); } catch{}
+    </body>
+    </html>
+  `);
+});
 
-      return res.send('✅ Canal eliminado correctamente.');
-    } catch (err) {
-      console.error('api youtube delete err:', err.response?.data || err.message || err);
-      return res.status(500).send('❌ Error al eliminar canal.');
-    }
+// =========================================================
+// POST — Agregar canal de YouTube
+// =========================================================
+
+app.post("/api/guilds/:guildId/youtube", requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const { youtubeURL, discordChannelId, mentionRole, userId } = req.body;
+
+  if (!youtubeURL || !discordChannelId)
+    return res.status(400).send("⚠️ Datos incompletos.");
+
+  let data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
+  if (!data[guildId]) data[guildId] = [];
+
+  const match = youtubeURL.match(/(channel\/|@)([A-Za-z0-9_\-]+)/);
+  if (!match) return res.status(400).send("⚠️ URL de canal no válida.");
+
+  const id = match[2];
+
+  data[guildId].push({
+    youtubeId: id,
+    discordChannelId,
+    mentionRole: mentionRole || null,
+    ultimoVideo: null
   });
 
-  // tiny helper: escapeHtml if not present in outer file (used in server-side HTML)
-  if (typeof escapeHtml === 'undefined') {
-    global.escapeHtml = function(s=''){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'); };
-  }
+  fs.writeFileSync(ytDataFile, JSON.stringify(data, null, 2));
 
-})();
+  return res.send("✅ Canal agregado correctamente.");
+});
+
+// =========================================================
+// DELETE — Eliminar canal de YouTube
+// =========================================================
+
+app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => {
+  const { guildId, index } = req.params;
+  let data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
+
+  if (!data[guildId])
+    return res.status(404).send("⚠️ No hay configuraciones.");
+
+  data[guildId].splice(index, 1);
+  fs.writeFileSync(ytDataFile, JSON.stringify(data, null, 2));
+
+  res.send("🗑️ Canal eliminado correctamente.");
+});
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
