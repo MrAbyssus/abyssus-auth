@@ -1294,75 +1294,93 @@ app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
         <h2>🎬 Notificaciones de YouTube — ${guildId}</h2>
         <p>Agrega varios canales de YouTube y un canal de Discord donde publicar los videos nuevos.</p>
 
-        <h4>➕ Agregar nuevo canal</h4>
-        <form id="ytForm">
-          <label>📺 URL del canal de YouTube</label>
-          <input id="youtubeURL" placeholder="https://www.youtube.com/@usuario">
+      <h4>➕ Agregar nuevo canal</h4>
+<form id="ytForm">
+  <label>📺 URL del canal de YouTube</label>
+  <input id="youtubeURL" placeholder="https://www.youtube.com/@usuario">
 
-          <label>📢 Canal de Discord</label>
-          <select id="discordChannel">${channelOptions}</select>
+  <label>📢 Canal de Discord</label>
+  <select id="discordChannel">${channelOptions}</select>
 
-          <label>🏷️ Rol a mencionar (opcional)</label>
-          <input id="rolMencion" placeholder="@rol">
+  <label>🏷️ Rol a mencionar (opcional)</label>
+  <select id="rolMencion">${roleOptions}</select>
 
-          <button type="submit">Agregar Canal</button>
-        </form>
+  <button type="submit">Agregar Canal</button>
+</form>
 
-        <div id="result" class="mt-3"></div>
+<!-- 📌 Vista previa dinámica -->
+<h5 class="mt-3">👀 Vista previa del mensaje</h5>
+<div id="preview" class="panel">
+  Escribe una URL para ver la vista previa…
+</div>
 
-        <hr>
+<script>
+  const guildId = "${guildId}";
+  const userId = "${userId}";
 
-        <h4>📋 Canales configurados</h4>
-        <div id="listaYT">
-          ${
-            config.length === 0 
-            ? "<p>No hay canales configurados.</p>" 
-            : config.map((c, i) => `
-              <div class="panel">
-                <b>${i + 1}. Canal ID:</b> ${c.youtubeId}<br>
-                <b>📢 Publicando en:</b> <#${c.discordChannelId}><br>
-                <b>🏷 Rol:</b> ${c.mentionRole || "Ninguno"}<br>
-                <button class="btn btn-danger mt-2" onclick="deleteYT(${i})">Eliminar</button>
-              </div>
-            `).join("")
-          }
-        </div>
-      </div>
+  const urlInput = document.getElementById("youtubeURL");
+  const rolSelect = document.getElementById("rolMencion");
+  const preview = document.getElementById("preview");
 
-      <script>
-        const guildId = "${guildId}";
-        const userId = "${userId}";
+  // ================================
+  // 🔍 Vista previa automática
+  // ================================
+  function updatePreview() {
+    const url = urlInput.value.trim();
+    const rol = rolSelect.value.trim();
 
-        // Crear canal
-        document.getElementById("ytForm").addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const body = {
-            youtubeURL: document.getElementById("youtubeURL").value.trim(),
-            discordChannelId: document.getElementById("discordChannel").value.trim(),
-            mentionRole: document.getElementById("rolMencion").value.trim(),
-            userId
-          };
+    if (!url) {
+      preview.innerHTML = "Escribe una URL para ver la vista previa…";
+      return;
+    }
 
-          const r = await fetch("/api/guilds/" + guildId + "/youtube", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
-          });
+    const rolTexto = rol ? `<@&${rol}>` : "Ninguno";
 
-          const t = await r.text();
-          alert(t);
-          location.reload();
-        });
+    preview.innerHTML = `
+      <b>Nuevo video publicado 🎬</b><br>
+      Canal: <code>${url}</code><br>
+      Rol a mencionar: ${rolTexto}<br><br>
+      <i>El bot enviará este mensaje cuando detecte un video nuevo.</i>
+    `;
+  }
 
-        // Eliminar canal
-        async function deleteYT(index) {
-          const r = await fetch("/api/guilds/" + guildId + "/youtube/" + index + "?userId=" + userId, {
-            method: "DELETE"
-          });
-          alert(await r.text());
-          location.reload();
-        }
-      </script>
+  urlInput.addEventListener("input", updatePreview);
+  rolSelect.addEventListener("change", updatePreview);
+
+  // ================================
+  // 📩 Crear canal
+  // ================================
+  document.getElementById("ytForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const body = {
+      youtubeURL: urlInput.value.trim(),
+      discordChannelId: document.getElementById("discordChannel").value.trim(),
+      mentionRole: rolSelect.value.trim(),
+      userId
+    };
+
+    const r = await fetch("/api/guilds/" + guildId + "/youtube", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    alert(await r.text());
+    location.reload();
+  });
+
+  // ================================
+  // ❌ Eliminar canal
+  // ================================
+  async function deleteYT(index) {
+    const r = await fetch("/api/guilds/" + guildId + "/youtube/" + index + "?userId=" + userId, {
+      method: "DELETE"
+    });
+    alert(await r.text());
+    location.reload();
+  }
+</script>
 
     </body>
     </html>
@@ -1413,6 +1431,23 @@ app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => 
 
   data[guildId].splice(index, 1);
   fs.writeFileSync(ytDataFile, JSON.stringify(data, null, 2));
+
+  // Cargar roles del servidor
+let roleOptions = "<option value=''>Ninguno</option>";
+try {
+  const resp = await axios.get(
+    `https://discord.com/api/v10/guilds/${guildId}/roles`,
+    { headers: { Authorization: "Bot " + BOT_TOKEN } }
+  );
+
+  roleOptions += resp.data
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(r => `<option value="${r.id}">${r.name}</option>`)
+    .join("");
+
+} catch (err) {
+  console.error("Error cargando roles:", err.response?.data || err.message);
+}
 
   res.send("🗑️ Canal eliminado correctamente.");
 });
