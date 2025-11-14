@@ -1371,9 +1371,7 @@ ${
   const rolSelect = document.getElementById("rolMencion");
   const preview = document.getElementById("preview");
 
-  // ================================
-  // 🔍 Vista previa automática
-  // ================================
+  // Vista previa automática
   function updatePreview() {
     const url = urlInput.value.trim();
     const rol = rolSelect.value.trim();
@@ -1385,7 +1383,7 @@ ${
 
     const rolTexto = rol ? "&lt;@&" + rol + "&gt;" : "Ninguno";
 
-    preview.innerHTML = 
+    preview.innerHTML =
       "<b>Nuevo video publicado 🎬</b><br>" +
       "Canal: <code>" + url + "</code><br>" +
       "Rol a mencionar: " + rolTexto + "<br><br>" +
@@ -1395,9 +1393,7 @@ ${
   urlInput.addEventListener("input", updatePreview);
   rolSelect.addEventListener("change", updatePreview);
 
-  // ================================
-  // 📩 Crear canal
-  // ================================
+  // Crear canal
   document.getElementById("ytForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -1418,9 +1414,7 @@ ${
     location.reload();
   });
 
-  // ================================
-  // ❌ Eliminar canal
-  // ================================
+  // Eliminar canal
   async function deleteYT(index) {
     const r = await fetch("/api/guilds/" + guildId + "/youtube/" + index + "?userId=" + userId, {
       method: "DELETE"
