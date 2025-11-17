@@ -1250,12 +1250,6 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 const ytDataFile = path.join(__dirname, "data/youtube.json");
 if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, "{}");
 
-// SESIÓN FAKE (NO USAMOS OAUTH)
-function requireSession(req, res, next) {
-  req.sessionUserId = "static-user";
-  next();
-}
-
 // =========================================================
 // 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
 // =========================================================
