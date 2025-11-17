@@ -1248,23 +1248,79 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 // =========================================================
 // 🎥 DASHBOARD — PÁGINA PRINCIPAL
 // =========================================================
+// ==========================================
+// Archivo donde se guardan canales del DASHBOARD
+// ==========================================
+const ytDataFile = path.join(__dirname, "data/youtube.json");
+if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, "{}");
+
+// ==========================================
+// Middleware simple para permitir sessionUserId
+// ==========================================
+function requireSession(req, res, next) {
+  req.sessionUserId = "STATIC_USER"; 
+  next();
+}
+
+// ==========================================
+// PÁGINA PRINCIPAL DEL DASHBOARD
+// ==========================================
 app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
   const { guildId } = req.params;
-  const userId = req.sessionUserId;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
 
-  // Cargar JSON
   let data = {};
   try { data = JSON.parse(fs.readFileSync(ytDataFile, "utf8")); } catch {}
   const config = data[guildId] || [];
 
-  // Render del dashboard
+  // ==========================================
+  // Cargar canales reales
+  // ==========================================
+  let channelOptions = '<option value="">Selecciona un canal...</option>';
+  try {
+    const resp = await axios.get(
+      `https://discord.com/api/v10/guilds/${guildId}/channels`,
+      { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+    );
+
+    const textChannels = resp.data.filter((c) => c.type === 0);
+
+    channelOptions += textChannels
+      .map((ch) => `<option value="${ch.id}">#${ch.name}</option>`)
+      .join("");
+
+  } catch (err) {
+    console.log("Error cargando canales:", err.response?.data || err.message);
+  }
+
+  // ==========================================
+  // Cargar roles reales
+  // ==========================================
+  let roleOptions = '<option value="">Ninguno</option>';
+  try {
+    const resp = await axios.get(
+      `https://discord.com/api/v10/guilds/${guildId}/roles`,
+      { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+    );
+
+    roleOptions += resp.data
+      .sort((a,b)=>a.position - b.position)
+      .map(r => `<option value="${r.id}">${r.name}</option>`)
+      .join("");
+
+  } catch (err) {
+    console.log("Error cargando roles:", err.response?.data || err.message);
+  }
+
+  // ==========================================
+  // HTML
+  // ==========================================
   res.send(`
 <!DOCTYPE html>
 <html>
 <head>
   <title>YouTube Notifier — Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-
   <style>
     body { background:#0b0f14; color:#eaf2ff; padding:30px; }
     .container { max-width:800px; background:#111723; padding:25px; border-radius:10px; }
@@ -1276,70 +1332,67 @@ app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
 
 <body>
 <div class="container">
-  <h2>🎬 Notificaciones de YouTube — ${guildId}</h2>
 
-  <h4>➕ Agregar canal</h4>
+<h2>🎬 Notificaciones de YouTube — ${guildId}</h2>
 
-  <form id="ytForm">
-    <label>📺 URL del canal</label>
-    <input id="youtubeURL" placeholder="https://www.youtube.com/@usuario">
+<h4>➕ Agregar canal</h4>
+<form id="ytForm">
+  <label>📺 URL del canal de YouTube</label>
+  <input id="youtubeURL" placeholder="https://www.youtube.com/@usuario">
 
-    <label>📢 Canal de Discord</label>
-    <select id="discordChannel">
-        <option value="0">#general (ejemplo)</option>
-    </select>
+  <label>📢 Canal de Discord</label>
+  <select id="discordChannel">${channelOptions}</select>
 
-    <label>🏷️ Rol (opcional)</label>
-    <select id="rolMencion">
-        <option value="">Ninguno</option>
-    </select>
+  <label>🏷 Rol a mencionar (opcional)</label>
+  <select id="rolMencion">${roleOptions}</select>
 
-    <button type="submit">Agregar Canal</button>
-  </form>
+  <button type="submit">Agregar Canal</button>
+</form>
 
-  <hr>
+<hr>
 
-  <h4>📋 Canales configurados</h4>
-  <div id="listaYT">
-    ${
-      config.length === 0
-        ? "<p>No hay canales configurados.</p>"
-        : config.map((c, i) => `
-      <div class="panel">
-        <b>${i + 1}. Canal ID:</b> ${c.youtubeId}<br>
-        <b>📢 Publicando en:</b> <#${c.discordChannelId}><br>
-        <b>🏷 Rol:</b> ${c.mentionRole ? "&lt;@&" + c.mentionRole + "&gt;" : "Ninguno"}<br>
+<h4>📋 Canales configurados</h4>
+<div id="listaYT">
+  ${
+    config.length === 0
+      ? "<p>No hay canales configurados.</p>"
+      : config.map((c, i) => `
+    <div class="panel">
+      <b>${i + 1}. Canal ID:</b> ${c.youtubeId}<br>
+      <b>📢 Publicando en:</b> <#${c.discordChannelId}><br>
+      <b>🏷 Rol:</b> ${c.mentionRole ? "&lt;@&" + c.mentionRole + "&gt;" : "Ninguno"}<br>
 
-        <hr>
+      <hr>
 
-        ${
-          c.ultimoVideo
+      ${
+        c.ultimoVideo
           ? `
-            <div style="display:flex; gap:10px;">
-              <img src="https://img.youtube.com/vi/${c.ultimoVideo}/mqdefault.jpg"
-                   style="width:120px; border-radius:6px;">
-              <div>
-                <b>📹 Último video:</b><br>
-                <a href="https://youtu.be/${c.ultimoVideo}" target="_blank" style="color:#4da3ff;">
-                  Ver video
-                </a><br>
-                <small>🕒 ${c.ultimaFecha || "Fecha no disponible"}</small>
-              </div>
-            </div>
-          `
+        <div style="display:flex; gap:10px;">
+          <img src="https://img.youtube.com/vi/${c.ultimoVideo}/mqdefault.jpg"
+               style="width:120px; border-radius:6px;">
+          <div>
+            <b>📹 Último video:</b><br>
+            <a href="https://youtu.be/${c.ultimoVideo}" target="_blank" style="color:#4da3ff;">
+              Ver video
+            </a><br>
+            <small>🕒 ${c.ultimaFecha || "No disponible"}</small>
+          </div>
+        </div>
+        `
           : "<i>No hay videos detectados aún…</i>"
-        }
+      }
 
-        <button class="btn btn-danger mt-3" onclick="deleteYT(${i})">Eliminar</button>
-      </div>
-      `).join("")
-    }
-  </div>
+      <button class="btn btn-danger mt-3" onclick="deleteYT(${i})">Eliminar</button>
+    </div>
+    `).join("")
+  }
+</div>
+
 </div>
 
 <script>
 const guildId = "${guildId}";
-const userId = "${userId}";
+const userId = "${req.sessionUserId}";
 
 document.getElementById("ytForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -1375,10 +1428,9 @@ async function deleteYT(index) {
   `);
 });
 
-
-// =========================================================
-// ➕ API — AGREGAR CANAL
-// =========================================================
+// ==========================================
+// POST AGREGAR CANAL
+// ==========================================
 app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   const { guildId } = req.params;
   const { youtubeURL, discordChannelId, mentionRole } = req.body;
@@ -1386,7 +1438,7 @@ app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   let data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
   if (!data[guildId]) data[guildId] = [];
 
-  const match = youtubeURL.match(/(channel\/|@)([A-Za-z0-9_\\-]+)/);
+  const match = youtubeURL.match(/(channel\\/|@)([A-Za-z0-9_\\-]+)/);
   if (!match) return res.status(400).send("⚠️ URL incorrecta.");
 
   const id = match[2];
@@ -1403,10 +1455,9 @@ app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   res.send("✅ Canal agregado.");
 });
 
-
-// =========================================================
-// ❌ API — ELIMINAR CANAL
-// =========================================================
+// ==========================================
+// DELETE CANAL
+// ==========================================
 app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => {
   const { guildId, index } = req.params;
 
@@ -1419,21 +1470,21 @@ app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => 
   res.send("🗑️ Canal eliminado.");
 });
 
-
-// =========================================================
-// 🕒 CHECKER DE YOUTUBE — SOLO VISUAL (INDEPENDIENTE)
-// =========================================================
-console.log("🕒 Checker del dashboard activo…");
+// ==========================================
+// CHECKER: ENVÍA ALERTAS A DISCORD
+// ==========================================
+const BOT_TOKEN = process.env.BOT_TOKEN;
 
 setInterval(async () => {
   let data = {};
   try { data = JSON.parse(fs.readFileSync(ytDataFile, "utf8")); } catch {}
 
   for (const guildId of Object.keys(data)) {
-    for (const canal of data[guildId]) {
+    for (const c of data[guildId]) {
+
       try {
         const feed = await parser.parseURL(
-          `https://www.youtube.com/feeds/videos.xml?channel_id=${canal.youtubeId}`
+          `https://www.youtube.com/feeds/videos.xml?channel_id=${c.youtubeId}`
         );
 
         if (!feed.items.length) continue;
@@ -1441,14 +1492,23 @@ setInterval(async () => {
         const latest = feed.items[0];
         const videoId = latest.id.replace("yt:video:", "");
 
-        if (videoId !== canal.ultimoVideo) {
-          canal.ultimoVideo = videoId;
-          canal.ultimaFecha = latest.pubDate;
-          console.log("📹 Nuevo video detectado en dashboard:", videoId);
+        if (videoId !== c.ultimoVideo) {
+          c.ultimoVideo = videoId;
+          c.ultimaFecha = latest.pubDate;
+
+          // Enviar mensaje al canal
+          await axios.post(
+            `https://discord.com/api/v10/channels/${c.discordChannelId}/messages`,
+            {
+              content: `${c.mentionRole ? `<@&${c.mentionRole}> ` : ""}🎬 ¡Nuevo video publicado!\nhttps://youtu.be/${videoId}`
+            },
+            { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+          );
+
         }
 
       } catch (err) {
-        console.log("❌ Error feed:", canal.youtubeId, err.message);
+        console.log("Error checker:", err.message);
       }
     }
   }
