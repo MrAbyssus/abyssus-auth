@@ -1245,23 +1245,6 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 // =========================================================
 // 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
 // =========================================================
-// ==========================================
-// ARCHIVO JSON
-// ==========================================
-const ytDataFile = path.join(__dirname, "data/youtube.json");
-if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, "{}");
-
-// ==========================================
-// FIX: SESIÓN SIN AUTH
-// ==========================================
-function requireSession(req, res, next) {
-  req.sessionUserId = "DASHBOARD_USER"; // evita redirecciones a auth
-  next();
-}
-
-// =========================================================
-// 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
-// =========================================================
 
 app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
   const { guildId } = req.params;
