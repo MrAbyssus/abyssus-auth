@@ -1246,6 +1246,14 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 // 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
 // =========================================================
 
+const Parser = require("rss-parser");
+const parser = new Parser({ requestOptions: { headers: { "User-Agent": "Mozilla/5.0" } } });
+
+const ytDataFile = path.join(__dirname, "data/youtube.json");
+if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, "{}");
+
+
+
 app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
   const { guildId } = req.params;
   const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -1254,9 +1262,7 @@ app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
   try { data = JSON.parse(fs.readFileSync(ytDataFile, "utf8")); } catch {}
   const config = data[guildId] || [];
 
-  // ==========================================
-  // Cargar canales del servidor
-  // ==========================================
+  // Cargar canales
   let channelOptions = '<option value="">Selecciona un canal...</option>';
 
   try {
@@ -1266,7 +1272,6 @@ app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
     );
 
     const canales = resp.data.filter(c => c.type === 0);
-
     channelOptions += canales
       .map(ch => `<option value="${ch.id}">#${ch.name}</option>`)
       .join("");
@@ -1275,9 +1280,7 @@ app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
     console.log("Error cargando canales:", err.response?.data || err.message);
   }
 
-  // ==========================================
-  // Cargar roles reales
-  // ==========================================
+  // Cargar roles
   let roleOptions = '<option value="">Ninguno</option>';
   try {
     const resp = await axios.get(
@@ -1294,9 +1297,7 @@ app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
     console.log("Error cargando roles:", err.response?.data || err.message);
   }
 
-  // ==========================================
-  // HTML DEL DASHBOARD
-  // ==========================================
+  // HTML
   res.send(`
 <!DOCTYPE html>
 <html>
@@ -1411,10 +1412,7 @@ async function deleteYT(index) {
   `);
 });
 
-// ==========================================
-// POST: AGREGAR CANAL (REGEX FIX)
-// ==========================================
-
+// POST AGREGAR
 app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   const { guildId } = req.params;
   const { youtubeURL, discordChannelId, mentionRole } = req.body;
@@ -1422,13 +1420,10 @@ app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   let data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
   if (!data[guildId]) data[guildId] = [];
 
-  // FIX DEFINITIVO: regex en string + RegExp
-  const regex = "(?:channel\\/|@)([A-Za-z0-9_\\-]+)";
-  const match = youtubeURL.match(new RegExp(regex));
-
+  const match = youtubeURL.match(/(channel\/|@)([A-Za-z0-9_\-]+)/);
   if (!match) return res.status(400).send("⚠️ URL incorrecta.");
 
-  const id = match[1];
+  const id = match[2];
 
   data[guildId].push({
     youtubeId: id,
@@ -1442,9 +1437,7 @@ app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   res.send("✅ Canal agregado.");
 });
 
-// ==========================================
-// DELETE CANAL
-// ==========================================
+// DELETE
 app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => {
   const { guildId, index } = req.params;
 
@@ -1457,10 +1450,8 @@ app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => 
   res.send("🗑️ Canal eliminado.");
 });
 
-// ==========================================
-// CHECKER (ENVÍA ALERTAS A DISCORD)
-// ==========================================
-const BOT_TOKEN2 = process.env.BOT_TOKEN;
+// CHECKER
+const BOT_TOKEN = process.env.BOT_TOKEN;
 
 setInterval(async () => {
   let data = {};
@@ -1488,7 +1479,7 @@ setInterval(async () => {
             {
               content: `${c.mentionRole ? `<@&${c.mentionRole}> ` : ""}🎬 ¡Nuevo video publicado!\nhttps://youtu.be/${videoId}`
             },
-            { headers: { Authorization: `Bot ${BOT_TOKEN2}` } }
+            { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
           );
         }
 
