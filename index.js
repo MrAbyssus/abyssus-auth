@@ -1245,14 +1245,6 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 // =========================================================
 // 📦 IMPORTS Y CONFIG
 // =========================================================
-const express = require("express");
-const fs = require("fs");
-const path = require("path");
-const axios = require("axios");
-
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // ARCHIVO JSON
 const ytDataFile = path.join(__dirname, "data/youtube.json");
