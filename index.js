@@ -1245,18 +1245,242 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 // =========================================================
 // 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
 // =========================================================
+// =========================================================
+// 📦 IMPORTS Y CONFIG
+// =========================================================
 
-app.post("/api/update_youtube", (req, res) => {
-  const { guildId, youtubeId, ultimoVideo } = req.body;
+// Archivo JSON del dashboard (RENDER)
+const ytDataFile = path.join(__dirname, "data/youtube.json");
+if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, "{}");
 
-  const data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
 
-  const entry = data[guildId]?.find(c => c.youtubeId === youtubeId);
-  if (entry) entry.ultimoVideo = ultimoVideo;
+// =========================================================
+// 🔐 MIDDLEWARE DE SESIÓN SIMPLIFICADO
+// =========================================================
+function requireSession(req, res, next) {
+  req.sessionUserId = "123"; // Simulado, Render no usa sesiones reales aquí
+  next();
+}
+
+
+// =========================================================
+// 🎥 DASHBOARD — PÁGINA PRINCIPAL
+// =========================================================
+app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
+  const { guildId } = req.params;
+  const userId = req.sessionUserId;
+
+  // Cargar JSON
+  let data = {};
+  try { data = JSON.parse(fs.readFileSync(ytDataFile, "utf8")); } catch {}
+  const config = data[guildId] || [];
+
+  // Render del dashboard
+  res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+  <title>YouTube Notifier — Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+
+  <style>
+    body { background:#0b0f14; color:#eaf2ff; padding:30px; }
+    .container { max-width:800px; background:#111723; padding:25px; border-radius:10px; }
+    input,select { background:#1a2233; color:white; border:none; padding:10px; width:100%; border-radius:6px; margin-bottom:10px; }
+    button { background:linear-gradient(90deg,#ff0000,#cc0000); border:none; padding:10px; width:100%; color:white; border-radius:8px; font-weight:700; }
+    .panel { background:#1a2233; padding:15px; border-radius:10px; margin-top:15px; }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <h2>🎬 Notificaciones de YouTube — ${guildId}</h2>
+
+  <h4>➕ Agregar canal</h4>
+
+  <form id="ytForm">
+    <label>📺 URL del canal</label>
+    <input id="youtubeURL" placeholder="https://www.youtube.com/@usuario">
+
+    <label>📢 Canal de Discord</label>
+    <select id="discordChannel">
+        <option value="0">#general (ejemplo)</option>
+    </select>
+
+    <label>🏷️ Rol (opcional)</label>
+    <select id="rolMencion">
+        <option value="">Ninguno</option>
+    </select>
+
+    <button type="submit">Agregar Canal</button>
+  </form>
+
+  <hr>
+
+  <h4>📋 Canales configurados</h4>
+  <div id="listaYT">
+    ${
+      config.length === 0
+        ? "<p>No hay canales configurados.</p>"
+        : config.map((c, i) => `
+      <div class="panel">
+        <b>${i + 1}. Canal ID:</b> ${c.youtubeId}<br>
+        <b>📢 Publicando en:</b> <#${c.discordChannelId}><br>
+        <b>🏷 Rol:</b> ${c.mentionRole ? "&lt;@&" + c.mentionRole + "&gt;" : "Ninguno"}<br>
+
+        <hr>
+
+        ${
+          c.ultimoVideo
+          ? `
+            <div style="display:flex; gap:10px;">
+              <img src="https://img.youtube.com/vi/${c.ultimoVideo}/mqdefault.jpg"
+                   style="width:120px; border-radius:6px;">
+              <div>
+                <b>📹 Último video:</b><br>
+                <a href="https://youtu.be/${c.ultimoVideo}" target="_blank" style="color:#4da3ff;">
+                  Ver video
+                </a><br>
+                <small>🕒 ${c.ultimaFecha || "Fecha no disponible"}</small>
+              </div>
+            </div>
+          `
+          : "<i>No hay videos detectados aún…</i>"
+        }
+
+        <button class="btn btn-danger mt-3" onclick="deleteYT(${i})">Eliminar</button>
+      </div>
+      `).join("")
+    }
+  </div>
+</div>
+
+<script>
+const guildId = "${guildId}";
+const userId = "${userId}";
+
+document.getElementById("ytForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const body = {
+    youtubeURL: document.getElementById("youtubeURL").value.trim(),
+    discordChannelId: document.getElementById("discordChannel").value.trim(),
+    mentionRole: document.getElementById("rolMencion").value.trim(),
+    userId
+  };
+
+  const r = await fetch("/api/guilds/" + guildId + "/youtube", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  alert(await r.text());
+  location.reload();
+});
+
+async function deleteYT(index) {
+  const r = await fetch("/api/guilds/" + guildId + "/youtube/" + index + "?userId=" + userId, {
+    method: "DELETE"
+  });
+  alert(await r.text());
+  location.reload();
+}
+</script>
+
+</body>
+</html>
+  `);
+});
+
+
+// =========================================================
+// ➕ API — AGREGAR CANAL
+// =========================================================
+app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
+  const { guildId } = req.params;
+  const { youtubeURL, discordChannelId, mentionRole } = req.body;
+
+  let data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
+  if (!data[guildId]) data[guildId] = [];
+
+  const match = youtubeURL.match(/(channel\/|@)([A-Za-z0-9_\\-]+)/);
+  if (!match) return res.status(400).send("⚠️ URL incorrecta.");
+
+  const id = match[2];
+
+  data[guildId].push({
+    youtubeId: id,
+    discordChannelId,
+    mentionRole: mentionRole || null,
+    ultimoVideo: null,
+    ultimaFecha: null
+  });
 
   fs.writeFileSync(ytDataFile, JSON.stringify(data, null, 2));
-  res.send("OK");
+  res.send("✅ Canal agregado.");
 });
+
+
+// =========================================================
+// ❌ API — ELIMINAR CANAL
+// =========================================================
+app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => {
+  const { guildId, index } = req.params;
+
+  let data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
+  if (!data[guildId]) return res.status(404).send("No hay canales.");
+
+  data[guildId].splice(Number(index), 1);
+  fs.writeFileSync(ytDataFile, JSON.stringify(data, null, 2));
+
+  res.send("🗑️ Canal eliminado.");
+});
+
+
+// =========================================================
+// 🕒 CHECKER DE YOUTUBE — SOLO VISUAL (INDEPENDIENTE)
+// =========================================================
+console.log("🕒 Checker del dashboard activo…");
+
+setInterval(async () => {
+  let data = {};
+  try { data = JSON.parse(fs.readFileSync(ytDataFile, "utf8")); } catch {}
+
+  for (const guildId of Object.keys(data)) {
+    for (const canal of data[guildId]) {
+      try {
+        const feed = await parser.parseURL(
+          `https://www.youtube.com/feeds/videos.xml?channel_id=${canal.youtubeId}`
+        );
+
+        if (!feed.items.length) continue;
+
+        const latest = feed.items[0];
+        const videoId = latest.id.replace("yt:video:", "");
+
+        if (videoId !== canal.ultimoVideo) {
+          canal.ultimoVideo = videoId;
+          canal.ultimaFecha = latest.pubDate;
+          console.log("📹 Nuevo video detectado en dashboard:", videoId);
+        }
+
+      } catch (err) {
+        console.log("❌ Error feed:", canal.youtubeId, err.message);
+      }
+    }
+  }
+
+  fs.writeFileSync(ytDataFile, JSON.stringify(data, null, 2));
+
+}, 180000); // 3 minutos
+
+
+// =========================================================
+// SERVER
+// =========================================================
+app.listen(3000, () => console.log("Dashboard funcionando en el puerto 3000"));
+
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
