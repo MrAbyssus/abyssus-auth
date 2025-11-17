@@ -8,7 +8,6 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const app = express();
-const Parser = require("rss-parser");
 
 app.use(express.static('public'));
 app.use(express.json());
