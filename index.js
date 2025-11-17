@@ -1412,7 +1412,7 @@ async function deleteYT(index) {
 });
 
 // ==========================================
-// POST: AGREGAR CANAL
+// POST: AGREGAR CANAL (REGEX FIX)
 // ==========================================
 
 app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
@@ -1422,11 +1422,13 @@ app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   let data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
   if (!data[guildId]) data[guildId] = [];
 
-  // REGEX CORRECTA (SIN ERRORES)
-  const match = youtubeURL.match(/(channel\/|@)([A-Za-z0-9_-]+)/);
+  // FIX DEFINITIVO: regex en string + RegExp
+  const regex = "(?:channel\\/|@)([A-Za-z0-9_\\-]+)";
+  const match = youtubeURL.match(new RegExp(regex));
+
   if (!match) return res.status(400).send("⚠️ URL incorrecta.");
 
-  const id = match[2];
+  const id = match[1];
 
   data[guildId].push({
     youtubeId: id,
@@ -1439,7 +1441,6 @@ app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   fs.writeFileSync(ytDataFile, JSON.stringify(data, null, 2));
   res.send("✅ Canal agregado.");
 });
-
 
 // ==========================================
 // DELETE CANAL
@@ -1459,7 +1460,7 @@ app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => 
 // ==========================================
 // CHECKER (ENVÍA ALERTAS A DISCORD)
 // ==========================================
-const BOT_TOKEN = process.env.BOT_TOKEN;
+const BOT_TOKEN2 = process.env.BOT_TOKEN;
 
 setInterval(async () => {
   let data = {};
@@ -1487,7 +1488,7 @@ setInterval(async () => {
             {
               content: `${c.mentionRole ? `<@&${c.mentionRole}> ` : ""}🎬 ¡Nuevo video publicado!\nhttps://youtu.be/${videoId}`
             },
-            { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+            { headers: { Authorization: `Bot ${BOT_TOKEN2}` } }
           );
         }
 
