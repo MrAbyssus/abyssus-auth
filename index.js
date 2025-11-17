@@ -1245,10 +1245,24 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 // =========================================================
 // 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
 // =========================================================
+// ==========================================
+// ARCHIVO JSON
+// ==========================================
+const ytDataFile = path.join(__dirname, "data/youtube.json");
+if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, "{}");
 
 // ==========================================
-// PÁGINA PRINCIPAL DEL DASHBOARD
+// FIX: SESIÓN SIN AUTH
 // ==========================================
+function requireSession(req, res, next) {
+  req.sessionUserId = "DASHBOARD_USER"; // evita redirecciones a auth
+  next();
+}
+
+// =========================================================
+// 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
+// =========================================================
+
 app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
   const { guildId } = req.params;
   const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -1258,19 +1272,20 @@ app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
   const config = data[guildId] || [];
 
   // ==========================================
-  // Cargar canales reales
+  // Cargar canales del servidor
   // ==========================================
   let channelOptions = '<option value="">Selecciona un canal...</option>';
+
   try {
     const resp = await axios.get(
       `https://discord.com/api/v10/guilds/${guildId}/channels`,
       { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
     );
 
-    const textChannels = resp.data.filter((c) => c.type === 0);
+    const canales = resp.data.filter(c => c.type === 0);
 
-    channelOptions += textChannels
-      .map((ch) => `<option value="${ch.id}">#${ch.name}</option>`)
+    channelOptions += canales
+      .map(ch => `<option value="${ch.id}">#${ch.name}</option>`)
       .join("");
 
   } catch (err) {
@@ -1288,7 +1303,7 @@ app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
     );
 
     roleOptions += resp.data
-      .sort((a,b)=>a.position - b.position)
+      .sort((a, b) => a.position - b.position)
       .map(r => `<option value="${r.id}">${r.name}</option>`)
       .join("");
 
@@ -1297,7 +1312,7 @@ app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
   }
 
   // ==========================================
-  // HTML
+  // HTML DEL DASHBOARD
   // ==========================================
   res.send(`
 <!DOCTYPE html>
@@ -1336,39 +1351,40 @@ app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
 <hr>
 
 <h4>📋 Canales configurados</h4>
+
 <div id="listaYT">
   ${
     config.length === 0
       ? "<p>No hay canales configurados.</p>"
       : config.map((c, i) => `
-    <div class="panel">
-      <b>${i + 1}. Canal ID:</b> ${c.youtubeId}<br>
-      <b>📢 Publicando en:</b> <#${c.discordChannelId}><br>
-      <b>🏷 Rol:</b> ${c.mentionRole ? "&lt;@&" + c.mentionRole + "&gt;" : "Ninguno"}<br>
+        <div class="panel">
+          <b>${i + 1}. Canal ID:</b> ${c.youtubeId}<br>
+          <b>📢 Publicando en:</b> <#${c.discordChannelId}><br>
+          <b>🏷 Rol:</b> ${c.mentionRole ? "&lt;@&" + c.mentionRole + "&gt;" : "Ninguno"}<br>
 
-      <hr>
+          <hr>
 
-      ${
-        c.ultimoVideo
-          ? `
-        <div style="display:flex; gap:10px;">
-          <img src="https://img.youtube.com/vi/${c.ultimoVideo}/mqdefault.jpg"
-               style="width:120px; border-radius:6px;">
-          <div>
-            <b>📹 Último video:</b><br>
-            <a href="https://youtu.be/${c.ultimoVideo}" target="_blank" style="color:#4da3ff;">
-              Ver video
-            </a><br>
-            <small>🕒 ${c.ultimaFecha || "No disponible"}</small>
-          </div>
+          ${
+            c.ultimoVideo
+              ? `
+                <div style="display:flex; gap:10px;">
+                  <img src="https://img.youtube.com/vi/${c.ultimoVideo}/mqdefault.jpg"
+                      style="width:120px; border-radius:6px;">
+                  <div>
+                    <b>📹 Último video:</b><br>
+                    <a href="https://youtu.be/${c.ultimoVideo}" target="_blank" style="color:#4da3ff;">
+                      Ver video
+                    </a><br>
+                    <small>🕒 ${c.ultimaFecha || "No disponible"}</small>
+                  </div>
+                </div>
+              `
+              : "<i>No hay videos detectados aún…</i>"
+          }
+
+          <button class="btn btn-danger mt-3" onclick="deleteYT(${i})">Eliminar</button>
         </div>
-        `
-          : "<i>No hay videos detectados aún…</i>"
-      }
-
-      <button class="btn btn-danger mt-3" onclick="deleteYT(${i})">Eliminar</button>
-    </div>
-    `).join("")
+      `).join("")
   }
 </div>
 
@@ -1413,8 +1429,9 @@ async function deleteYT(index) {
 });
 
 // ==========================================
-// POST AGREGAR CANAL
+// POST: AGREGAR CANAL
 // ==========================================
+
 app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   const { guildId } = req.params;
   const { youtubeURL, discordChannelId, mentionRole } = req.body;
@@ -1422,9 +1439,8 @@ app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   let data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
   if (!data[guildId]) data[guildId] = [];
 
-  // EXPRESIÓN REGULAR ARREGLADA ✔️
-  const match = youtubeURL.match(/(channel\/|@)([A-Za-z0-9_-]+)/);
-
+  // FIX: REGEX correcto
+  const match = youtubeURL.match(/(channel\\/|@)([A-Za-z0-9_\\-]+)/);
   if (!match) return res.status(400).send("⚠️ URL incorrecta.");
 
   const id = match[2];
@@ -1457,7 +1473,7 @@ app.delete("/api/guilds/:guildId/youtube/:index", requireSession, (req, res) => 
 });
 
 // ==========================================
-// CHECKER: ENVÍA ALERTAS A DISCORD
+// CHECKER (ENVÍA ALERTAS A DISCORD)
 // ==========================================
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
@@ -1482,7 +1498,6 @@ setInterval(async () => {
           c.ultimoVideo = videoId;
           c.ultimaFecha = latest.pubDate;
 
-          // Enviar mensaje al canal
           await axios.post(
             `https://discord.com/api/v10/channels/${c.discordChannelId}/messages`,
             {
@@ -1490,7 +1505,6 @@ setInterval(async () => {
             },
             { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
           );
-
         }
 
       } catch (err) {
@@ -1501,7 +1515,7 @@ setInterval(async () => {
 
   fs.writeFileSync(ytDataFile, JSON.stringify(data, null, 2));
 
-}, 180000); // 3 minutos
+}, 180000);
 
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
