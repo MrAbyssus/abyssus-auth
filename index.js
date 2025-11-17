@@ -1245,22 +1245,6 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 // =========================================================
 // 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
 // =========================================================
-// =========================================================
-// 🎥 DASHBOARD — PÁGINA PRINCIPAL
-// =========================================================
-// ==========================================
-// Archivo donde se guardan canales del DASHBOARD
-// ==========================================
-const ytDataFile = path.join(__dirname, "data/youtube.json");
-if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, "{}");
-
-// ==========================================
-// Middleware simple para permitir sessionUserId
-// ==========================================
-function requireSession(req, res, next) {
-  req.sessionUserId = "STATIC_USER"; 
-  next();
-}
 
 // ==========================================
 // PÁGINA PRINCIPAL DEL DASHBOARD
