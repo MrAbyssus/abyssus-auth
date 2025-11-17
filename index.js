@@ -1246,13 +1246,6 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 // 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
 // =========================================================
 
-const Parser = require("rss-parser");
-
-// 👉 DEFINICIONES QUE TE FALTABAN
-const parser = new Parser({
-  requestOptions: { headers: { "User-Agent": "Mozilla/5.0" } }
-});
-
 const ytDataFile = path.join(__dirname, "data/youtube.json");
 if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, "{}");
 
