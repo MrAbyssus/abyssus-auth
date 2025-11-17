@@ -1475,13 +1475,6 @@ setInterval(async () => {
 
 }, 180000); // 3 minutos
 
-
-// =========================================================
-// SERVER
-// =========================================================
-app.listen(3000, () => console.log("Dashboard funcionando en el puerto 3000"));
-
-
 // ----------------- Start server -----------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
