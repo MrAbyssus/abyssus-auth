@@ -1416,8 +1416,7 @@ app.post("/api/guilds/:guildId/youtube", requireSession, (req, res) => {
   let data = JSON.parse(fs.readFileSync(ytDataFile, "utf8"));
   if (!data[guildId]) data[guildId] = [];
 
-  // REGEX 100% CORRECTO Y SIN ERRORES
-  const match = youtubeURL.match(/(channel\\/|@)([A-Za-z0-9_-]+)/);
+  const match = youtubeURL.match(/(channel\/|@|c\/|user\/)([A-Za-z0-9_-]+)/);
   if (!match) return res.status(400).send("⚠️ URL incorrecta.");
 
   const id = match[2];
