@@ -1246,24 +1246,6 @@ app.delete('/api/guilds/:guildId/reactionrole/:msgId', requireSession, async (re
 // 🎥 DASHBOARD — YOUTUBE NOTIFICATIONS
 // =========================================================
 // =========================================================
-// 📦 IMPORTS Y CONFIG
-// =========================================================
-
-// Archivo JSON del dashboard (RENDER)
-const ytDataFile = path.join(__dirname, "data/youtube.json");
-if (!fs.existsSync(ytDataFile)) fs.writeFileSync(ytDataFile, "{}");
-
-
-// =========================================================
-// 🔐 MIDDLEWARE DE SESIÓN SIMPLIFICADO
-// =========================================================
-function requireSession(req, res, next) {
-  req.sessionUserId = "123"; // Simulado, Render no usa sesiones reales aquí
-  next();
-}
-
-
-// =========================================================
 // 🎥 DASHBOARD — PÁGINA PRINCIPAL
 // =========================================================
 app.get("/dashboard/:guildId/youtube", requireSession, async (req, res) => {
