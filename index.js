@@ -115,6 +115,53 @@ app.get('/login', (req, res) => {
   </body></html>`);
 });
 
+
+
+
+
+
+
+app.get('/api/shards', async (req, res) => {
+  try {
+    const results = await client.shard.fetchClientValues([
+      'guilds.cache.size',
+      'ws.ping',
+      'uptime'
+    ]);
+
+    const shards = results.map((data, id) => {
+      const ping = data[1];
+      let status = 'green';
+
+      if (ping > 250) status = 'yellow';
+      if (ping > 500 || ping === -1) status = 'red';
+
+      return {
+        shardId: id,
+        guilds: data[0],
+        ping,
+        uptime: Math.floor(data[2] / 1000),
+        status
+      };
+    });
+
+    res.json({
+      total: shards.length,
+      shards
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Shard data unavailable' });
+  }
+});
+
+
+
+
+
+
+
+
+
 // ----------------- /callback -----------------
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
